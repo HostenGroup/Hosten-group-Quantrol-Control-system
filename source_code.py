@@ -14,7 +14,7 @@ sequence description, variables use and scan, input values allowed range check a
 Author  :   Vyacheslav Li (until 2.0), Andrea Pupic (later versions)
 Email   :   vyacheslav.li.1991@gmail.com, andrea.pupic@ist.ac.at
 Date    :   07.30.2024 (2.0)
-Update  :   09.2025
+Update  :   09.2025 
 Version :   2.2.3
 Contact :   https://hostenlab.pages.ist.ac.at/contact/
 '''
@@ -1326,7 +1326,7 @@ class MainWindow(QMainWindow):
         self.dialog = QDialog()
         self.dialog.setGeometry(710, 435, 400, 120)
         self.dialog.setFont(QFont('Arial', 14))
-        value_input = QLabel("Are you sure that you want to stop continuous run?")
+        value_input = QLabel("Are you sure that you want to stop the experiment?")
         dialog_layout = QVBoxLayout()
         button_yes = QPushButton("Yes")
         button_no = QPushButton("No")

@@ -162,9 +162,9 @@ def sequence_tab_build(self):
     self.stop_continuous_run_button_sequence = QPushButton(self.sequence_tab_widget)
     self.stop_continuous_run_button_sequence.setFont(QFont('Arial', 14))
     self.stop_continuous_run_button_sequence.setGeometry(10, 1060, 200, 30)
-    self.stop_continuous_run_button_sequence.setText("Stop continuous run")
+    self.stop_continuous_run_button_sequence.setText("Stop experiment")  # renamed, before Stop continuous run
     self.stop_continuous_run_button_sequence.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_sequence.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
+    self.stop_continuous_run_button_sequence.setToolTip("Stop experiment button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
    
     #button to start continuous run
     self.continuous_run_button_sequence = QPushButton(self.sequence_tab_widget)
