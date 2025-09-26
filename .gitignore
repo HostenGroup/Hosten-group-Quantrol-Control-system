@@ -3,14 +3,13 @@ default/
 repository/
 results/
 sequences/
-go_to_edge.py
-init_hardware.py
-run_experiment.py
-set_slow_dds_states.py
-last_rid.pyon
-dataset_db.pyon
+go_to_edge*
+init_hardware*
+run_experiment*
+set_slow_dds_states*
 /device_db.py
 dataset_db*
+
 
 
 
