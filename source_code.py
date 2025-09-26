@@ -11,10 +11,10 @@ Quantrol is used as a high level solution built on top of artiq infrastructure t
 timing control system with no prerequisite of coding. It features an easy to interpret table based experimental
 sequence description, variables use and scan, input values allowed range check and many more.
 
-Author  :   Vyacheslav Li 
-Email   :   vyacheslav.li.1991@gmail.com
-Date    :   07.30.2024 
-Update  :   06.2025 (by Edward, Sebastian, Andrea)
+Author  :   Vyacheslav Li (untill 2.0), Andrea Pupic (later versions)
+Email   :   vyacheslav.li.1991@gmail.com, andrea.pupic@ist.ac.at
+Date    :   07.30.2024 (2.0)
+Update  :   09.2025
 Version :   2.2.3
 Contact :   https://hostenlab.pages.ist.ac.at/contact/
 '''
