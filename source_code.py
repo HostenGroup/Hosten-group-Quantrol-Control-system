@@ -251,6 +251,7 @@ class MainWindow(QMainWindow):
             self.do_ramp = False # owl
             self.number_of_steps = 1
             self.number_of_runs = 10
+            self.cam_trigger_off_runs = 5
             self.file_name = ""
             self.scanned_variables = [] 
             self.scanned_variables_count = 0
@@ -836,7 +837,13 @@ class MainWindow(QMainWindow):
                     pass
                 else:
                     self.experiment.skip_images = False
-                    self.skip_images_button.setStyleSheet("background-color : red; color : white")
+                    self.skip_images_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+                #this was only created to avoid crushing when the old versions of experiments are loaded without the cam_trigger_off attribute
+                if hasattr(self.experiment, 'cam_trigger_off'):
+                    pass
+                else:
+                    self.experiment.cam_trigger_off = False
+                    self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
 
                 self.sequence_num_rows = len(self.experiment.sequence)
                 self.update_off()
@@ -1634,10 +1641,44 @@ class MainWindow(QMainWindow):
         self.experiment.skip_images = not self.experiment.skip_images
         if self.experiment.skip_images:
             #set the color of the button to green
-            self.skip_images_button.setStyleSheet("background-color: green; color: white")
+            self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
         else:
             #set the color of the button to red
-            self.skip_images_button.setStyleSheet("background-color: red; color: white")
+            self.skip_images_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+
+
+    def cam_trigger_off_button_clicked(self):
+        '''
+        Camera trigger off button allows running the experiment without trigering the camera even when the corresponding tab is on.
+        '''
+        self.experiment.cam_trigger_off = not self.experiment.cam_trigger_off
+        if self.experiment.cam_trigger_off:
+            #set the color of the button to green
+            self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+        else:
+            #set the color of the button to red
+            self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+
+
+    def cam_trigger_off_input_changed(self):
+        '''
+        analog to number_of_steps_input_changed
+        '''
+        if self.to_update: 
+            try:
+                expression = self.cam_trigger_off_input.text()
+                (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
+                exec("self.value = " + str(evaluation))
+                if self.value > 0: 
+                    self.experiment.cam_trigger_off_runs = int(self.value)
+                else:
+                    self.error_message("Only positive integers larger than 0 are allowed", "Wrong entry")    
+            except:
+                self.error_message("Expression can not be evaluated", "Wrong entry")
+            self.update_off()
+            self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs))
+            self.update_on()
+
 
     # owl begin    
     def ramp_table_checked(self):

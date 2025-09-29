@@ -54,6 +54,8 @@ def sequence_tab(self):
         self.sequence_table.item(row, 4).setText(str(edge.value))
 
     self.number_of_runs_input.setText(str(self.experiment.number_of_runs)) # owl 
+
+    self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
     self.update_on()
 
 
@@ -625,9 +627,15 @@ def from_object(self):
     if config.allow_skipping_images:
         #Updating the "Skip images" button color
         if self.experiment.skip_images == False:
-            self.skip_images_button.setStyleSheet("background-color : red; color : white")
+            self.skip_images_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
         else:
-            self.skip_images_button.setStyleSheet("background-color : green; color : white")
+            self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+
+    #Updating the "Cam. trigger off" button color
+    if self.experiment.cam_trigger_off == False:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+    else:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
 
     #Displaying SEQUENCE table and timing part of other tables
     for row, edge in enumerate(self.experiment.sequence):

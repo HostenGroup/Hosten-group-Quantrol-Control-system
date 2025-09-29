@@ -82,6 +82,10 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
         file.write(indentation + "delay(100*ms)\n")
         
         indentation = indentation[:-4]
+    
+    if self.experiment.cam_trigger_off == True:
+        file.write(indentation + "# Not triggering camera at the beginning of a sequence %d times \n" %(self.experiment.cam_trigger_off_runs))
+        file.write(indentation + "i_cam_trigger_off_runs = %d \n" %(self.experiment.cam_trigger_off_runs))
 
     # RACOON
     arguments = self.experiment.derived_variables
@@ -165,10 +169,24 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                     file.write(indentation + "delay(5*ms)\n")
 
                 if channel.changed == True:
-                    if channel.value == 1:
-                        file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
+                    if self.experiment.cam_trigger_off == True and index == 8: # want to skip cam triggering for channel 8 only
+                        if channel.value == 1: # 1 is on 
+                            file.write(indentation + "if i_cam_trigger_off_runs > 0:   # Skip cam triggering \n" )
+                            indentation += "    "
+                            file.write(indentation + "self.ttl" + str(index) + ".off() \n") 
+                            file.write(indentation + "i_cam_trigger_off_runs = i_cam_trigger_off_runs - 1 \n" )                            
+                            indentation = indentation[:-4]
+                            file.write(indentation + "else: \n" )                            
+                            indentation += "    "
+                            file.write(indentation + "self.ttl" + str(index) + ".on() \n") 
+                            indentation = indentation[:-4]
+                        else:
+                            file.write(indentation + "self.ttl" + str(index) + ".off() \n") 
                     else:
-                        file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
+                        if channel.value == 1: # 1 is on 
+                                file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
+                        else:
+                            file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
             
             if edge_index == 0: #adding a 10 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
                 file.write(indentation + "delay(10*ns)\n")

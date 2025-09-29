@@ -66,24 +66,33 @@ def sequence_tab_build(self):
     self.save_sequence_button.setText("Save sequence")
     self.save_sequence_button.clicked.connect(self.save_sequence_button_clicked)
     self.save_sequence_button.setToolTip("Save sequence button saves the experimental description to a file. Everything in the user interface will be saved including the title names, states of scanning table, and all tabs. The only difference will be the logger. It will not be saved. If a sequence was saved or loaded, it will overwrite the open sequence file! Therefore, be careful when pressing this button or you risk loosing the previous state of the experiment.")
+    
+    #button to save current sequence as
+    self.save_sequence_as_button = QPushButton(self.sequence_tab_widget)
+    self.save_sequence_as_button.setFont(QFont('Arial', 14))
+    self.save_sequence_as_button.setGeometry(width_of_table + 50, 80, 200, 30) 
+    self.save_sequence_as_button.setText("Save sequence as")
+    self.save_sequence_as_button.clicked.connect(self.save_sequence_as_button_clicked)
+    self.save_sequence_as_button.setToolTip("Save sequence as button allows the user to save sequences as a separate files. The currently open file will not be altered.")
+
     #button to load new sequence
     self.load_sequence_button = QPushButton(self.sequence_tab_widget)
     self.load_sequence_button.setFont(QFont('Arial', 14))
-    self.load_sequence_button.setGeometry(width_of_table + 50, 80, 200, 30)
+    self.load_sequence_button.setGeometry(width_of_table + 50, 130, 200, 30)
     self.load_sequence_button.setText("Load sequence")
     self.load_sequence_button.clicked.connect(self.load_sequence_button_clicked)
     self.load_sequence_button.setToolTip("Load sequence button allows user to load the presaved sequences. It will load the full state of the experimental sequence leaving the logger at the same state as before loading the sequence. Do save your sequences before loading new ones in order to not lose them. The newly loaded sequence file will be linked with the current state of the Quantrol. By pressing the save sequence button the user can overwrite the loaded sequence!")
     #button to insert edge
     self.insert_edge_button = QPushButton(self.sequence_tab_widget)
     self.insert_edge_button.setFont(QFont('Arial', 14))
-    self.insert_edge_button.setGeometry(width_of_table + 50, 150, 200, 30)
+    self.insert_edge_button.setGeometry(width_of_table + 50, 200, 200, 30)
     self.insert_edge_button.setText("Insert Edge")
     self.insert_edge_button.clicked.connect(self.insert_edge_button_clicked)
     self.insert_edge_button.setToolTip("Insert edge button inserts an edge in the edge of the sequence with a blank name and time expression exactly the same as the leading edge. All channels parameters will be not be user entered and therefore will display the previously set states. In other words, their changed parameters will be False meaning that they do not require the update of the hardware states at the newly inserted Edge.")
     #button to delete edge
     self.delete_edge_button = QPushButton(self.sequence_tab_widget)
     self.delete_edge_button.setFont(QFont('Arial', 14))
-    self.delete_edge_button.setGeometry(width_of_table + 50, 200, 200, 30)
+    self.delete_edge_button.setGeometry(width_of_table + 50, 250, 200, 30)
     self.delete_edge_button.setText("Delete Edge")
     self.delete_edge_button.clicked.connect(self.delete_edge_button_clicked)
     self.delete_edge_button.setToolTip("Delete edge button requires the user to choose the edge that needs to be deleted by right clicking it in the Timing Sequence table. It checks if the corresponding ID variable of the edge that needs to be deleted is used anywhere and will not allow deletion in case it is used by showing the first instance it was found to be used at. Otherwise, it deletes the selected edge and updates the Timing Sequence table.")
@@ -93,21 +102,30 @@ def sequence_tab_build(self):
         #trigger camera 10 times
         self.skip_images_button = QPushButton(self.sequence_tab_widget)
         self.skip_images_button.setFont(QFont('Arial', 14))
-        self.skip_images_button.setGeometry(width_of_table + 50, 290, 200, 30)
+        self.skip_images_button.setGeometry(width_of_table + 50, 310, 200, 30)
         self.skip_images_button.setText("Skip images")
         self.skip_images_button.clicked.connect(self.skip_images_button_clicked)
-        self.skip_images_button.setStyleSheet("background-color : green; color : white") 
+        self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""") 
         self.skip_images_button.setToolTip("Skip images button allows on demand triggering the camera acquisition 10 times in the beginning of experiment. Button's color represents current state where green indicates that the image triggering should be done, and red, when it should be avoided. Modify the write_to_python.py in order to change the triggering digital channels. The option of removing the button is in the config.py file. If not needed, set the allow_skipping_images to False")
         self.experiment.skip_images = True
 
-    #button to save current sequence as
-    self.save_sequence_as_button = QPushButton(self.sequence_tab_widget)
-    self.save_sequence_as_button.setFont(QFont('Arial', 14))
-    self.save_sequence_as_button.setGeometry(width_of_table + 50, 340, 200, 30)
-    self.save_sequence_as_button.setText("Save sequence as")
-    self.save_sequence_as_button.clicked.connect(self.save_sequence_as_button_clicked)
-    self.save_sequence_as_button.setToolTip("Save sequence as button allows the user to save sequences as a separate files. The currently open file will not be altered.")
+    #camera trigger off cam_trigger_off_runs times
+    self.cam_trigger_off_button = QPushButton(self.sequence_tab_widget)
+    self.cam_trigger_off_button.setFont(QFont('Arial', 14))
+    self.cam_trigger_off_button.setGeometry(width_of_table + 50, 350, 160, 30)
+    self.cam_trigger_off_button.setText("Cam. trigger off")
+    self.cam_trigger_off_button.clicked.connect(self.cam_trigger_off_button_clicked)
+    self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
+    self.cam_trigger_off_button.setToolTip("Camera trigger off button allows running the experiment without trigering the camera even when the corresponding tab is on. Button's color represents current state where green indicates that the image triggering should be done, and red, when it should be avoided.")
+    self.experiment.cam_trigger_off = False  # off at the beginning
+    
+    self.cam_trigger_off_input = QLineEdit(self.sequence_tab_widget)
+    self.cam_trigger_off_input.setGeometry(width_of_table + 50+162, 350, 45, 30)
+    self.cam_trigger_off_input.setFont(QFont('Arial', 14))
+    self.cam_trigger_off_input.editingFinished.connect(self.cam_trigger_off_input_changed)
+    self.cam_trigger_off_input.setText("5")
 
+    
     #button to save default
     self.save_default = QPushButton(self.sequence_tab_widget)
     self.save_default.setFont(QFont('Arial', 14))
@@ -204,7 +222,6 @@ def sequence_tab_build(self):
     self.number_of_runs_label.setFont(QFont('Arial', 14))
     self.number_of_runs_label.setText("Number of runs")
     self.number_of_runs_label.setGeometry(1050, 1060, 150, 30)
-
     self.number_of_runs_input = QLineEdit(self.sequence_tab_widget)
     self.number_of_runs_input.setGeometry(1190, 1060, 50, 30)
     self.number_of_runs_input.setFont(QFont('Arial', 14))
