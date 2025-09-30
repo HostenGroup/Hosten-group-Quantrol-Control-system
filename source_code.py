@@ -844,6 +844,12 @@ class MainWindow(QMainWindow):
                 else:
                     self.experiment.cam_trigger_off = False
                     self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+                #this was only created to avoid crushing when the old versions of experiments are loaded without the cont_run_after_exp attribute
+                if hasattr(self.experiment, 'cont_run_after_exp'):
+                    pass
+                else:
+                    self.experiment.cont_run_after_exp = False
+                    self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
 
                 self.sequence_num_rows = len(self.experiment.sequence)
                 self.update_off()
@@ -1678,6 +1684,18 @@ class MainWindow(QMainWindow):
             self.update_off()
             self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs))
             self.update_on()
+
+    def cont_run_after_exp_button_clicked(self):
+        '''
+        Allows to run continuous run right after an experiment; used with run_experiment or multiple_runs.
+        '''
+        self.experiment.cont_run_after_exp = not self.experiment.cont_run_after_exp
+        if self.experiment.cont_run_after_exp:
+            #set the color of the button to green
+            self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+        else:
+            #set the color of the button to red
+            self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
 
 
     # owl begin    

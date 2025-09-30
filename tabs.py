@@ -116,7 +116,7 @@ def sequence_tab_build(self):
     self.cam_trigger_off_button.setText("Cam. trigger off")
     self.cam_trigger_off_button.clicked.connect(self.cam_trigger_off_button_clicked)
     self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
-    self.cam_trigger_off_button.setToolTip("Camera trigger off button allows running the experiment without trigering the camera even when the corresponding tab is on. Button's color represents current state where green indicates that the image triggering should be done, and red, when it should be avoided.")
+    self.cam_trigger_off_button.setToolTip("Camera trigger off button allows running the experiment without trigering the camera even when the corresponding tab is on. Button's color represents current state where green indicates that the cam triggering should be done, and red, when it should be avoided.")
     self.experiment.cam_trigger_off = False  # off at the beginning
     
     self.cam_trigger_off_input = QLineEdit(self.sequence_tab_widget)
@@ -174,7 +174,18 @@ def sequence_tab_build(self):
     self.dummy_button.setText("Dummy button")
     self.dummy_button.clicked.connect(self.dummy_button_clicked)
     self.dummy_button.setToolTip("Dummy button is used for the debugging purposes. In the source_code.py there is a dummy_button_clicked fucntion that can be used to print various parameters at different times in order to trace the reason if something is misbehaving. Commented out portions of code are good hints for how the user could use that dummy button for debugging. So in case the debugging is required modify the dummy_button_clicked function in the source_code.py and observe the values of interest in the console of the VS Code.")
-        
+    
+    #continuous run after experiment
+    self.cont_run_after_exp_button = QPushButton(self.sequence_tab_widget)
+    self.cont_run_after_exp_button.setFont(QFont('Arial', 14))
+    self.cont_run_after_exp_button.setGeometry(width_of_table + 50, 750, 200, 30)
+    self.cont_run_after_exp_button.setText("Cont. run after exp.")
+    self.cont_run_after_exp_button.clicked.connect(self.cont_run_after_exp_button_clicked)
+    self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
+    self.cont_run_after_exp_button.setToolTip("Do automatic continuous run after expriment (does not work for run_experiment or multiple_runs). Button's color represents current state where green indicates that cont. run should be done, and red, when it should be avoided.")
+    self.experiment.cont_run_after_exp = False  # off at the beginning
+    
+
     #BUTTONS AT THE BOTTOM
     #button to stop continuous run
     self.stop_continuous_run_button_sequence = QPushButton(self.sequence_tab_widget)

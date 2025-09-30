@@ -55,7 +55,11 @@ def sequence_tab(self):
 
     self.number_of_runs_input.setText(str(self.experiment.number_of_runs)) # owl 
 
-    self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
+    try: # try, except: to be able to use old sequences (before 09/25) for this change
+        self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
+    except:
+        pass
+
     self.update_on()
 
 
@@ -632,6 +636,12 @@ def from_object(self):
             self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
 
     #Updating the "Cam. trigger off" button color
+    if self.experiment.cam_trigger_off == False:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+    else:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+
+     #Updating the "Cont. run after exp." button color
     if self.experiment.cam_trigger_off == False:
         self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
     else:
