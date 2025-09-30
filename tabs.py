@@ -182,7 +182,7 @@ def sequence_tab_build(self):
     self.cont_run_after_exp_button.setText("Cont. run after exp.")
     self.cont_run_after_exp_button.clicked.connect(self.cont_run_after_exp_button_clicked)
     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
-    self.cont_run_after_exp_button.setToolTip("Do automatic continuous run after expriment (does not work for run_experiment or multiple_runs). Button's color represents current state where green indicates that cont. run should be done, and red, when it should be avoided.")
+    self.cont_run_after_exp_button.setToolTip("Do automatic continuous run after expriment (run_experiment or multiple_runs). Button's color represents current state where green indicates that cont. run should be done, and red, when it should be avoided.")
     self.experiment.cont_run_after_exp = False  # off at the beginning
     
 

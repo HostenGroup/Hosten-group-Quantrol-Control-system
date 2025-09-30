@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
             self.name = name
             self.id = id
             self.is_scanned = is_scanned
-            self.is_ramped = is_ramped # owl
+            self.is_ramped = is_ramped 
             self.for_python = for_python
             self.digital = [self.Digital() for i in range(config.digital_channels_number)]
             self.analog = [self.Analog() for i in range(config.analog_channels_number)]

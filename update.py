@@ -55,7 +55,7 @@ def sequence_tab(self):
 
     self.number_of_runs_input.setText(str(self.experiment.number_of_runs)) # owl 
 
-    try: # try, except: to be able to use old sequences (before 09/25) for this change
+    try: # try, except in order to be able to use old sequences (before 09/25) for this change
         self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
     except:
         pass
