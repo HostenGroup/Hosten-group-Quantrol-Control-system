@@ -155,7 +155,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                         count_indentations = count_indentations + 1  # owl end
 
         
-        #RPC for derived variable calculation
+        #RPC for derived variable calculation # cowww
         if edge_index > 0:
             index_of_derived_variable = self.experiment.sequence[edge_index].derived_variable_requested
             if index_of_derived_variable != -1:

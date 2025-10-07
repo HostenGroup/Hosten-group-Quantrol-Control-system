@@ -144,7 +144,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
     self.update_on()
 
 
-def sampler_tab(self):
+def sampler_tab(self): # cow 
     self.update_off()
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.sampler_channels_number):
@@ -472,11 +472,11 @@ def variables_tab(self, new_variables = True, derived_variables = True, lookup_v
                 item = QTableWidgetItem("scanned")
                 item.setFlags(Qt.NoItemFlags)
                 self.variables_table.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp # owl
-                item = QTableWidgetItem("ramped") # owl
-                item.setFlags(Qt.NoItemFlags) # owl
-                self.variables_table.setItem(row, 1, item)  # owl
-            elif variable.name in self.experiment.sampler_variables:
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
                 self.experiment.variables[variable.name].value = 0
                 item = QTableWidgetItem("sampled")
                 item.setFlags(Qt.NoItemFlags)
@@ -492,7 +492,7 @@ def variables_tab(self, new_variables = True, derived_variables = True, lookup_v
             self.derived_variables_table.setItem(row, 1, QTableWidgetItem(variable.arguments))
             self.derived_variables_table.setItem(row, 2, QTableWidgetItem(variable.edge_id))
             self.derived_variables_table.setItem(row, 3, QTableWidgetItem(variable.function))
-            self.derived_variables_table.setItem(row, 4, QTableWidgetItem(variable.initial_value)) #RACOON
+            self.derived_variables_table.setItem(row, 4, QTableWidgetItem(variable.initial_value)) 
     if lookup_variables:
         self.lookup_variables_row_count = len(self.experiment.lookup_variables) + 1 #Since the first row is used for the dummy variable
         self.lookup_variables_table.setRowCount(self.lookup_variables_row_count)
@@ -680,12 +680,12 @@ def from_object(self):
             self.sampler_table.setItem(row,1, QTableWidgetItem(edge.name))
             self.sampler_table.setItem(row,2, QTableWidgetItem(str(edge.value)))
     
-    # update color in SEQUENCE table # fish begin
+    # update color in SEQUENCE table 
     if  self.ramp_table.isChecked() == True:
         try: 
             self.update_sequence_edge_colors()
         except:
-            pass # fish end
+            pass 
 
     #Displaying DIGITAL table
     if config.digital_channels_number > 0:

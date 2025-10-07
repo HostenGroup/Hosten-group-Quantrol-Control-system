@@ -296,7 +296,7 @@ class MainWindow(QMainWindow):
             self.arguments = arguments
             self.edge_id = edge_id
             self.function = function
-            self.initial_value = initial_value  #RACOON
+            self.initial_value = initial_value 
             
 
     class Lookup_variable:
@@ -328,7 +328,7 @@ class MainWindow(QMainWindow):
             self.min_val = min_val
             self.max_val = max_val
 
-    class Ramped_variable: # owl start
+    class Ramped_variable: 
         '''
         An object that is used to describe the ramped variable parameters
         Attributes description:
@@ -338,13 +338,12 @@ class MainWindow(QMainWindow):
             Functionramp  :  function by which ramped variable is changed
             Stepsramp :  steps for the for loop
         ''' 
-        def __init__(self, name, start_ID, end_ID, functionramp, stepsramp): #owl
+        def __init__(self, name, start_ID, end_ID, functionramp, stepsramp):
             self.name = name
             self.start_ID = start_ID 
             self.end_ID = end_ID 
             self.functionramp = functionramp 
             self.stepsramp = stepsramp 
-        # owl end
 
     class Variable: 
         '''
@@ -356,19 +355,19 @@ class MainWindow(QMainWindow):
             for_python  :   The version of the variable description that is used in the python like experimental sequence
                             generation. It is only used in write_to_python.py and only updated when the run_experiment_button_clicked
             is_scanned  :   Flag indicatinf if the variable is a scanned variable                
-            is_ramped  :   Flag indicating if the digital channel is ramped # owl
+            is_ramped  :   Flag indicating if the digital channel is ramped 
             is_sampled  :   Flag indicating if the variable is a sampled variable
             is_derived  :   Flag indicating if the variable is a derived variable
             is_lookup   :   Flag indicating if the variable is a lookup variable
             argument    :   Argument used for the lookup variables
         '''         
-        def __init__(self, name, value, for_python, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False): # owl
+        def __init__(self, name, value, for_python, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False): 
             self.name = name
             self.value = value
             self.for_python = for_python
             self.is_scanned = is_scanned
             self.is_sampled = is_sampled
-            self.is_ramped = is_ramped # owl
+            self.is_ramped = is_ramped
             self.is_derived = is_derived
             self.is_lookup = is_lookup
             self.argument = ""
@@ -676,7 +675,7 @@ class MainWindow(QMainWindow):
             text = text.replace(character, "")
         return text
     
-    # begin fish
+    
     def update_sequence_edge_colors(self): 
         # update color of sequence edges:
         # green when start_id is right before end_id, red when edge between start_id and end_id, which all other edges and when ramp not checked 
@@ -723,9 +722,8 @@ class MainWindow(QMainWindow):
                         pass
             except:
                 pass 
-            # fish end
-
-    # begin fish
+            
+    
     def startID_edge_next_to_endID_edge(self): 
         # check if all end ID edges right after start ID edges for all ramp variables
         startID_next_to_endID = True
@@ -741,7 +739,7 @@ class MainWindow(QMainWindow):
                 startID_next_to_endID = False 
                 break
         return startID_next_to_endID
-    # fish end
+    
 
     #SEQUENCE TAB RELATED FUNCTIONS
     def sequence_table_changed(self, item):
@@ -856,7 +854,7 @@ class MainWindow(QMainWindow):
                 #update the state of the checkbox for doing the scan
                 self.scan_table.setChecked(self.experiment.do_scan)
                 #update the state of the checkbox for doing the ramp
-                self.ramp_table.setChecked(self.experiment.do_ramp) # fish
+                self.ramp_table.setChecked(self.experiment.do_ramp) 
                 #update the label showing the sequence that is being modified 
                 self.experiment.file_name = loaded_file_name
                 self.create_file_name_label()
@@ -1295,7 +1293,7 @@ class MainWindow(QMainWindow):
         except:
             self.message_to_logger("Was not able to generate python file")
 
-    # owl begin
+    
     def multiple_runs_button_clicked(self):
         '''
         analog to continuous_run_button_clicked and run_experiment_button_clicked
@@ -1330,7 +1328,7 @@ class MainWindow(QMainWindow):
                 self.message_to_logger("Was not able to start experiment")
         except:
             self.message_to_logger("Was not able to generate python file")
-    # owl end
+    
         
     def stop_continuous_run_button_clicked(self):
         '''
@@ -1544,7 +1542,7 @@ class MainWindow(QMainWindow):
             self.number_of_steps_input.setText(str(self.experiment.number_of_steps))
             self.update_on()
 
-    def number_of_runs_input_changed(self): # owl LATER
+    def number_of_runs_input_changed(self): 
         '''
         analog to number_of_steps_input_changed
         '''
@@ -1698,7 +1696,7 @@ class MainWindow(QMainWindow):
             self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
 
 
-    # owl begin    
+        
     def ramp_table_checked(self):
         '''
         analog to scan_table_checked
@@ -1709,12 +1707,12 @@ class MainWindow(QMainWindow):
                 #User unchecked the ramp. Reassign the variables to the pre ramping values using self.experiment.new_variables
                 for item in self.experiment.new_variables: 
                     self.experiment.variables[item.name].functionramp = item.value 
-                    for row in range(self.sequence_num_rows):  # fish begin
+                    for row in range(self.sequence_num_rows): 
                         id_item = self.sequence_table.item(row, 2)
                         try:
                             id_item.setBackground(self.white) # update color of sequence edges, all white when ramp not checked
                         except ValueError:
-                            pass # fish end
+                            pass 
                 
             else:  #ramp is checked
                 for variable in self.experiment.ramped_variables:
@@ -1731,7 +1729,7 @@ class MainWindow(QMainWindow):
         '''
         analog to add_scanned_variable_button_pressed
         '''
-        self.experiment.ramped_variables.append(self.Ramped_variable("None", 0, 0, 0.0, 0)) # owl
+        self.experiment.ramped_variables.append(self.Ramped_variable("None", 0, 0, 0.0, 0)) 
         update.ramp_table(self)
 
 
@@ -2272,7 +2270,7 @@ class MainWindow(QMainWindow):
                 return name
 
 
-    def delete_variable_button_clicked(self):
+    def delete_variable_button_clicked(self): # cow
         '''
         Function is used when the user wants to delete the variable from the variables table.
         It checks if the variable is used in any expression by deleting it and trying to evaluate every expression.
@@ -2283,22 +2281,20 @@ class MainWindow(QMainWindow):
             name = self.variables_table.item(row,0).text()
             variable = self.experiment.new_variables[row]
             if name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
-                #Checking if the variable is being scanned and ramped
+                #Checking if the variable is being scanned or ramped
                 variable_scanned = False
-                variable_ramped = False  # owl
+                variable_ramped = False 
                 for variable in self.experiment.scanned_variables:
                     if name == variable.name:
                         variable_scanned = True
                         break
-                # owl begin
                 for variable in self.experiment.ramped_variables:
                     if name == variable.name:
                         variable_ramped = True
                         break
-                # owl end
-                if variable_scanned == False and variable_ramped == False: # owl
+                if variable_scanned == False and variable_ramped == False: 
                     #Checking if the variable is being used in arguments of derived variables
-                    is_derived_argument = False
+                    is_derived_argument = False   # owl ?
                     for derived_variable in self.experiment.derived_variables:
                         arguments = derived_variable.arguments.replace(" ","").split(",")
                         for argument in arguments:
@@ -2330,7 +2326,7 @@ class MainWindow(QMainWindow):
                     else:
                         self.error_message("The variable is used as a argument in derived variables. Remove it from the Derived variables table before deleting it.", "Derived variable's argument")
                 else:
-                    self.error_message("The variable is scanned or ramped. Remove it from the scan or ramp table before deleting.", "Scanned or Ramped variable")  # owl
+                    self.error_message("The variable is scanned or ramped. Remove it from the scan or ramp table before deleting.", "Scanned or Ramped variable") 
             else:
                 self.error_message("The variable is sampled. Remove it from the sampler tab before deleting.", "Sampled variable")
         except: #In case the user pressed delete variable button without selecting the variable that needs to be deleted
@@ -2363,22 +2359,20 @@ class MainWindow(QMainWindow):
             table_item = self.variables_table.item(row,col)
             if col == 0: #Variable name was changed
                 if variable.name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
-                    #Checking if the variable is being scanned or ramped  # owl
+                    #Checking if the variable is being scanned or ramped 
                     variable_scanned = False
-                    variable_ramped = False # owl
+                    variable_ramped = False 
                     for item in self.experiment.scanned_variables:
                         if variable.name == item.name:
                             variable_scanned = True
                             break
-                    # owl begin
                     for item in self.experiment.ramped_variables:
                         if variable.name == item.name:
                             variable_ramped = True
                             break
-                    # owl begin
-                    if variable_scanned == False and variable_ramped == False: # owl
+                    if variable_scanned == False and variable_ramped == False: 
                         #Checking if the variable is being used in arguments of derived variables
-                        is_derived_argument = False
+                        is_derived_argument = False    # owl ?
                         for derived_variable in self.experiment.derived_variables:
                             arguments = derived_variable.arguments.replace(" ","").split(",")
                             for argument in arguments:
@@ -2505,7 +2499,7 @@ class MainWindow(QMainWindow):
         '''
         variable_name = self.find_derived_variable_name_unused()
         self.experiment.names_of_derived_variables.add(variable_name)
-        self.experiment.derived_variables.append(self.Derived_variable(name = variable_name, edge_id = "", arguments = "", function = "", initial_value = ""))#RACOON
+        self.experiment.derived_variables.append(self.Derived_variable(name = variable_name, edge_id = "", arguments = "", function = "", initial_value = ""))
         self.experiment.variables[variable_name] = self.Variable(name = variable_name, value = 0.0, for_python = 0.0, is_derived = True)
         update.variables_tab(self, new_variables = False, lookup_variables = False)
 
@@ -2542,7 +2536,7 @@ class MainWindow(QMainWindow):
                 return index
 
 
-    def delete_derived_variable_button_clicked(self):
+    def delete_derived_variable_button_clicked(self):  # owl ?
         '''
         Function is used when the user wants to delete the derived variable from the table.
         '''
@@ -2553,6 +2547,40 @@ class MainWindow(QMainWindow):
             else:
                 name = self.derived_variables_table.item(row,0).text()
                 backup = deepcopy(self.experiment.variables[name])
+
+
+                #RACOONnew print begin
+                print("\n", "Deleting variable:", name)  
+                print("==== DERIVED VARIABLE NAMES SET ====")
+                print(self.experiment.names_of_derived_variables)
+                print("==== CURRENT DERIVED VARIABLES AND EDGE REFERENCES ====")
+                for i, dv in enumerate(self.experiment.derived_variables):
+                    print(f"[{i}] name: {dv.name}, edge_id: {dv.edge_id}, arguments: {dv.arguments}, function: {dv.function}, initial_value: {dv.initial_value}")
+                    edge_index = self.find_edge_index_by_id(dv.edge_id)
+                    if edge_index is not None:
+                        edge = self.experiment.sequence[edge_index]
+                        drv_idx = edge.derived_variable_requested
+                        print(f"     → Edge index: {edge_index},      → derived_variable_requested: {drv_idx}")
+                        # Optional check for consistency
+                        if drv_idx != i:
+                            print(f"  Mismatch: edge points to index {drv_idx}, but variable is at index {i}")
+                    else:
+                        print("     → Edge not found")
+                print("==== ALL EDGES AND THEIR DERIVED VARIABLE REFERENCES ====")
+                for i, edge in enumerate(self.experiment.sequence):
+                    edge_id = getattr(edge, 'id', f"index_{i}")  # fallback if edge has no `id` field
+                    drv_idx = edge.derived_variable_requested
+                    if isinstance(drv_idx, int) and drv_idx >= 0 and drv_idx < len(self.experiment.derived_variables):
+                        variable_name = self.experiment.derived_variables[drv_idx].name
+                    elif drv_idx == -1:
+                        variable_name = "(none)"
+                    else:
+                        variable_name = "(invalid index)"
+                    print(f"[{i}] edge_id: {edge_id}, derived_variable_requested: {drv_idx}, → variable: {variable_name}")
+                print("\n", "\n")
+                #RACOONnew print end
+
+
                 del self.experiment.variables[name]
                 return_value = update.digital_analog_dds_mirny_tabs(self)
                 if return_value == None: #Derived variable is not used anywhere and can be deleted
@@ -2564,6 +2592,45 @@ class MainWindow(QMainWindow):
                     del self.experiment.derived_variables[row-1] # -1 is due to the dummy variable taking the first row
                     self.derived_variables_table.setCurrentCell(row-1, 0)
                     update.variables_tab(self, new_variables = False, lookup_variables = False)
+                    #update the derived_variable_requested 
+                    for position, variable in enumerate(self.experiment.derived_variables):
+                        try:
+                            edge_index_other_var = self.find_edge_index_by_id(variable.edge_id)
+                            self.experiment.sequence[edge_index_other_var].derived_variable_requested = position
+                        except:
+                            pass
+
+                    #RACOONnew print begin
+                    print("\n", "Deleting variable:", name)  
+                    print("==== DERIVED VARIABLE NAMES SET ====")
+                    print(self.experiment.names_of_derived_variables)
+                    print("==== CURRENT DERIVED VARIABLES AND EDGE REFERENCES ====")
+                    for i, dv in enumerate(self.experiment.derived_variables):
+                        print(f"[{i}] name: {dv.name}, edge_id: {dv.edge_id}, arguments: {dv.arguments}, function: {dv.function}, initial_value: {dv.initial_value}")
+                        edge_index = self.find_edge_index_by_id(dv.edge_id)
+                        if edge_index is not None:
+                            edge = self.experiment.sequence[edge_index]
+                            drv_idx = edge.derived_variable_requested
+                            print(f"     → Edge index: {edge_index},      → derived_variable_requested: {drv_idx}")
+                            # Optional check for consistency
+                            if drv_idx != i:
+                                print(f"  Mismatch: edge points to index {drv_idx}, but variable is at index {i}")
+                        else:
+                            print("     → Edge not found")
+                    print("==== ALL EDGES AND THEIR DERIVED VARIABLE REFERENCES ====")
+                    for i, edge in enumerate(self.experiment.sequence):
+                        edge_id = getattr(edge, 'id', f"index_{i}")  # fallback if edge has no `id` field
+                        drv_idx = edge.derived_variable_requested
+                        if isinstance(drv_idx, int) and drv_idx >= 0 and drv_idx < len(self.experiment.derived_variables):
+                            variable_name = self.experiment.derived_variables[drv_idx].name
+                        elif drv_idx == -1:
+                            variable_name = "(none)"
+                        else:
+                            variable_name = "(invalid index)"
+                        print(f"[{i}] edge_id: {edge_id}, derived_variable_requested: {drv_idx}, → variable: {variable_name}")
+                    print("\n", "\n")
+                    #RACOONnew print end
+
                 else: #Derived variable is used and can not be deleted
                     self.experiment.variables[backup.name] = backup
                     update.digital_analog_dds_mirny_tabs(self)
@@ -2596,7 +2663,7 @@ class MainWindow(QMainWindow):
         
 
 
-    def delete_lookup_variable_button_clicked(self):
+    def delete_lookup_variable_button_clicked(self):   # owl ?
         '''
         Function is used when the user wants to delete the lookup variable from the table.
         '''
@@ -2615,7 +2682,7 @@ class MainWindow(QMainWindow):
             self.error_message("Select the variable that needs to be deleted", "No variable selected")
 
 
-    def derived_variables_table_changed(self, item):
+    def derived_variables_table_changed(self, item):    # owl ?
         '''
         Function is used when the user changes the values in the derived variables table. 
         '''
@@ -2757,7 +2824,7 @@ class MainWindow(QMainWindow):
     #SAMPLER TAB RELATED FUNCTIONS
     def update_sampler_table_header(self, index, name):
         '''
-        Fucntion is used to update the sampler table title name. It takes the index of the title and the name and updates it
+        Function is used to update the sampler table title name. It takes the index of the title and the name and updates it
         '''
         if name != "":
             self.experiment.title_sampler_tab[index] = "S%d"%(index - 4) + "\n" + name
@@ -2796,7 +2863,7 @@ class MainWindow(QMainWindow):
             pass
 
 
-    def sampler_table_changed(self, item):
+    def sampler_table_changed(self, item):   # owl ?
         '''
         Function is used when the user changes the values in the sampler table. It ensures that the expressions are integer values
         0 or variable name defined in variables tab. The user can delete the input and the function will assign the value to 0 and unhighlight the channel
@@ -2822,17 +2889,17 @@ class MainWindow(QMainWindow):
                     if channel == lookup_variable.argument:
                         not_in_lookup_variables = False
                         break
-                if not_in_lookup_variables:
+                if not_in_lookup_variables: #coww
                     if table_entry == "" or table_entry == "0" or table_entry == "0.0": #User deleted the value or set it to 0. The function will assign 0 value
                         if channel in self.experiment.sampler_variables: #if the previous value of the sampler was a variable we need to revert back the variables tab value and activate editing
-                            self.experiment.sampler_variables.remove(channel)
+                            self.experiment.sampler_variables.remove(channel) #owl ?
                             update.variables_tab(self, derived_variables = False)
                         self.update_off()
                         table_item.setText("0")
                         self.update_on()
                     else: #User attempted to assign a variable name to the sampler input
                         if table_entry in self.experiment.variables: #Check if the variable name is defined in the variables tab
-                            if self.experiment.variables[table_entry].is_scanned == False and self.experiment.variables[table_entry].is_ramped == False: #Check if the variable name is not scanned # owl
+                            if self.experiment.variables[table_entry].is_scanned == False and self.experiment.variables[table_entry].is_ramped == False: #Check if the variable name is not scanned
                                 if table_entry not in self.experiment.sampler_variables:
                                     #Remove the previous variable from the sampler variables if it was not 0 before the human entry
                                     if channel in self.experiment.sampler_variables:
