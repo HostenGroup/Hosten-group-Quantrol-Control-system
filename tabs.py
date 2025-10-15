@@ -55,6 +55,9 @@ def sequence_tab_build(self):
     self.sequence_table.setItem(0, 3, QTableWidgetItem(self.experiment.sequence[0].expression))
     self.sequence_table.setItem(0, 4, QTableWidgetItem(str(self.experiment.sequence[0].value)))
     
+
+
+
     #BUTTONS
     #button to save current sequence
     self.save_sequence_button = QPushButton(self.sequence_tab_widget)
@@ -63,59 +66,79 @@ def sequence_tab_build(self):
     self.save_sequence_button.setText("Save sequence")
     self.save_sequence_button.clicked.connect(self.save_sequence_button_clicked)
     self.save_sequence_button.setToolTip("Save sequence button saves the experimental description to a file. Everything in the user interface will be saved including the title names, states of scanning table, and all tabs. The only difference will be the logger. It will not be saved. If a sequence was saved or loaded, it will overwrite the open sequence file! Therefore, be careful when pressing this button or you risk loosing the previous state of the experiment.")
+    
+    #button to save current sequence as
+    self.save_sequence_as_button = QPushButton(self.sequence_tab_widget)
+    self.save_sequence_as_button.setFont(QFont('Arial', 14))
+    self.save_sequence_as_button.setGeometry(width_of_table + 50, 80, 200, 30) 
+    self.save_sequence_as_button.setText("Save sequence as")
+    self.save_sequence_as_button.clicked.connect(self.save_sequence_as_button_clicked)
+    self.save_sequence_as_button.setToolTip("Save sequence as button allows the user to save sequences as a separate files. The currently open file will not be altered.")
+
     #button to load new sequence
     self.load_sequence_button = QPushButton(self.sequence_tab_widget)
     self.load_sequence_button.setFont(QFont('Arial', 14))
-    self.load_sequence_button.setGeometry(width_of_table + 50, 80, 200, 30)
+    self.load_sequence_button.setGeometry(width_of_table + 50, 130, 200, 30)
     self.load_sequence_button.setText("Load sequence")
     self.load_sequence_button.clicked.connect(self.load_sequence_button_clicked)
     self.load_sequence_button.setToolTip("Load sequence button allows user to load the presaved sequences. It will load the full state of the experimental sequence leaving the logger at the same state as before loading the sequence. Do save your sequences before loading new ones in order to not lose them. The newly loaded sequence file will be linked with the current state of the Quantrol. By pressing the save sequence button the user can overwrite the loaded sequence!")
     #button to insert edge
     self.insert_edge_button = QPushButton(self.sequence_tab_widget)
     self.insert_edge_button.setFont(QFont('Arial', 14))
-    self.insert_edge_button.setGeometry(width_of_table + 50, 180, 200, 30)
+    self.insert_edge_button.setGeometry(width_of_table + 50, 200, 200, 30)
     self.insert_edge_button.setText("Insert Edge")
     self.insert_edge_button.clicked.connect(self.insert_edge_button_clicked)
     self.insert_edge_button.setToolTip("Insert edge button inserts an edge in the edge of the sequence with a blank name and time expression exactly the same as the leading edge. All channels parameters will be not be user entered and therefore will display the previously set states. In other words, their changed parameters will be False meaning that they do not require the update of the hardware states at the newly inserted Edge.")
     #button to delete edge
     self.delete_edge_button = QPushButton(self.sequence_tab_widget)
     self.delete_edge_button.setFont(QFont('Arial', 14))
-    self.delete_edge_button.setGeometry(width_of_table + 50, 230, 200, 30)
+    self.delete_edge_button.setGeometry(width_of_table + 50, 250, 200, 30)
     self.delete_edge_button.setText("Delete Edge")
     self.delete_edge_button.clicked.connect(self.delete_edge_button_clicked)
     self.delete_edge_button.setToolTip("Delete edge button requires the user to choose the edge that needs to be deleted by right clicking it in the Timing Sequence table. It checks if the corresponding ID variable of the edge that needs to be deleted is used anywhere and will not allow deletion in case it is used by showing the first instance it was found to be used at. Otherwise, it deletes the selected edge and updates the Timing Sequence table.")
     
+   
     if config.allow_skipping_images:
         #trigger camera 10 times
         self.skip_images_button = QPushButton(self.sequence_tab_widget)
         self.skip_images_button.setFont(QFont('Arial', 14))
-        self.skip_images_button.setGeometry(width_of_table + 50, 330, 200, 30)
+        self.skip_images_button.setGeometry(width_of_table + 50, 310, 200, 30)
         self.skip_images_button.setText("Skip images")
         self.skip_images_button.clicked.connect(self.skip_images_button_clicked)
-        self.skip_images_button.setStyleSheet("background-color : green; color : black") 
+        self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""") 
         self.skip_images_button.setToolTip("Skip images button allows on demand triggering the camera acquisition 10 times in the beginning of experiment. Button's color represents current state where green indicates that the image triggering should be done, and red, when it should be avoided. Modify the write_to_python.py in order to change the triggering digital channels. The option of removing the button is in the config.py file. If not needed, set the allow_skipping_images to False")
         self.experiment.skip_images = True
 
-    #button to save current sequence as
-    self.save_sequence_as_button = QPushButton(self.sequence_tab_widget)
-    self.save_sequence_as_button.setFont(QFont('Arial', 14))
-    self.save_sequence_as_button.setGeometry(width_of_table + 50, 380, 200, 30)
-    self.save_sequence_as_button.setText("Save sequence as")
-    self.save_sequence_as_button.clicked.connect(self.save_sequence_as_button_clicked)
-    self.save_sequence_as_button.setToolTip("Save sequence as button allows the user to save sequences as a separate files. The currently open file will not be altered.")
+    #camera trigger off cam_trigger_off_runs times
+    self.cam_trigger_off_button = QPushButton(self.sequence_tab_widget)
+    self.cam_trigger_off_button.setFont(QFont('Arial', 14))
+    self.cam_trigger_off_button.setGeometry(width_of_table + 50, 350, 160, 30)
+    self.cam_trigger_off_button.setText("Cam. trigger off")
+    self.cam_trigger_off_button.clicked.connect(self.cam_trigger_off_button_clicked)
+    self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
+    self.cam_trigger_off_button.setToolTip("Camera trigger off button allows running the experiment without trigering the camera even when the corresponding tab is on. Button's color represents current state where green indicates that the cam triggering should be done, and red, when it should be avoided.")
+    self.experiment.cam_trigger_off = False  # off at the beginning
+    
+    self.cam_trigger_off_input = QLineEdit(self.sequence_tab_widget)
+    self.cam_trigger_off_input.setGeometry(width_of_table + 50+162, 350, 45, 30)
+    self.cam_trigger_off_input.setFont(QFont('Arial', 14))
+    self.cam_trigger_off_input.editingFinished.connect(self.cam_trigger_off_input_changed)
+    self.cam_trigger_off_input.setText("5")
 
+    
     #button to save default
     self.save_default = QPushButton(self.sequence_tab_widget)
     self.save_default.setFont(QFont('Arial', 14))
-    self.save_default.setGeometry(width_of_table + 50, 480, 200, 30)
+    self.save_default.setGeometry(width_of_table + 50, 430, 200, 30)
     self.save_default.setText("Save default")
     self.save_default.clicked.connect(self.save_default_button_clicked)
     self.save_default.setToolTip("Save default button allows the user to overwrite the default state which includes the Default edge, corresponding digital, analog, and dds channels values, and channels titles. Once the default is being overwritten, next time the program is initialized with the updated default values. However, when the seqeunce is being loaded it will overwrite accodring to the saved sequence definitions.")
 
+
     #button to load default
     self.load_default = QPushButton(self.sequence_tab_widget)
     self.load_default.setFont(QFont('Arial', 14))
-    self.load_default.setGeometry(width_of_table + 50, 530, 200, 30)
+    self.load_default.setGeometry(width_of_table + 50, 480, 200, 30)
     self.load_default.setText("Load default")
     self.load_default.clicked.connect(self.load_default_button_clicked)
     self.load_default.setToolTip("Load default button allows the user to enforce the default state on the Default edge, corresponding digital, analog, and dds channels values, and channels titles. It is useful in case some older sequences are loaded and the user wants to quickly update their default edge and title names to the new default values. For example, if there is a sequence for cooling the atoms where a channel A11 was not used at all. Imagine with time the channel A11 started being used as something, for example MOT coils current voltage control. Then the user can load the old sequence, press Load default button and add whatever description was required for the A11.")
@@ -123,7 +146,7 @@ def sequence_tab_build(self):
     #button to initialize the hardware
     self.init_hardware = QPushButton(self.sequence_tab_widget)
     self.init_hardware.setFont(QFont('Arial', 14))
-    self.init_hardware.setGeometry(width_of_table + 50, 580, 200, 30)
+    self.init_hardware.setGeometry(width_of_table + 50, 530, 200, 30)
     self.init_hardware.setText("Init. hardware")
     self.init_hardware.clicked.connect(self.init_hardware_button_clicked)
     self.init_hardware.setToolTip("Init. hardware button initializes the hardware and sets its state to the default edge values. Check the init_hardware.py file in order to explicitly see what it does. In some cases the user might want to use additional functionality of Artiq that is beyond Quantrol, then the user should modify write_to_python.py go_to_edge function to include the things that require initialization. Same goes to the set_att definitions.")
@@ -131,7 +154,7 @@ def sequence_tab_build(self):
     #button to create the run_experiment.py without running the sequence. An option nice to have in case of troubleshooting
     self.generate_run_experiment_py_button = QPushButton(self.sequence_tab_widget)
     self.generate_run_experiment_py_button.setFont(QFont('Arial', 14))
-    self.generate_run_experiment_py_button.setGeometry(width_of_table + 50, 630, 200, 30)
+    self.generate_run_experiment_py_button.setGeometry(width_of_table + 50, 580, 200, 30)
     self.generate_run_experiment_py_button.setText("Generate experiment")
     self.generate_run_experiment_py_button.clicked.connect(self.generate_run_experiment_py_button_clicked)
     self.generate_run_experiment_py_button.setToolTip("Generate experiment button is used to generate the python like description of the experimental sequence that is displayed in the Quantrol. It will generate the run_experiment.py file in the same directory of the source_code.py. It is useful for debugging the experimental sequence descriptions without asking to run it. If something does not work first check if you are asking Artiq to do the correct thing by looking at the generated run_experiment.py.")
@@ -139,7 +162,7 @@ def sequence_tab_build(self):
     #button to submit the run_experiment.py without updating it with the current experimental description. It is useful in case one needs to hard code something in the sequence and wants to just run it
     self.submit_run_experiment_py_button = QPushButton(self.sequence_tab_widget)
     self.submit_run_experiment_py_button.setFont(QFont('Arial', 14))
-    self.submit_run_experiment_py_button.setGeometry(width_of_table + 260, 630, 200, 30)
+    self.submit_run_experiment_py_button.setGeometry(width_of_table + 50, 630, 200, 30)
     self.submit_run_experiment_py_button.setText("Submit experiment")
     self.submit_run_experiment_py_button.clicked.connect(self.submit_run_experiment_py_button_clicked)
     self.submit_run_experiment_py_button.setToolTip("Submit experiment button runs the current state of the run_experiment.py file without updating it with the experimental description shown in the Quantrol. It is useful when the user wants to make manual changes in the experimental sequence and run the updated run_experiment.py. For example, user can generate a two variable scan and then hardcore it to make a 2D scan with different setp sizes. Such run_experiment.py files should be properly named and saved in a separate folder for future use. Otherwise, the run_experiment.py will be overwritten by the Quantrol.")
@@ -151,15 +174,26 @@ def sequence_tab_build(self):
     self.dummy_button.setText("Dummy button")
     self.dummy_button.clicked.connect(self.dummy_button_clicked)
     self.dummy_button.setToolTip("Dummy button is used for the debugging purposes. In the source_code.py there is a dummy_button_clicked fucntion that can be used to print various parameters at different times in order to trace the reason if something is misbehaving. Commented out portions of code are good hints for how the user could use that dummy button for debugging. So in case the debugging is required modify the dummy_button_clicked function in the source_code.py and observe the values of interest in the console of the VS Code.")
-        
+    
+    #continuous run after experiment
+    self.cont_run_after_exp_button = QPushButton(self.sequence_tab_widget)
+    self.cont_run_after_exp_button.setFont(QFont('Arial', 14))
+    self.cont_run_after_exp_button.setGeometry(width_of_table + 50, 750, 200, 30)
+    self.cont_run_after_exp_button.setText("Cont. run after exp.")
+    self.cont_run_after_exp_button.clicked.connect(self.cont_run_after_exp_button_clicked)
+    self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
+    self.cont_run_after_exp_button.setToolTip("Do automatic continuous run after expriment (run_experiment or multiple_runs). Button's color represents current state where green indicates that cont. run should be done, and red, when it should be avoided.")
+    self.experiment.cont_run_after_exp = False  # off at the beginning
+    
+
     #BUTTONS AT THE BOTTOM
     #button to stop continuous run
     self.stop_continuous_run_button_sequence = QPushButton(self.sequence_tab_widget)
     self.stop_continuous_run_button_sequence.setFont(QFont('Arial', 14))
     self.stop_continuous_run_button_sequence.setGeometry(10, 1060, 200, 30)
-    self.stop_continuous_run_button_sequence.setText("Stop continuous run")
+    self.stop_continuous_run_button_sequence.setText("Stop experiment")  # renamed, before Stop continuous run
     self.stop_continuous_run_button_sequence.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_sequence.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
+    self.stop_continuous_run_button_sequence.setToolTip("Stop experiment button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
    
     #button to start continuous run
     self.continuous_run_button_sequence = QPushButton(self.sequence_tab_widget)
@@ -185,6 +219,27 @@ def sequence_tab_build(self):
     self.go_to_edge_button_sequence.clicked.connect(self.go_to_edge_button_clicked)
     self.go_to_edge_button_sequence.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
     
+    # owl begin
+    #multiple runs
+    self.multiple_runs_button_sequence = QPushButton(self.sequence_tab_widget)
+    self.multiple_runs_button_sequence.setFont(QFont('Arial', 14))
+    self.multiple_runs_button_sequence.setGeometry(850, 1060, 200, 30)
+    self.multiple_runs_button_sequence.setText("Multiple runs")
+    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
+    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
+    
+    #num of runs for multiple runs
+    self.number_of_runs_label = QLabel(self.sequence_tab_widget)
+    self.number_of_runs_label.setFont(QFont('Arial', 14))
+    self.number_of_runs_label.setText("Number of runs")
+    self.number_of_runs_label.setGeometry(1050, 1060, 150, 30)
+    self.number_of_runs_input = QLineEdit(self.sequence_tab_widget)
+    self.number_of_runs_input.setGeometry(1190, 1060, 50, 30)
+    self.number_of_runs_input.setFont(QFont('Arial', 14))
+    self.number_of_runs_input.editingFinished.connect(self.number_of_runs_input_changed)
+    self.number_of_runs_input.setText("10")
+    # owl end
+
     #TABLE OF SCANNING PARAMETERS
     self.scan_table_parameters = QTableWidget()
     self.scan_table_parameters.setColumnCount(3)
@@ -197,10 +252,11 @@ def sequence_tab_build(self):
     self.scan_table_parameters.setColumnWidth(2,200)
     self.scan_table_parameters.itemChanged.connect(self.scan_table_changed)
     
+
     #Add scanned variable button
     self.add_scanned_variable_button = QPushButton()
     self.add_scanned_variable_button.setFont(QFont('Arial', 14))
-    self.add_scanned_variable_button.resize(200, 50)
+    self.add_scanned_variable_button.resize(200, 50) 
     self.add_scanned_variable_button.setText("Add scanned variable")
     self.add_scanned_variable_button.clicked.connect(self.add_scanned_variable_button_pressed)#this should be modified
     self.add_scanned_variable_button.setToolTip("Add scanned variable button is used to add variables that require scanning. First the user should define the variables in the variblas tab and then add scanned variable and overwrite the name of the variable from None to the name of the variable that needs to be scanned. After that the variable value will be disabled and will display 'scanned'. The value of the scanned variable will be assigned to be the min value in order to allow sorting the time edges.")
@@ -211,7 +267,7 @@ def sequence_tab_build(self):
     self.delete_scanned_variable_button.setText("Delete scanned variable")
     self.delete_scanned_variable_button.clicked.connect(self.delete_scanned_variable_button_pressed)#this should be modified
     self.delete_scanned_variable_button.setToolTip("Delete scanned variable button is used to delete variables from the scanning table and hence disable their scans. The user should first right click the variable that needs to be deleted. The Quantrol will set the values of the deleted scanned variables to the values that were defined before the variable was set to scan.")
-
+    
     #Step size input
     self.number_of_steps_label = QLabel()
     self.number_of_steps_label.setText("Number of steps")
@@ -220,10 +276,9 @@ def sequence_tab_build(self):
     self.number_of_steps_input.setText("1")
 
     #warning for the user
-    self.warning_about_scan_range = QLabel(self.sequence_tab_widget)
-    self.warning_about_scan_range.setFont(QFont('Arial', 14))
-    self.warning_about_scan_range.setGeometry(width_of_table + 300, 330, 800, 30)
-    self.warning_about_scan_range.setText("Make sure the scan of variables remains withing the allowed values range!!!")
+    #self.warning_about_scan_range = QLabel(self.sequence_tab_widget)
+    #self.warning_about_scan_range.setFont(QFont('Arial', 14))
+    #self.warning_about_scan_range.setGeometry(width_of_table + 300, 330, 800, 30)
 
     #Horizontal layout
     hBox = QHBoxLayout()
@@ -240,7 +295,8 @@ def sequence_tab_build(self):
     self.scan_table.setCheckable(True)
     self.scan_table.setChecked(False)
     self.scan_table.setFont(QFont("Arial", 14))
-    self.scan_table.move(1100, 30)
+    self.scan_table.move(1100, 20)
+    self.scan_table.setFixedSize(800, 300)  # owl
     self.scan_table.toggled.connect(self.scan_table_checked)
     vBox = QVBoxLayout()
     self.scan_table.setLayout(vBox)
@@ -248,10 +304,72 @@ def sequence_tab_build(self):
     vBox.addWidget(self.scan_table_parameters)
     self.scan_table.setToolTip("This Scan checkbox is used to enable or disable the variables scan. In case of the scan was unchecked the state of the table will be disabled but the previously set parameters of the scan will remain in place. This allows the user to quickly scan and not scan variables on demand. In order to change the parameters of the scan the user should check the Scan checkbox first. Disables scanning table looks a little faded.")
 
+    # owl begin 
+    #TABLE OF RAMPING PARAMETERS
+    self.ramp_table_parameters = QTableWidget()
+    self.ramp_table_parameters.setColumnCount(5)  # owl
+    self.ramp_table_parameters.setRowCount(0)
+    self.ramp_table_parameters.verticalHeader().setVisible(False)
+    self.ramp_table_parameters.setFont(QFont("Arial", 14))
+    self.ramp_table_parameters.setHorizontalHeaderLabels(["Variable","Start ID", "End ID","Function (use i)", "i"])  # owl
+    self.ramp_table_parameters.setColumnWidth(0,145)
+    self.ramp_table_parameters.setColumnWidth(1,80)
+    self.ramp_table_parameters.setColumnWidth(2,80)
+    self.ramp_table_parameters.setColumnWidth(3,400)
+    self.ramp_table_parameters.setColumnWidth(4,60) 
+    self.ramp_table_parameters.itemChanged.connect(self.ramp_table_changed)
+    
+    #Add ramped variable button
+    self.add_ramped_variable_button = QPushButton()
+    self.add_ramped_variable_button.setFont(QFont('Arial', 14))
+    self.add_ramped_variable_button.setFixedSize(200, 30) # owl
+    self.add_ramped_variable_button.setText("Add ramped variable")
+    self.add_ramped_variable_button.clicked.connect(self.add_ramped_variable_button_pressed) #this should be modified
+    self.add_ramped_variable_button.setToolTip("Ramped variables...")
+
+    #Delete ramped variable button
+    self.delete_ramped_variable_button = QPushButton()
+    self.delete_ramped_variable_button.setFont(QFont('Arial', 14))
+    self.delete_ramped_variable_button.setFixedSize(200, 30) # owl
+    self.delete_ramped_variable_button.setText("Delete ramped variable")
+    self.delete_ramped_variable_button.clicked.connect(self.delete_ramped_variable_button_pressed)#this should be modified
+    self.delete_ramped_variable_button.setToolTip("Delete ramped variable button ...")
+
+    #Explain ramped ID # fish
+    self.add_ramped_variable_label = QLabel("End ID edge right after Start ID edge!", self)
+    self.add_ramped_variable_label.setFont(QFont('Arial', 14))
+    self.add_ramped_variable_label.setToolTip("The egde of end_ID has to be right after the edge of start_ID. This is indicated by the pink coloring in the sequence tab.")
+    
+    #Horizontal layout
+    hBox = QHBoxLayout()
+    temp = QWidget()  
+    hBox.addWidget(self.add_ramped_variable_label)  
+    hBox.addWidget(self.add_ramped_variable_button)
+    hBox.addWidget(self.delete_ramped_variable_button)      
+    temp.setLayout(hBox)
+
+    #Ramp parameters
+    self.ramp_table = QGroupBox(self.sequence_tab_widget)
+    self.ramp_table.setTitle("Ramp")
+    self.ramp_table.setCheckable(True)
+    self.ramp_table.setChecked(False)
+    self.ramp_table.setFont(QFont("Arial", 14))
+    self.ramp_table.move(1100, 320)  # owl
+    self.ramp_table.setFixedSize(800, 546)  # owl
+    self.ramp_table.toggled.connect(self.ramp_table_checked)
+    vBox = QVBoxLayout()
+    self.ramp_table.setLayout(vBox)
+    vBox.addWidget(temp)
+    vBox.addWidget(self.ramp_table_parameters)
+    self.ramp_table.setToolTip("This ramp checkbox is used to enable or disable the variables ramp. ")
+    # owl end 
+
+
+
     #show logger of the program
     self.logger = QPlainTextEdit(self.sequence_tab_widget)
     self.logger.setFont(QFont("Arial", 12))
-    self.logger.setGeometry(width_of_table + 50, 790, 1000, 300)
+    self.logger.setGeometry(width_of_table + 50, 869, 1026, 180) # owl
     self.logger.setReadOnly(True)
     self.logger.appendPlainText("Welcome to the %s lab! Hope you enjoy your stay here :)" %config.research_group_name)
     self.logger.appendPlainText("Don't forget to initialize the hardware after the power cycle!!!")
@@ -261,7 +379,7 @@ def sequence_tab_build(self):
     #clear logger button
     self.clear_logger_button = QPushButton(self.sequence_tab_widget)
     self.clear_logger_button.setFont(QFont("Arial", 14))
-    self.clear_logger_button.setGeometry(width_of_table + 50, 740, 200, 30)
+    self.clear_logger_button.setGeometry(width_of_table + 50, 820, 200, 30)
     self.clear_logger_button.setText("Clear logger")
     self.clear_logger_button.clicked.connect(self.clear_logger_button_clicked)
 
@@ -373,6 +491,15 @@ def digital_tab_build(self):
     self.go_to_edge_button_digital.clicked.connect(self.go_to_edge_button_clicked)
     self.go_to_edge_button_digital.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
 
+    # owl begin
+    #multiple runs
+    self.multiple_runs_button_sequence = QPushButton(self.digital_tab_widget)
+    self.multiple_runs_button_sequence.setFont(QFont('Arial', 14))
+    self.multiple_runs_button_sequence.setGeometry(850, 1060, 200, 30)
+    self.multiple_runs_button_sequence.setText("Multiple runs")
+    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
+    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
+
 
 #ANALOG TAB
 def analog_tab_build(self):
@@ -483,6 +610,15 @@ def analog_tab_build(self):
     self.go_to_edge_button_analog.clicked.connect(self.go_to_edge_button_clicked)
     self.go_to_edge_button_analog.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
 
+    # owl begin
+    #multiple runs
+    self.multiple_runs_button_sequence = QPushButton(self.analog_tab_widget)
+    self.multiple_runs_button_sequence.setFont(QFont('Arial', 14))
+    self.multiple_runs_button_sequence.setGeometry(850, 1060, 200, 30)
+    self.multiple_runs_button_sequence.setText("Multiple runs")
+    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
+    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
+    
 
 def dds_tab_build(self):
     self.dds_tab_num_cols = 6*config.dds_channels_number + 3
@@ -705,6 +841,15 @@ def dds_tab_build(self):
     self.go_to_edge_button_dds.clicked.connect(self.go_to_edge_button_clicked)
     self.go_to_edge_button_dds.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
 
+    # owl begin
+    #multiple runs
+    self.multiple_runs_button_sequence = QPushButton(self.dds_tab_widget)
+    self.multiple_runs_button_sequence.setFont(QFont('Arial', 14))
+    self.multiple_runs_button_sequence.setGeometry(850, 1060, 200, 30)
+    self.multiple_runs_button_sequence.setText("Multiple runs")
+    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
+    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
+
 
 def variables_tab_build(self):
     #VARIABLES TAB WIDGET
@@ -718,7 +863,7 @@ def variables_tab_build(self):
     #VARIABLES TABLE LAYOUT
     self.variables_table = QTableWidget(self.variables_tab_widget)
     width_of_table_variables = 410
-    self.variables_table.setGeometry(QRect(10, 30, width_of_table_variables, 1010))                                                #size of the table
+    self.variables_table.setGeometry(QRect(10, 30, width_of_table_variables, 1010))     #size of the table
     variables_num_columns = 2 #2 for proof of concept
     self.variables_table.setColumnCount(variables_num_columns)
     self.variables_table.setHorizontalHeaderLabels(["Name", "Value"])
@@ -755,9 +900,9 @@ def variables_tab_build(self):
     self.derived_variables_table = QTableWidget(self.variables_tab_widget)
     width_of_table_variables = 420
     self.derived_variables_table.setGeometry(QRect(440, 30, 700, 1010))  #size of the table
-    derived_variables_num_columns = 4 
+    derived_variables_num_columns = 5 #RACOON
     self.derived_variables_table.setColumnCount(derived_variables_num_columns)
-    self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Edge id","Function in python syntax"])
+    self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Edge id","Function in python syntax", "Initial value"]) #RACOON
     self.derived_variables_table.verticalHeader().setVisible(False)
     self.derived_variables_table.horizontalHeader().setFixedHeight(50)
     self.derived_variables_table.horizontalHeader().setFont(QFont('Arial', 12))
@@ -765,7 +910,8 @@ def variables_tab_build(self):
     self.derived_variables_table.setColumnWidth(0,130)
     self.derived_variables_table.setColumnWidth(1,100)
     self.derived_variables_table.setColumnWidth(2,70)
-    self.derived_variables_table.setColumnWidth(3,398)
+    self.derived_variables_table.setColumnWidth(3,310)
+    self.derived_variables_table.setColumnWidth(4,88) #RACOON
     self.derived_variables_table.setRowCount(1)
     prototypeItem = QTableWidgetItem()
     prototypeItem.setTextAlignment(Qt.AlignCenter)
@@ -781,6 +927,8 @@ def variables_tab_build(self):
     self.derived_variables_table.item(0,2).setToolTip("ID of the edge when user wants to request the calculation of the derived variable")
     self.derived_variables_table.setItem(0, 3, QTableWidgetItem("np.sin(x) + 5*np.sqrt(y)"))
     self.derived_variables_table.item(0,1).setToolTip("Function to be used to derive the variable. It should be python compatible with the numpy being imported as np")
+    self.derived_variables_table.setItem(0, 4, QTableWidgetItem("228.32")) #RACOON
+    self.derived_variables_table.item(0,1).setToolTip("Initial value for dyanmic variables...") #RACOON
     #when table contents are changed
     self.derived_variables_table.itemChanged.connect(self.derived_variables_table_changed)
 
@@ -943,6 +1091,15 @@ def sampler_tab_build(self):
     self.go_to_edge_button_sampler.clicked.connect(self.go_to_edge_button_clicked)
     self.go_to_edge_button_sampler.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
 
+    # owl begin
+    #multiple runs
+    self.multiple_runs_button_sequence = QPushButton(self.sampler_tab_widget)
+    self.multiple_runs_button_sequence.setFont(QFont('Arial', 14))
+    self.multiple_runs_button_sequence.setGeometry(850, 1060, 200, 30)
+    self.multiple_runs_button_sequence.setText("Multiple runs")
+    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
+    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
+    
 
 def mirny_tab_build(self):
     self.mirny_tab_num_cols = 6*config.mirny_channels_number + 3

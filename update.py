@@ -16,11 +16,12 @@ def sequence_tab(self):
         for row, edge in enumerate(self.experiment.sequence):
             expression = self.sequence_table.item(row,3).text()
             try:
-                (edge.evaluation, edge.for_python, edge.is_scanned, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
+                (edge.evaluation, edge.for_python, edge.is_scanned, edge.is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl 
                 if edge.id in self.experiment.variables: # in case of deleting an edge there is no self.experiment.variables[edge.id] since we delete it in oder to check whether it has been used anywhere or not
-                    if self.experiment.variables[edge.id].is_scanned != edge.is_scanned or self.experiment.variables[edge.id].for_python != edge.for_python:
+                    if self.experiment.variables[edge.id].is_scanned != edge.is_scanned or self.experiment.variables[edge.id].for_python != edge.for_python or self.experiment.variables[edge.id].is_ramped != edge.is_ramped: # owl
                         something_changed = True
                         self.experiment.variables[edge.id].is_scanned = edge.is_scanned
+                        self.experiment.variables[edge.id].is_ramped = edge.is_ramped # owl
                         self.experiment.variables[edge.id].for_python = edge.for_python
             except:
                 return "sequence table col 3, edge %d" %row
@@ -51,6 +52,14 @@ def sequence_tab(self):
         self.sequence_table.item(row, 1).setText(edge.name)
         self.sequence_table.item(row, 3).setText(edge.expression)
         self.sequence_table.item(row, 4).setText(str(edge.value))
+
+    self.number_of_runs_input.setText(str(self.experiment.number_of_runs)) # owl 
+
+    try: # try, except in order to be able to use old sequences (before 09/25) for this change
+        self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
+    except:
+        pass
+
     self.update_on()
 
 
@@ -68,7 +77,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                 if update_expressions_and_evaluations:
                     channel.expression = table_item.text()
                     try:
-                        (channel.evaluation, channel.for_python, channel.is_scanned, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
+                        (channel.evaluation, channel.for_python, channel.is_scanned, channel.is_ramped, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
                     except:
                         return "digital channel %d, edge %d" %(channel_index, row)
                 #Updating values and table
@@ -83,7 +92,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                         if channel.is_sampled:
                             table_item.setBackground(self.yellow)
                             table_item.setText(channel.expression)
-                            table_item.setToolTip("sampled")                    
+                            table_item.setToolTip("sampled")           
                         elif channel.is_derived:
                             table_item.setBackground(self.cyan)
                             table_item.setText(channel.expression)
@@ -91,7 +100,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                         elif channel.is_lookup:
                             table_item.setBackground(self.light_grey)
                             table_item.setText(channel.expression)
-                            table_item.setToolTip("lookup")    
+                            table_item.setToolTip("lookup")  
                         else:                        
                             table_item.setToolTip(str(channel.value))
                             if channel.value == 1:
@@ -135,7 +144,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
     self.update_on()
 
 
-def sampler_tab(self):
+def sampler_tab(self): # cow 
     self.update_off()
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.sampler_channels_number):
@@ -174,7 +183,7 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                     except:
                         pass
                     try:
-                        (channel.evaluation, channel.for_python, channel.is_scanned, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
+                        (channel.evaluation, channel.for_python, channel.is_scanned, channel.is_ramped, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
                     except:
                         return "analog channel %d, edge %d" %(channel_index, row)
                     #Updating values and table
@@ -198,7 +207,11 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                             elif channel.is_lookup:
                                 table_item.setBackground(self.light_grey)
                                 table_item.setText(channel.expression)
-                                table_item.setToolTip("lookup")    
+                                table_item.setToolTip("lookup") 
+                            elif channel.is_ramped: # owl begin
+                                table_item.setBackground(self.purple)
+                                table_item.setText(channel.expression)
+                                table_item.setToolTip("ramped") # owl end
                             else:                        
                                 table_item.setToolTip(str(channel.value))
                                 if channel.value != 0:
@@ -263,6 +276,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                         channel_entry.expression = table_item.text()
                         #If a value is convertible to float perform the conversion as Artiq parameters for dds channel are required to be floats not integers
                         try:
+                            #RACOON marker
                             if setting == 0: #frequency
                                 channel_entry.expression = str(float(channel_entry.expression)) #Was checked to have at least a 1 Hz level resolution
                             elif setting == 1: #amplitude
@@ -276,7 +290,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                         except:
                             pass
                         try:
-                            (channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
+                            (channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_ramped, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
                         except:
                             return "dds channel %d, edge %d" %(channel_index, row)
                     #Updating values and table entries
@@ -298,6 +312,9 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                             elif channel_entry.is_lookup:
                                 table_item.setBackground(self.light_grey)
                                 table_item.setToolTip("lookup")
+                            elif channel_entry.is_ramped: # owl begin
+                                table_item.setBackground(self.purple)
+                                table_item.setToolTip("ramped") # owl end
                             else:
                                 table_item.setToolTip(str(channel_entry.value))
                                 if channel.state.value == 1:
@@ -375,7 +392,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                         except:
                             pass
                         try:
-                            (channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
+                            (channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_ramped, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
                         except:
                             return "mirny channel %d, edge %d" %(channel_index, row)
                     #Updating values and table entries
@@ -397,6 +414,9 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                             elif channel_entry.is_lookup:
                                 table_item.setBackground(self.light_grey)
                                 table_item.setToolTip("lookup")
+                            elif channel_entry.is_ramped: # owl begin
+                                table_item.setBackground(self.purple)
+                                table_item.setToolTip("ramped") # owl end
                             else:
                                 table_item.setToolTip(str(channel_entry.value))
                                 if channel.state.value == 1:
@@ -452,7 +472,11 @@ def variables_tab(self, new_variables = True, derived_variables = True, lookup_v
                 item = QTableWidgetItem("scanned")
                 item.setFlags(Qt.NoItemFlags)
                 self.variables_table.setItem(row, 1, item) 
-            elif variable.name in self.experiment.sampler_variables:
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
                 self.experiment.variables[variable.name].value = 0
                 item = QTableWidgetItem("sampled")
                 item.setFlags(Qt.NoItemFlags)
@@ -468,6 +492,7 @@ def variables_tab(self, new_variables = True, derived_variables = True, lookup_v
             self.derived_variables_table.setItem(row, 1, QTableWidgetItem(variable.arguments))
             self.derived_variables_table.setItem(row, 2, QTableWidgetItem(variable.edge_id))
             self.derived_variables_table.setItem(row, 3, QTableWidgetItem(variable.function))
+            self.derived_variables_table.setItem(row, 4, QTableWidgetItem(variable.initial_value)) 
     if lookup_variables:
         self.lookup_variables_row_count = len(self.experiment.lookup_variables) + 1 #Since the first row is used for the dummy variable
         self.lookup_variables_table.setRowCount(self.lookup_variables_row_count)
@@ -482,13 +507,25 @@ def variables_tab(self, new_variables = True, derived_variables = True, lookup_v
 def scan_table(self):
     self.update_off()
     self.scan_table_parameters.setRowCount(len(self.experiment.scanned_variables))
-    self.number_of_steps_input.setText(str(self.experiment.number_of_steps))
+    self.number_of_steps_input.setText(str(self.experiment.number_of_steps)) # owl LATER
     for row, variable in enumerate(self.experiment.scanned_variables):
         self.scan_table_parameters.setItem(row,0, QTableWidgetItem(str(variable.name)))
         self.scan_table_parameters.setItem(row,1, QTableWidgetItem(str(variable.min_val)))
         self.scan_table_parameters.setItem(row,2, QTableWidgetItem(str(variable.max_val)))
     self.update_on()
 
+# owl begin
+def ramp_table(self):
+    self.update_off()
+    self.ramp_table_parameters.setRowCount(len(self.experiment.ramped_variables))
+    for row, variable in enumerate(self.experiment.ramped_variables):
+        self.ramp_table_parameters.setItem(row,0, QTableWidgetItem(str(variable.name)))
+        self.ramp_table_parameters.setItem(row,1, QTableWidgetItem(str(variable.start_ID)))
+        self.ramp_table_parameters.setItem(row,2, QTableWidgetItem(str(variable.end_ID)))
+        self.ramp_table_parameters.setItem(row,3, QTableWidgetItem(str(variable.functionramp))) # owl
+        self.ramp_table_parameters.setItem(row,4, QTableWidgetItem(str(variable.stepsramp))) # owl
+    self.update_on()
+# owl end 
 
 def digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations = True, update_values_and_tables = True):
     '''
@@ -594,9 +631,21 @@ def from_object(self):
     if config.allow_skipping_images:
         #Updating the "Skip images" button color
         if self.experiment.skip_images == False:
-            self.skip_images_button.setStyleSheet("background-color : red; color : white")
+            self.skip_images_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
         else:
-            self.skip_images_button.setStyleSheet("background-color : green; color : white")
+            self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+
+    #Updating the "Cam. trigger off" button color
+    if self.experiment.cam_trigger_off == False:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+    else:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+
+     #Updating the "Cont. run after exp." button color
+    if self.experiment.cam_trigger_off == False:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+    else:
+        self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
 
     #Displaying SEQUENCE table and timing part of other tables
     for row, edge in enumerate(self.experiment.sequence):
@@ -630,6 +679,13 @@ def from_object(self):
             self.sampler_table.setItem(row,0, QTableWidgetItem(str(row)))
             self.sampler_table.setItem(row,1, QTableWidgetItem(edge.name))
             self.sampler_table.setItem(row,2, QTableWidgetItem(str(edge.value)))
+    
+    # update color in SEQUENCE table 
+    if  self.ramp_table.isChecked() == True:
+        try: 
+            self.update_sequence_edge_colors()
+        except:
+            pass 
 
     #Displaying DIGITAL table
     if config.digital_channels_number > 0:
@@ -663,7 +719,7 @@ def from_object(self):
                     current_for_python = channel.for_python
                     current_is_sampled = channel.is_sampled
                     current_is_derived = channel.is_derived
-                    current_is_lookup = channel.is_lookup                
+                    current_is_lookup = channel.is_lookup  
                 else:
                     channel.expression = current_expression
                     channel.evaluation = current_evaluation
@@ -671,7 +727,7 @@ def from_object(self):
                     channel.value = current_value
                     channel.is_sampled = current_is_sampled
                     channel.is_derived = current_is_derived
-                    channel.is_lookup = current_is_lookup                
+                    channel.is_lookup = current_is_lookup                      
                     self.digital_table.setItem(row, col, QTableWidgetItem(current_expression + " "))
                     table_item = self.digital_table.item(row, col)
                     if channel.is_sampled:
@@ -698,6 +754,9 @@ def from_object(self):
                     if channel.is_sampled:
                         table_item.setBackground(self.yellow)
                         table_item.setToolTip("sampled")
+                    elif channel.is_ramped: # fish begin
+                        table_item.setBackground(self.purple)
+                        table_item.setToolTip("ramped") # fish end
                     elif channel.is_derived:
                         table_item.setBackground(self.cyan)
                         table_item.setToolTip("derived")
@@ -717,7 +776,7 @@ def from_object(self):
                     current_for_python = channel.for_python
                     current_is_sampled = channel.is_sampled
                     current_is_derived = channel.is_derived
-                    current_is_lookup = channel.is_lookup                
+                    current_is_lookup = channel.is_lookup             
                 else:
                     channel.expression = current_expression
                     channel.evaluation = current_evaluation
@@ -725,7 +784,7 @@ def from_object(self):
                     channel.value = current_value 
                     channel.is_sampled = current_is_sampled
                     channel.is_derived = current_is_derived
-                    channel.is_lookup = current_is_lookup                
+                    channel.is_lookup = current_is_lookup                        
                     self.analog_table.setItem(row, col, QTableWidgetItem(current_expression + " "))
                     table_item = self.analog_table.item(row, col)
                     if channel.is_sampled:
@@ -755,6 +814,9 @@ def from_object(self):
                         if channel_entry.is_sampled:
                             table_item.setBackground(self.yellow)
                             table_item.setToolTip("sampled")
+                        elif channel_entry.is_ramped: # fish begin
+                            table_item.setBackground(self.purple)
+                            table_item.setToolTip("ramped") # fish end
                         elif channel_entry.is_derived:
                             table_item.setBackground(self.cyan)
                             table_item.setToolTip("derived")
@@ -773,7 +835,7 @@ def from_object(self):
                         current_for_python = channel_entry.for_python
                         current_is_sampled = channel_entry.is_sampled
                         current_is_derived = channel_entry.is_derived
-                        current_is_lookup = channel_entry.is_lookup                    
+                        current_is_lookup = channel_entry.is_lookup                          
                     else:
                         self.dds_table.setItem(row, col, QTableWidgetItem(channel_entry.expression + " "))
                         table_item = self.dds_table.item(row, col)
@@ -789,7 +851,7 @@ def from_object(self):
                         elif channel_entry.is_derived:
                             table_item.setToolTip("derived")
                         elif channel_entry.is_lookup:
-                            table_item.setToolTip("lookup")
+                             table_item.setToolTip("lookup")
                         else:                        
                             table_item.setToolTip(str(channel_entry.value))                                       
                         #Color coding the values
@@ -811,6 +873,9 @@ def from_object(self):
                         if channel_entry.is_sampled:
                             table_item.setBackground(self.yellow)
                             table_item.setToolTip("sampled")
+                        elif channel.is_ramped: # fish begin
+                            table_item.setBackground(self.purple)
+                            table_item.setToolTip("ramped") # fish end
                         elif channel_entry.is_derived:
                             table_item.setBackground(self.cyan)
                             table_item.setToolTip("derived")
@@ -844,6 +909,8 @@ def from_object(self):
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
                             table_item.setToolTip("derived")
+                        elif channel_entry.is_ramped:
+                            table_item.setToolTip("ramped")
                         elif channel_entry.is_lookup:
                             table_item.setToolTip("lookup")
                         else:                        
@@ -885,4 +952,6 @@ def from_object(self):
     variables_tab(self)
     # building scanned variables table from the self.experiment.scanned_variables array
     scan_table(self)
+    # building ramped variables table from the self.experiment.ramped_variables array
+    ramp_table(self)
     self.update_on()                  
