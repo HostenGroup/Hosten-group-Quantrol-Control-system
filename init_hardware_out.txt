@@ -1,1 +1,1 @@
-WARNING:artiq.coredevice.comm_kernel:Mismatch between gateware (7.0.329c5c1) and software (8.8892+86a8d2d) versions
+WARNING:artiq.coredevice.comm_kernel:Mismatch between gateware (7.0.329c5c1) and software (8.9009+6f600dd) versions

@@ -31,6 +31,7 @@ from datetime import datetime
 from copy import deepcopy
 import update
 import threading
+import subprocess
 import config
 from scipy.io import savemat, loadmat
 
@@ -182,6 +183,55 @@ class MainWindow(QMainWindow):
                     is_lookup   :   Flag indicating if the parameter is lookup                                    
                 '''
                 def __init__(self, expression = "0.0", evaluation = 0.0, value = 0.0, changed = True, is_scanned = False, is_sampled = False, is_derived = False, is_lookup = False):
+                    self.expression = expression
+                    self.evaluation = evaluation
+                    self.for_python = evaluation
+                    self.value = value
+                    self.changed = changed   
+                    self.is_scanned = is_scanned
+                    self.is_sampled = is_sampled     
+                    self.is_derived = is_derived
+                    self.is_lookup = is_lookup
+
+        class DDS_Mirny:
+            '''
+            An object that is used to describe the state of the dds channel
+            Attributes description:
+                frequency    :   An object that is used to describe the frequency state of the dds channel
+                amplitude    :   An object that is used to describe the amplitude state of the dds channel
+                attenuation  :   An object that is used to describe the attenuation state of the dds channel
+                phase        :   An object that is used to describe the phase state of the dds channel
+                state        :   An object that is used to describe the ON/OFF state of the dds channel
+                changed      :   Flag indicating if the dds channel is required to be changed at this time edge
+            '''
+            def __init__(self, state = 0, changed = True):
+                self.frequency = self.Object()
+                self.amplitude = self.Object()
+                self.attenuation = self.Object()
+                self.phase = self.Object()
+                self.state = self.Object()
+                self.changed = changed
+
+        
+            class Object:
+                '''
+                An object that is used to describe the state of the dds channel parameters
+                Attributes description:
+                    expression  :   Mathematical expression used to describe the dds channel parameter
+                    evaluation  :   Expression that can be executed in python to evaluate the dds channel parameter
+                    value       :   The value of the dds channel parameter
+                    for_python  :   The version of the dds parameter description that is used in the python like experimental sequence
+                                    generation. It is only used in write_to_python.py and only updated when the run_experiment_button_clicked
+                    changed     :   Flag indicating if the dds channel parameter is required to be changed at this time edge. If any of the
+                                    dds parameters is required to be changed the state is going to be updated at this time edge
+                    is_scanned  :   Flag indicating if the dds channel parameter requires scanning. Even if there is a single scanned variable
+                                    in the expression, the channel parameter becomes scanned as it is supposed to be changing at different
+                                    scan steps
+                    is_sampled  :   Flag indicating if the parameter is sampled
+                    is_derived  :   Flag indicating if the parameter is dervied
+                    is_lookup   :   Flag indicating if the parameter is lookup                                    
+                '''
+                def __init__(self, expression = "55.0", evaluation = 0.0, value = 0.0, changed = True, is_scanned = False, is_sampled = False, is_derived = False, is_lookup = False):
                     self.expression = expression
                     self.evaluation = evaluation
                     self.for_python = evaluation
@@ -438,7 +488,12 @@ class MainWindow(QMainWindow):
         try:
             with open("./default/default", 'rb') as file:
                 default_experiment = pickle.load(file)
-            if (len(default_experiment.sequence[0].digital) == config.digital_channels_number) and (len(default_experiment.sequence[0].analog) == config.analog_channels_number) and (len(default_experiment.sequence[0].dds) == config.dds_channels_number) and (len(default_experiment.sequence[0].sampler) == config.sampler_channels_number) and (len(default_experiment.sequence[0].mirny) == config.mirny_channels_number) and (len(default_experiment.slow_dds) == config.slow_dds_channels_number):
+            if  (len(default_experiment.sequence[0].digital) == config.digital_channels_number) and \
+                (len(default_experiment.sequence[0].analog) == config.analog_channels_number) and \
+                (len(default_experiment.sequence[0].dds) == config.dds_channels_number) and \
+                (len(default_experiment.sequence[0].sampler) == config.sampler_channels_number) and \
+                (len(default_experiment.sequence[0].mirny) == config.mirny_channels_number) and \
+                (len(default_experiment.slow_dds) == config.slow_dds_channels_number):
                 pass
             else:
                 incompatible = True
@@ -579,7 +634,7 @@ class MainWindow(QMainWindow):
             #Adding the next character
             current += text[index]
             index += 1
-            if text[index] == "-" or text[index] == "+" or text[index] == "/" or text[index] == "*":
+            if text[index] == "-" or text[index] == "+" or text[index] == "/" or text[index] == "*" or text[index] == "(" or text[index] == ")":
                 current.replace(" ", "")
                 try: #If the current convertible to float type of value
                     float_current = float(current)
@@ -870,7 +925,7 @@ class MainWindow(QMainWindow):
                 if config.package_manager == "conda":
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run go_to_edge.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["go_to_edge.bat"])
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'go_to_edge.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 self.message_to_logger("Went to edge")
                 #unhighlighting the previously highlighted edge if it was previously highlighted
@@ -913,7 +968,8 @@ class MainWindow(QMainWindow):
                 if config.package_manager == "conda":
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
+                    # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'run_experiment.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -940,7 +996,8 @@ class MainWindow(QMainWindow):
                 if config.package_manager == "conda":
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run init_hardware.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["init_hardware.bat"])
+                    # submit_experiment_thread = threading.Thread(target=os.system, args=["init_hardware.bat"])
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'init_hardware.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -989,7 +1046,11 @@ class MainWindow(QMainWindow):
                 if config.package_manager == "conda":
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
+                    # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
+                    submit_experiment_thread = threading.Thread(
+                        target=lambda: subprocess.Popen(
+                            ['cmd', '/c', 'run_experiment.bat'],
+                            creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1095,7 +1156,11 @@ class MainWindow(QMainWindow):
                 if config.package_manager == "conda":
                     submit_run_continuously_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_run_continuously_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
+                    # submit_run_continuously_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
+                    submit_run_continuously_thread = threading.Thread(
+                        target=lambda: subprocess.Popen(
+                            ['cmd', '/c', 'run_experiment.bat'],
+                            creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_run_continuously_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
