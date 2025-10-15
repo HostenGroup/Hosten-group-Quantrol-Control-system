@@ -1047,10 +1047,7 @@ class MainWindow(QMainWindow):
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
                     # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                    submit_experiment_thread = threading.Thread(
-                        target=lambda: subprocess.Popen(
-                            ['cmd', '/c', 'run_experiment.bat'],
-                            creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'run_experiment.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1157,10 +1154,7 @@ class MainWindow(QMainWindow):
                     submit_run_continuously_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
                     # submit_run_continuously_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                    submit_run_continuously_thread = threading.Thread(
-                        target=lambda: subprocess.Popen(
-                            ['cmd', '/c', 'run_experiment.bat'],
-                            creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_run_continuously_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'cont_run.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_run_continuously_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1210,7 +1204,7 @@ class MainWindow(QMainWindow):
                 if config.package_manager == "conda":
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run init_hardware.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["init_hardware.bat"])
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'init_hardware.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 self.message_to_logger("Experiment was stopped. Hardware is set to the default values")
                 #unhighlighting the previously highlighted edge
@@ -1862,7 +1856,7 @@ class MainWindow(QMainWindow):
                 if config.package_manager == "conda":
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run set_slow_dds_states.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["set_slow_dds_states.bat"])
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'set_slow_dds_states.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 self.message_to_logger("Slow DDS states are set")
             except:
