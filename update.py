@@ -873,9 +873,9 @@ def from_object(self):
                         if channel_entry.is_sampled:
                             table_item.setBackground(self.yellow)
                             table_item.setToolTip("sampled")
-                        elif channel.is_ramped: # fish begin
-                            table_item.setBackground(self.purple)
-                            table_item.setToolTip("ramped") # fish end
+                        # elif channel.is_ramped: # fish begin
+                        #     table_item.setBackground(self.purple)
+                        #     table_item.setToolTip("ramped") # fish end
                         elif channel_entry.is_derived:
                             table_item.setBackground(self.cyan)
                             table_item.setToolTip("derived")

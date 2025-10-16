@@ -468,6 +468,10 @@ class MainWindow(QMainWindow):
     ||       ||||||   ||    ||  ||||||    ||    ||||||   |||||   ||    ||  ||||||||  ||  ||  ||
     '''
     
+
+
+
+
     def init_default_values(self):
         '''
         The function downloads the default state and initializes it by assigning the current experimental
@@ -514,6 +518,8 @@ class MainWindow(QMainWindow):
 
     
 
+
+
     def message_to_logger(self, message):
         '''
         The function is taking a message in terms of the String and displays it into the logger with the current time stamp
@@ -522,6 +528,8 @@ class MainWindow(QMainWindow):
         self.logger.appendPlainText(datetime.now().strftime("%D %H:%M:%S - ") + message)
 
  
+
+
 
     def making_separator(self):
         '''
@@ -572,6 +580,8 @@ class MainWindow(QMainWindow):
      
 
 
+
+
     def update_on(self):
         '''
         Function that sets the self.to_update to true. It was created to make the code more readable
@@ -579,11 +589,17 @@ class MainWindow(QMainWindow):
         self.to_update = True
 
 
+
+
+
     def update_off(self):
         '''
         Function that sets the self.to_update to false. It was created to make the code more readable
         '''
         self.to_update = False
+
+
+
 
 
     def error_message(self, text, title):
@@ -598,6 +614,9 @@ class MainWindow(QMainWindow):
         msg.setWindowTitle(title)
         msg.exec_()
  
+
+
+
 
     def decode_input(self, text):
         '''
@@ -666,6 +685,9 @@ class MainWindow(QMainWindow):
         return (output_eval, output_for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) #Since we added an additional sign we need to remove it # owl
 
 
+
+
+
     def remove_restricted_characters(self, text):
         '''
         Function is used to remove the restricted characters from the variable names.
@@ -676,6 +698,9 @@ class MainWindow(QMainWindow):
             text = text.replace(character, "")
         return text
     
+
+
+
     
     def update_sequence_edge_colors(self): 
         # update color of sequence edges:
@@ -723,7 +748,10 @@ class MainWindow(QMainWindow):
                         pass
             except:
                 pass 
-            
+
+
+
+
     
     def startID_edge_next_to_endID_edge(self): 
         # check if all end ID edges right after start ID edges for all ramp variables
@@ -741,6 +769,9 @@ class MainWindow(QMainWindow):
                 break
         return startID_next_to_endID
     
+
+
+
 
     #SEQUENCE TAB RELATED FUNCTIONS
     def sequence_table_changed(self, item):
@@ -799,6 +830,10 @@ class MainWindow(QMainWindow):
                         table_item.setText(str(edge.expression))
                         self.update_on()                        
 
+
+
+
+
     def save_sequence_button_clicked(self):
         '''
         Function is used when the user wants to save the sequence. In there is no file corresponsing to the sequence displayed the 
@@ -818,6 +853,9 @@ class MainWindow(QMainWindow):
             with open(self.experiment.file_name, 'wb') as file:
                 pickle.dump(self.experiment, file)
             self.message_to_logger("Sequence saved at %s" %self.experiment.file_name)
+
+
+
 
 
     def load_sequence_button_clicked(self):
@@ -865,11 +903,17 @@ class MainWindow(QMainWindow):
             self.update_on()
 
 
+
+
+
     def create_file_name_label(self):
         '''
         Function was created to make the code more readable 
         '''
         self.file_name_lable.setText(self.experiment.file_name)
+
+
+
 
 
     def find_unique_id(self):
@@ -881,6 +925,9 @@ class MainWindow(QMainWindow):
             if unique_id not in self.experiment.variables:
                 return unique_id
         
+
+
+
 
     def insert_edge_button_clicked(self):   
         '''
@@ -916,6 +963,9 @@ class MainWindow(QMainWindow):
         self.update_on()
 
 
+
+
+
     def delete_edge_button_clicked(self):
         '''
         Function is used when the user wants to delete selected edge. The user is not allowed to delete the default edge.
@@ -945,6 +995,9 @@ class MainWindow(QMainWindow):
             self.error_message("Select the edge you want to delete", "No edge selected")
 
 
+
+
+
     def set_color_of_the_edge(self, set_color, edge_num):
         '''
         Function is used to highlight or unhighlight the edge. For example, when the user wants the system to go_to_edge
@@ -966,6 +1019,9 @@ class MainWindow(QMainWindow):
         self.dds_dummy.item(edge_num+2,1).setBackground(set_color)
         self.dds_dummy.item(edge_num+2,2).setBackground(set_color)
         self.to_update = True        
+
+
+
 
     
     def go_to_edge_button_clicked(self):
@@ -1013,6 +1069,9 @@ class MainWindow(QMainWindow):
             self.error_message("Chose the edge you want the system to go","No edge selected")
 
 
+
+
+
     def count_scanned_variables(self):
         '''
         Function iterates over all scanned variables that are not "None" and assigns the total count to 
@@ -1023,6 +1082,10 @@ class MainWindow(QMainWindow):
             if variable.name != "None":
                 count += 1
         self.experiment.scanned_variables_count = count
+
+
+
+
 
     # owl begin
     def count_ramped_variables(self):
@@ -1035,6 +1098,10 @@ class MainWindow(QMainWindow):
                 countr += 1
         self.experiment.ramped_variables_count = countr
     # owl end
+
+
+
+
 
     def run_experiment_button_clicked(self): 
         '''
@@ -1076,6 +1143,9 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Was not able to generate python file")
 
 
+
+
+
     def init_hardware_button_clicked(self):
         '''
         Function is used to initialize the hardware at the default values. It generates the init_hardware.py file according to the
@@ -1105,6 +1175,9 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Was not able to generate init_hardware.py file")
 
 
+
+
+
     def generate_run_experiment_py_button_clicked(self):
         '''
         Function is used to generate the run_experiment.py according to the experimental descirption without
@@ -1119,6 +1192,9 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Python file generated")
         except:
             self.message_to_logger("Was not able to generate python file")
+
+
+
 
 
     def submit_run_experiment_py_button_clicked(self):
@@ -1161,6 +1237,10 @@ class MainWindow(QMainWindow):
         else:
             self.message_to_logger("The file run_experiment.py is not found")
         
+
+
+
+
     def dummy_button_clicked(self):
         ''' 
         Function is used to debug the program. Can be used to check the variables at different time stamps.
@@ -1240,6 +1320,7 @@ class MainWindow(QMainWindow):
 
       
 
+
     def save_sequence_as_button_clicked(self):
         '''
         Function is used when the user wants to save the sequence as a separate file. It will not reassign the current file name
@@ -1256,6 +1337,9 @@ class MainWindow(QMainWindow):
                 self.message_to_logger("Saving attempt was not successful")
         else:
             self.message_to_logger("No file name was given. Saving unsuccessful")
+
+
+
 
 
     def continuous_run_button_clicked(self):
@@ -1296,6 +1380,9 @@ class MainWindow(QMainWindow):
         except:
             self.message_to_logger("Was not able to generate python file")
 
+
+
+
     
     def multiple_runs_button_clicked(self):
         '''
@@ -1332,6 +1419,9 @@ class MainWindow(QMainWindow):
         except:
             self.message_to_logger("Was not able to generate python file")
     
+
+
+
         
     def stop_continuous_run_button_clicked(self):
         '''
@@ -1355,6 +1445,10 @@ class MainWindow(QMainWindow):
         self.dialog.setWindowTitle("Warning!") 
         self.dialog.exec_()
  
+
+
+
+
     def stop_continuous_run(self):
         '''
         This function is used to trigger the event of button_yes for stop_continuous_run_button_clicked. When using it to accept the dialog and then
@@ -1389,6 +1483,9 @@ class MainWindow(QMainWindow):
         self.dialog.accept()    
 
 
+
+
+
     def save_default_button_clicked(self):
         '''
         Function is used when the user wants to save the current state of the default edge. It first asks if the user is sure that
@@ -1414,6 +1511,9 @@ class MainWindow(QMainWindow):
         self.dialog.exec_()
 
  
+
+
+
     def saving_default(self):
         '''
         This function is used to trigger the event of button_yes for save_default_button_clicked. When using it to accept the dialog and then
@@ -1429,6 +1529,10 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Saving attempt was not successful")
         self.dialog.accept()
     
+
+
+
+
     def load_default_button_clicked(self):
         '''
         Function is used when the user wants to load the default settings. This can be used when loading the old versions of experiemnts
@@ -1450,11 +1554,17 @@ class MainWindow(QMainWindow):
         self.update_on()
 
 
+
+
+
     def clear_logger_button_clicked(self):
         '''
         The function is used to clear the logger
         '''
         self.logger.clear()
+
+
+
 
 
     def scan_table_checked(self):
@@ -1475,6 +1585,9 @@ class MainWindow(QMainWindow):
             update.digital_analog_dds_mirny_tabs(self)
             update.variables_tab(self, derived_variables = False)
         
+
+
+
     
     def add_scanned_variable_button_pressed(self):
         '''
@@ -1483,6 +1596,9 @@ class MainWindow(QMainWindow):
         '''
         self.experiment.scanned_variables.append(self.Scanned_variable("None", 0.0, 0.0))
         update.scan_table(self)
+
+
+
 
 
     def delete_scanned_variable_button_pressed(self):
@@ -1510,6 +1626,9 @@ class MainWindow(QMainWindow):
             self.error_message("Select the variable that needs to be deleted", "No variable selected")
 
 
+
+
+
     def index_of_a_new_variable(self, name):
         '''
         Function is used to find the index of the user defined variable by the name. It takes the variable name and
@@ -1522,6 +1641,9 @@ class MainWindow(QMainWindow):
                 index = ind
                 break
         return index
+
+
+
 
 
     def number_of_steps_input_changed(self):
@@ -1545,6 +1667,10 @@ class MainWindow(QMainWindow):
             self.number_of_steps_input.setText(str(self.experiment.number_of_steps))
             self.update_on()
 
+
+
+
+
     def number_of_runs_input_changed(self): 
         '''
         analog to number_of_steps_input_changed
@@ -1564,6 +1690,10 @@ class MainWindow(QMainWindow):
             self.number_of_runs_input.setText(str(self.experiment.number_of_runs))
             self.update_on()
 
+
+
+
+
     def check_if_already_scanned(self, name):
         '''
         Function takes a variable name as an input and checks if it already exists in a scanned variables list.
@@ -1573,6 +1703,9 @@ class MainWindow(QMainWindow):
             if variable.name == name:
                 return True
         return False
+
+
+
 
 
     def scan_table_changed(self, item):
@@ -1641,6 +1774,9 @@ class MainWindow(QMainWindow):
             pass
 
 
+
+
+
     def skip_images_button_clicked(self):
         '''
         Function is used to toggle the initial trigger of the camera 10 times due to the problem of image acquisition.
@@ -1654,6 +1790,9 @@ class MainWindow(QMainWindow):
             self.skip_images_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
 
 
+
+
+
     def cam_trigger_off_button_clicked(self):
         '''
         Camera trigger off button allows running the experiment without trigering the camera even when the corresponding tab is on.
@@ -1665,6 +1804,9 @@ class MainWindow(QMainWindow):
         else:
             #set the color of the button to red
             self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+
+
+
 
 
     def cam_trigger_off_input_changed(self):
@@ -1686,6 +1828,10 @@ class MainWindow(QMainWindow):
             self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs))
             self.update_on()
 
+
+
+
+
     def cont_run_after_exp_button_clicked(self):
         '''
         Allows to run continuous run right after an experiment; used with run_experiment or multiple_runs.
@@ -1699,7 +1845,9 @@ class MainWindow(QMainWindow):
             self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
 
 
-        
+
+
+
     def ramp_table_checked(self):
         '''
         analog to scan_table_checked
@@ -1728,12 +1876,18 @@ class MainWindow(QMainWindow):
             update.variables_tab(self, derived_variables = False)
 
 
+
+
+
     def add_ramped_variable_button_pressed(self):
         '''
         analog to add_scanned_variable_button_pressed
         '''
         self.experiment.ramped_variables.append(self.Ramped_variable("None", 0, 0, 0.0, 0)) 
         update.ramp_table(self)
+
+
+
 
 
     def delete_ramped_variable_button_pressed(self):
@@ -1765,6 +1919,10 @@ class MainWindow(QMainWindow):
         except:
             self.error_message("Select the variable that needs to be deleted", "No variable selected")
 
+
+
+
+
     def check_if_already_ramped(self, name):
         '''
         analog to check_if_already_scaned
@@ -1773,6 +1931,10 @@ class MainWindow(QMainWindow):
             if variable.name == name:
                 return True
         return False
+
+
+
+
 
     def ramp_table_changed(self, item):
         '''
@@ -1862,6 +2024,7 @@ class MainWindow(QMainWindow):
 
 
         
+
     #DIGITAL TAB RELATED FUNCTIONS
     def update_digital_table_header(self, index, name):
         '''
@@ -1873,6 +2036,9 @@ class MainWindow(QMainWindow):
             self.experiment.title_digital_tab[index] = "D%d"%(index - 4)
         self.digital_table.setHorizontalHeaderLabels(self.experiment.title_digital_tab)
         self.dialog.accept()
+
+
+
 
 
     def digital_table_header_clicked(self, logicalIndex):
@@ -1902,6 +2068,9 @@ class MainWindow(QMainWindow):
             self.dialog.exec_()
         else:
             pass
+
+
+
 
 
     def digital_table_changed(self, item):
@@ -1950,6 +2119,9 @@ class MainWindow(QMainWindow):
                     self.error_message("Expression can not be evaluated", "Wrong entry")
 
 
+
+
+
     #ANALOG TABLE RELATED
     def update_analog_table_header(self, index, name):
         '''
@@ -1961,6 +2133,9 @@ class MainWindow(QMainWindow):
             self.experiment.title_analog_tab[index] = "A%d"%(index - 4)
         self.analog_table.setHorizontalHeaderLabels(self.experiment.title_analog_tab)
         self.dialog.accept()
+
+
+
 
 
     def analog_table_header_clicked(self, logicalIndex):
@@ -1987,6 +2162,9 @@ class MainWindow(QMainWindow):
             button_cancel.clicked.connect(lambda: self.dialog.reject())
             self.dialog.setWindowTitle("Custom name for the channel") 
             self.dialog.exec_()
+
+
+
 
 
     def analog_table_changed(self, item):
@@ -2036,6 +2214,9 @@ class MainWindow(QMainWindow):
                     table_item.setText(channel.expression)
                     self.update_on()
                     self.error_message('Expression can not be evaluated', 'Wrong entry')
+
+
+
 
 
     #DDS TAB RELATED FUNCTIONS
@@ -2095,6 +2276,9 @@ class MainWindow(QMainWindow):
                     self.error_message('Expression can not be evaluated', 'Wrong entry')            
 
 
+
+
+
     def dds_dummy_header_changed(self, item):
         '''
         Function is used when the user wants to change the name of the dds title. 
@@ -2103,6 +2287,9 @@ class MainWindow(QMainWindow):
         if self.to_update:
             col = item.column()
             self.experiment.title_dds_tab[(col-4)//6 + 4] = self.dds_dummy_header.item(0,col).text() # title has 3 leading names and a separator
+
+
+
 
 
     #MIRNY TAB RELATED FUNCTIONS
@@ -2161,6 +2348,9 @@ class MainWindow(QMainWindow):
                     self.error_message('Expression can not be evaluated', 'Wrong entry')            
 
 
+
+
+
     def mirny_dummy_header_changed(self, item):
         '''
         Function is used when the user wants to change the name of the mirny title. 
@@ -2169,6 +2359,9 @@ class MainWindow(QMainWindow):
         if self.to_update:
             col = item.column()
             self.experiment.title_mirny_tab[(col-4)//6 + 4] = self.mirny_dummy_header.item(0,col).text() # title has 3 leading names and a separator
+
+
+
 
 
     #SLOW_DDS TAB RELATED FUNCTIONS
@@ -2240,6 +2433,9 @@ class MainWindow(QMainWindow):
                 self.experiment.title_slow_dds_tab[(col)//6 + 4] = self.slow_dds_table.item(0,col).text() 
 
 
+
+
+
     def set_slow_dds_states_button_clicked(self):
         '''
         Function is used when the user requests to set the displayed values. It will generate the experimental description
@@ -2262,6 +2458,9 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Was not able to generate python file")
     
 
+
+
+
     #VARIABLES TAB RELATED FUNCTIONS
     def find_new_variable_name_unused(self):
         '''
@@ -2271,6 +2470,9 @@ class MainWindow(QMainWindow):
             name = "var_" + str(i)
             if name not in self.experiment.variables:
                 return name
+
+
+
 
 
     def delete_variable_button_clicked(self): # cow
@@ -2336,6 +2538,9 @@ class MainWindow(QMainWindow):
             self.error_message("Select the variable that needs to be deleted", "No variable selected")
 
 
+
+
+
     def create_new_variable_button_clicked(self):
         '''
         Function is used when the user wants to create a new user defined variable. It finds the lowest unused available variable name and 
@@ -2345,6 +2550,9 @@ class MainWindow(QMainWindow):
         self.experiment.new_variables.append(self.Variable(variable_name, 0.0, 0.0))
         self.experiment.variables[variable_name] = self.Variable(variable_name, 0.0, 0.0)
         update.variables_tab(self, derived_variables = False)
+
+
+
 
 
     def variables_table_changed(self, item):
@@ -2486,6 +2694,9 @@ class MainWindow(QMainWindow):
                     self.error_message("Only integers and floating numbers are allowed.", "Wrong entry")
 
 
+
+
+
     def find_derived_variable_name_unused(self):
         '''
         Function itereates over the variable names of form derived_1, derived_2, etc. and returns the lowest available variable name
@@ -2494,6 +2705,10 @@ class MainWindow(QMainWindow):
             name = "derived_" + str(i)
             if name not in self.experiment.names_of_derived_variables:
                 return name
+
+
+
+
 
     def create_derived_variable_button_clicked(self):
         '''
@@ -2507,6 +2722,9 @@ class MainWindow(QMainWindow):
         update.variables_tab(self, new_variables = False, lookup_variables = False)
 
 
+
+
+
     def find_lookup_variable_name_unused(self):
         '''
         Function itereates over the variable names of form derived_1, derived_2, etc. and returns the lowest available variable name
@@ -2515,6 +2733,9 @@ class MainWindow(QMainWindow):
             name = "lookup_" + str(i)
             if name not in self.experiment.names_of_lookup_variables:
                 return name
+
+
+
 
 
     def create_lookup_variable_button_clicked(self):
@@ -2529,6 +2750,9 @@ class MainWindow(QMainWindow):
         update.variables_tab(self, new_variables = False, derived_variables = False)
 
 
+
+
+
     def find_edge_index_by_id(self, id):
         '''
         Function is used to find the index of the edge by its id value. It iterates over all edges and returns the 
@@ -2537,6 +2761,9 @@ class MainWindow(QMainWindow):
         for index, edge in enumerate(self.experiment.sequence):
             if edge.id == id:
                 return index
+
+
+
 
 
     def delete_derived_variable_button_clicked(self):  # owl ?
@@ -2643,6 +2870,9 @@ class MainWindow(QMainWindow):
             self.error_message("Select the variable that needs to be deleted", "No variable selected")
 
 
+
+
+
     def load_lookup_list_button_clicked(self):
         try:
             row = self.lookup_variables_table.selectedIndexes()[0].row()
@@ -2666,6 +2896,8 @@ class MainWindow(QMainWindow):
         
 
 
+
+
     def delete_lookup_variable_button_clicked(self):   # owl ?
         '''
         Function is used when the user wants to delete the lookup variable from the table.
@@ -2683,6 +2915,9 @@ class MainWindow(QMainWindow):
                 update.variables_tab(self, new_variables = False, derived_variables = False)
         except: #In case the user pressed delete variable button without selecting the variable that needs to be deleted
             self.error_message("Select the variable that needs to be deleted", "No variable selected")
+
+
+
 
 
     def derived_variables_table_changed(self, item):    # owl ?
@@ -2778,6 +3013,9 @@ class MainWindow(QMainWindow):
             #RACOON END
 
 
+
+
+
     def lookup_variables_table_changed(self, item):
         '''
         Function is used when the user changes the values in the lookup variables table. 
@@ -2824,6 +3062,9 @@ class MainWindow(QMainWindow):
                     self.experiment.variables[variable.name].argument = table_item_text
 
 
+
+
+
     #SAMPLER TAB RELATED FUNCTIONS
     def update_sampler_table_header(self, index, name):
         '''
@@ -2835,6 +3076,9 @@ class MainWindow(QMainWindow):
             self.experiment.title_sampler_tab[index] = "S%d"%(index - 4)        
         self.sampler_table.setHorizontalHeaderLabels(self.experiment.title_sampler_tab)
         self.dialog.accept()
+
+
+
 
 
     def sampler_table_header_clicked(self, logicalIndex):
@@ -2864,6 +3108,9 @@ class MainWindow(QMainWindow):
             self.dialog.exec_()
         else:
             pass
+
+
+
 
 
     def sampler_table_changed(self, item):   # owl ?
@@ -2938,6 +3185,10 @@ class MainWindow(QMainWindow):
                 table_item.setText(channel)
                 self.update_on()
 
+
+
+
+
 def run():
     '''
     Main function that starts the application and invokes the window
@@ -2949,6 +3200,9 @@ def run():
         sys.exit(app.exec_())
     except:
         print("Exiting")
+
+
+
 
 
 if __name__ == "__main__":
