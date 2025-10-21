@@ -68,23 +68,24 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
     # This is used to trigger the camera 10 times and discard those images
     if config.allow_skipping_images == True and self.experiment.skip_images:
         file.write(indentation + "# Triggering camera 10 times in the beginning of experiment\n")
-        file.write(indentation + "self.ttl8.off()\n")
-        file.write(indentation + "self.ttl9.off()\n")
+        for val in config.camera_trigger_ttl:
+            file.write(indentation + "self.ttl" + str(val) + ".off()\n")
         file.write(indentation + "delay(100*ms)\n")
         file.write(indentation + "for _ in range(10):\n")
         indentation += "    "
-        file.write(indentation + "self.ttl8.on()\n")
-        file.write(indentation + "self.ttl9.on()\n")
+        for val in config.camera_trigger_ttl:
+            file.write(indentation + "self.ttl" + str(val) + ".on()\n")
         file.write(indentation + "delay(100*ms)\n")
-        file.write(indentation + "self.ttl8.off()\n")
-        file.write(indentation + "self.ttl9.off()\n")
+        for val in config.camera_trigger_ttl:
+            file.write(indentation + "self.ttl" + str(val) + ".off()\n")
         file.write(indentation + "delay(100*ms)\n")
         
         indentation = indentation[:-4]
     
     if self.experiment.cam_trigger_off == True:
         file.write(indentation + "# Not triggering camera at the beginning of a sequence %d times \n" %(self.experiment.cam_trigger_off_runs))
-        file.write(indentation + "i_cam_trigger_off_runs = %d \n" %(self.experiment.cam_trigger_off_runs))
+        for val in config.camera_trigger_ttl:
+            file.write(indentation + "i_cam_trigger_off_runs" + str(val) + "= %d \n" %(self.experiment.cam_trigger_off_runs))
 
     
     # for inital value of derived variables 
@@ -168,12 +169,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                     file.write(indentation + "delay(5*ms)\n")
 
                 if channel.changed == True:
-                    if self.experiment.cam_trigger_off == True and index == 8: # want to skip cam triggering for channel 8 only
+                    if self.experiment.cam_trigger_off == True and index in config.camera_trigger_ttl: # want to skip cam triggering for channel 8 only
                         if channel.value == 1: # 1 is on 
-                            file.write(indentation + "if i_cam_trigger_off_runs > 0:   # Skip cam triggering \n" )
+                            file.write(indentation + "if i_cam_trigger_off_runs" + str(index) + " > 0:   # Skip cam triggering \n" )
                             indentation += "    "
                             file.write(indentation + "self.ttl" + str(index) + ".off() \n") 
-                            file.write(indentation + "i_cam_trigger_off_runs = i_cam_trigger_off_runs - 1 \n" )                            
+                            file.write(indentation + "i_cam_trigger_off_runs" + str(index) + " = i_cam_trigger_off_runs" + str(index) + " - 1 \n" )                            
                             indentation = indentation[:-4]
                             file.write(indentation + "else: \n" )                            
                             indentation += "    "

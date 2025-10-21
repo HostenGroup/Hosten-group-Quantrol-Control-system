@@ -25,6 +25,7 @@ package_manager = "clang64" #it can be either conda or clang64
 artiq_environment_name = "artiq" # it can be either artiq or artiq_5 for Hosten lab systems
 analog_card = "fastino" # it can be either fastino or zotino for Hosten lab systems
 research_group_name = "Hosten"
+camera_trigger_ttl = [0,1]
 allow_skipping_images = True
 list_of_devices_for_initialization = [
     "urukul0_cpld",
