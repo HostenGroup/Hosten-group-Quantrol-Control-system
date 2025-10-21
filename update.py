@@ -278,7 +278,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                         try:
                             #RACOON marker
                             if setting == 0: #frequency
-                                channel_entry.expression = str(float(channel_entry.expression)) #Was checked to have at least a 1 Hz level resolution
+                                channel_entry.expression = str(int(float(channel_entry.expression)*1e6)/1e6) #Was checked to have at least a 1 Hz level resolution
                             elif setting == 1: #amplitude
                                 channel_entry.expression = str(int(float(channel_entry.expression)*1000)/1000) # Keep only up to 3rd digit (0.1234 --> 0.123)
                             elif setting == 2: #attenuation
@@ -357,6 +357,26 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                         
     self.update_on()
 
+def closest_key(dictionary, target):
+    """
+    Returns the key of a dictionary whose value is closest to `target`.
+    """
+    # closest = None
+    # print('in')
+    min_dist = float("inf")
+
+    for key, value in dictionary.items():
+        # print(type(value))
+        # print(type(key))
+        dist = abs(value - target)
+        # print(dist)
+        if dist < min_dist:
+            min_dist = dist
+            closest = key
+    # print(closest)
+
+    return closest
+
 def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True):
     '''
     This function updates expressions, evaluations, values and entries of mirny table
@@ -380,9 +400,13 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                         #If a value is convertible to float perform the conversion as Artiq parameters for dds channel are required to be floats not integers
                         try:
                             if setting == 0: #frequency
-                                channel_entry.expression = str(float(channel_entry.expression)) #Was checked to have at least a 1 Hz level resolution
+                                channel_entry.expression = str(int(float(channel_entry.expression)*1e6)/1e6) #Was checked to have at least a 1 Hz level resolution
                             elif setting == 1: #amplitude
-                                channel_entry.expression = str(int(float(channel_entry.expression)*1000)/1000) # Keep only up to 3rd digit (0.1234 --> 0.123)
+
+                                # channel_entry.expression = str(int(float(channel_entry.expression)*1000)/1000) # Keep only up to 3rd digit (0.1234 --> 0.123)
+                                value = self.mirny_amp_values_dBm[closest_key(self.mirny_amp_values_dBm,float(channel_entry.expression))]
+                                channel_entry.expression = str(int(float(value)*10)/10)
+                                del value
                             elif setting == 2: #attenuation
                                 channel_entry.expression = str(round(float(channel_entry.expression)/0.5)*0.5) #Round up to 0.5
                             elif setting == 3: #phase
@@ -401,6 +425,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                             exec("channel_entry.value =" + channel_entry.evaluation)
                         except:
                             return "mirny channel %d, edge %d" %(channel_index, row)
+                        
                         #check if the value within allowed range
                         if channel_entry.value >= self.min_dict_mirny[setting] and channel_entry.value <= self.max_dict_mirny[setting]:
                             #Color coding the values and updating tooltips
@@ -594,6 +619,8 @@ def from_object(self):
         self.analog_dummy.setHorizontalHeaderLabels(self.experiment.title_analog_tab[0:3])
     if config.sampler_channels_number > 0:
         self.sampler_table.setHorizontalHeaderLabels(self.experiment.title_sampler_tab)
+
+
     #Update DDS titles
     if config.dds_channels_number > 0:
         for i in range(config.dds_channels_number):
@@ -601,10 +628,12 @@ def from_object(self):
             self.dds_dummy_header.item(0,6*i+4).setTextAlignment(Qt.AlignCenter)
             #headers Channel attributes (f, Amp, att, phase, state)
             self.dds_dummy_header.setItem(1,6*i+4, QTableWidgetItem('f (MHz)'))
-            self.dds_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (dBm)'))
-            self.dds_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dBm)'))
+            self.dds_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (%)'))
+            self.dds_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dB)'))
             self.dds_dummy_header.setItem(1,6*i+7, QTableWidgetItem('phase (deg)'))
             self.dds_dummy_header.setItem(1,6*i+8, QTableWidgetItem('state'))
+
+
     #Update MIRNY titles
     if config.mirny_channels_number > 0:
         for i in range(config.mirny_channels_number):
@@ -613,7 +642,7 @@ def from_object(self):
             #headers Channel attributes (f, Amp, att, phase, state)
             self.mirny_dummy_header.setItem(1,6*i+4, QTableWidgetItem('f (MHz)'))
             self.mirny_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (dBm)'))
-            self.mirny_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dBm)'))
+            self.mirny_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dB)'))
             self.mirny_dummy_header.setItem(1,6*i+7, QTableWidgetItem('phase (deg)'))
             self.mirny_dummy_header.setItem(1,6*i+8, QTableWidgetItem('state'))
     if config.slow_dds_channels_number > 0:
@@ -624,7 +653,7 @@ def from_object(self):
             #headers Channel attributes (f, Amp, att, phase, state)
             self.slow_dds_table.setItem(1,6*i+1, QTableWidgetItem('f (MHz)'))
             self.slow_dds_table.setItem(1,6*i+2, QTableWidgetItem('Amp (dBm)'))
-            self.slow_dds_table.setItem(1,6*i+3, QTableWidgetItem('Att (dBm)'))
+            self.slow_dds_table.setItem(1,6*i+3, QTableWidgetItem('Att (dB)'))
             self.slow_dds_table.setItem(1,6*i+4, QTableWidgetItem('phase (deg)'))
             self.slow_dds_table.setItem(1,6*i+5, QTableWidgetItem('state'))
         

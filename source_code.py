@@ -71,7 +71,11 @@ class MainWindow(QMainWindow):
             derived_variable_requested      :   Index of the derived variable for non zero values. -1 corresponds to no derived variables requested
                                                 
         '''
-        def __init__(self, name = "", id = "id0", expression = "0", evaluation = 0, for_python = 0, value = 0, is_scanned = False, is_ramped = False, derived_variable_requested = -1): # owl
+        def __init__(self, name = "", id = "id0",
+                     expression = "0", evaluation = 0,
+                     for_python = 0, value = 0,
+                     is_scanned = False, is_ramped = False,
+                     derived_variable_requested = -1): # owl
             self.expression = expression
             self.evaluation = evaluation
             self.value = value   
@@ -83,7 +87,7 @@ class MainWindow(QMainWindow):
             self.digital = [self.Digital() for i in range(config.digital_channels_number)]
             self.analog = [self.Analog() for i in range(config.analog_channels_number)]
             self.dds = [self.DDS() for i in range(config.dds_channels_number)]
-            self.mirny = [self.DDS() for i in range(config.mirny_channels_number)]
+            self.mirny = [self.DDS(is_mirny = True) for i in range(config.mirny_channels_number)]
             self.sampler = ['0']*8
             self.derived_variable_requested = derived_variable_requested
 
@@ -106,7 +110,11 @@ class MainWindow(QMainWindow):
                 is_derived  :   Flag indicating if the digital channel is dervied
                 is_lookup   :   Flag indicating if the digital channel is lookup                                
             '''
-            def __init__(self, expression = "0.0", evaluation = 0.0, value = 0.0, for_python = 0.0, changed = True, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False): # owl
+            def __init__(self, expression = "0.0", evaluation = 0.0,
+                         value = 0.0, for_python = 0.0, changed = True,
+                         is_scanned = False, is_ramped = False,
+                         is_sampled = False, is_derived = False,
+                         is_lookup = False): # owl
                 self.expression = expression
                 self.evaluation = evaluation
                 self.value = value
@@ -137,7 +145,11 @@ class MainWindow(QMainWindow):
                 is_derived  :   Flag indicating if the analog channel is dervied
                 is_lookup   :   Flag indicating if the analog channel is lookup
             '''            
-            def __init__(self, expression = "0.0", evaluation = 0.0, value = 0.0, for_python = "0.0", changed = True, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False): # OWL
+            def __init__(self, expression = "0.0", evaluation = 0.0,
+                         value = 0.0, for_python = "0.0",
+                         changed = True, is_scanned = False,
+                         is_ramped = False, is_sampled = False,
+                         is_derived = False, is_lookup = False): # OWL
                 self.expression = expression
                 self.evaluation = evaluation
                 self.value = value
@@ -161,11 +173,16 @@ class MainWindow(QMainWindow):
                 state        :   An object that is used to describe the ON/OFF state of the dds channel
                 changed      :   Flag indicating if the dds channel is required to be changed at this time edge
             '''
-            def __init__(self, state = 0, changed = True):
-                self.frequency = self.Object()
-                self.amplitude = self.Object()
-                self.attenuation = self.Object()
+            def __init__(self, state = 0, changed = True, is_mirny = False):
+                self.is_mirny = is_mirny
+                if self.is_mirny == True:
+                    self.frequency = self.Object(expression = "55.0", evaluation = 55.0, value = 55.0)
+                    self.amplitude = self.Object(expression = "5.0", evaluation = 5.0, value = 5.0)
+                else:
+                    self.frequency = self.Object()
+                    self.amplitude = self.Object()
                 self.phase = self.Object()
+                self.attenuation = self.Object()
                 self.state = self.Object()
                 self.changed = changed
 
@@ -399,16 +416,57 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Quantrol. %s Group" %config.research_group_name)
         self.main_window = QTabWidget()
         self.setCentralWidget(self.main_window)
-        self.setGeometry(0,30,1920,1200)
+
+
+        # self.app = QApplication([])
+        # self.screen = QGuiApplication.primaryScreen().availableGeometry()
+        # self.H_size = self.screen.size().height()
+        # self.W_size = self.screen.size().width()
+        # # print(self.H_size,self.W_size)
+
+        # self.orig_H = 1200
+        # self.orig_W = 1920
+        # # self.H_SCALE = 1.0
+        # # self.W_SCALE = 1.0
+        # self.H_SCALE = 1.0*self.H_size/self.orig_H
+        # self.W_SCALE = 1.0*self.W_size/self.orig_W
+        
+        # self.setGeometry(0,0,int(self.orig_W * self.W_SCALE),int(self.orig_H * self.H_SCALE))
+        self.setGeometry(0,0,1920,1200)
         
         #Declaring global variables
         self.experiment = self.Experiment()
         self.sequence_num_rows = 1
         self.setting_dict = {0:"frequency", 1:"amplitude", 2:"attenuation", 3:"phase", 4:"state"}
-        self.max_dict_dds = {0: 500, 1: 1, 2: 31.5, 3: 360, 4: 1} 
-        self.min_dict_dds = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0} 
-        self.max_dict_mirny = {0: 6800, 1: 1, 2: 31.5, 3: 360, 4: 1} #max and min needs to be checked # MICE
-        self.min_dict_mirny = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}  #max and min needs to be checked # MICE
+        self.max_dict_dds = {0: 500,
+                             1: 100,
+                             2: 31.5,
+                             3: 360,
+                             4: 1} 
+        
+        self.min_dict_dds = {0: 0,
+                             1: 0,
+                             2: 0,
+                             3: 0,
+                             4: 0} 
+        
+        self.mirny_amp_values_dBm = {0: -4.0,
+                                     1: -1.0,
+                                     2: 2.0,
+                                     3: 5.0}
+        
+        self.max_dict_mirny = {0: 4000,
+                               1: float("inf"),
+                               2: 31.5,
+                               3: 360,
+                               4: 1} #max and min needs to be checked # MICE
+        
+        self.min_dict_mirny = {0: 54,
+                               1: -1*float("inf"),
+                               2: 0,
+                               3: 0,
+                               4: 0}  #max and min needs to be checked # MICE
+        
         self.to_update = False
         self.green = QColor(37,211,102)
         self.red = QColor(247,140,140)

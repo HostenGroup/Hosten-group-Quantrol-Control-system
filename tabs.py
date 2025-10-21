@@ -626,7 +626,7 @@ def dds_tab_build(self):
     self.dds_tab_widget = QWidget()
     #DDS LABLE
     dds_lable = QLabel(self.dds_tab_widget)
-    dds_lable.setText("Dds channels")
+    dds_lable.setText("DDS channels")
     dds_lable.setFont(QFont('Arial', 14))
     dds_lable.setGeometry(85, 0, 400, 30)
     self.sequence_num_rows = len(self.experiment.sequence)
@@ -697,6 +697,7 @@ def dds_tab_build(self):
     for i in range(3):
         self.dds_dummy.setSpan(0, i, 2, 1)
         self.dds_dummy.setItemDelegateForColumn(i,delegate)
+
     #Filling the left part of the DDS table
     self.dds_dummy.setItem(2, 0, QTableWidgetItem("0"))
     self.dds_dummy.setItem(2, 1, QTableWidgetItem(self.experiment.sequence[0].name))
@@ -716,6 +717,7 @@ def dds_tab_build(self):
     self.dds_dummy_header.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.dds_dummy_header.setFont(QFont('Arial', 12))
     self.dds_dummy_header.setFrameStyle(QFrame.NoFrame)
+    
     #SHAPING THE FIRST 3 COLUMNS 
     self.dds_dummy_header.setColumnWidth(0,50) 
     self.dds_dummy_header.setColumnWidth(1,180)
@@ -741,8 +743,8 @@ def dds_tab_build(self):
         self.dds_dummy_header.item(0,6*i+4).setTextAlignment(Qt.AlignCenter)
         #headers Channel attributes (f, Amp, att, phase, state)
         self.dds_dummy_header.setItem(1,6*i+4, QTableWidgetItem('f (MHz)'))
-        self.dds_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (dBm)'))
-        self.dds_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dBm)'))
+        self.dds_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (%)'))
+        self.dds_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dB)'))
         self.dds_dummy_header.setItem(1,6*i+7, QTableWidgetItem('phase (deg)'))
         self.dds_dummy_header.setItem(1,6*i+8, QTableWidgetItem('state'))
 
@@ -760,6 +762,7 @@ def dds_tab_build(self):
     self.dds_fixed.setRowCount(2) 
     self.dds_fixed.setFont(QFont('Arial', 12))
     self.dds_fixed.setFrameStyle(QFrame.NoFrame)
+    
     #SHAPING THE FIRST 3 COLUMNS
     self.dds_fixed.setColumnWidth(0,50)
     self.dds_fixed.setColumnWidth(1,180)
@@ -769,6 +772,7 @@ def dds_tab_build(self):
     for i in range(4):
         self.dds_fixed.setSpan(0, i, 2, 1)
         self.dds_fixed.setItemDelegateForColumn(i,delegate)
+    
     #Separator
     self.dds_fixed.setItem(0,3, QTableWidgetItem())
     self.dds_fixed.item(0,3).setBackground(self.grey)
@@ -1134,8 +1138,8 @@ def mirny_tab_build(self):
     for i in range(config.mirny_channels_number):
         self.mirny_table.setSpan(0,4 + 6*i, 1, 5) # stretching the title of the channel
         self.mirny_table.setColumnWidth(3 + 6*i, 5) # making separation line thin
-        self.mirny_table.setColumnWidth(8 + 6*i, 45) # making state column smaller
         self.mirny_table.setItemDelegateForColumn(3 + 6*i,delegate) #making separation line uneditable
+        self.mirny_table.setColumnWidth(8 + 6*i, 45) # making state column smaller
     
     #making first three columns verticaly wider to fit with header 
     for i in range(3):
@@ -1222,8 +1226,9 @@ def mirny_tab_build(self):
         self.mirny_dummy_header.item(0,6*i+4).setTextAlignment(Qt.AlignCenter)
         #headers Channel attributes (f, Amp, att, phase, state)
         self.mirny_dummy_header.setItem(1,6*i+4, QTableWidgetItem('f (MHz)'))
+        # self.mirny_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp num'))
         self.mirny_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (dBm)'))
-        self.mirny_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dBm)'))
+        self.mirny_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dB)'))
         self.mirny_dummy_header.setItem(1,6*i+7, QTableWidgetItem('phase (deg)'))
         self.mirny_dummy_header.setItem(1,6*i+8, QTableWidgetItem('state'))
 
@@ -1232,6 +1237,7 @@ def mirny_tab_build(self):
     #Making fixed corner (TOP LEFT SIDE OF THE TABLE)
     self.mirny_fixed = QTableWidget(self.mirny_tab_widget)
     self.mirny_fixed.setGeometry(QRect(10,30, 335,60))
+    # self.mirny_fixed.setGeometry(QRect(10,30, 300,50))
     self.mirny_fixed.setColumnCount(4)
     self.mirny_fixed.horizontalHeader().setMinimumHeight(50)
     self.mirny_fixed.verticalHeader().setVisible(False)
@@ -1241,11 +1247,13 @@ def mirny_tab_build(self):
     self.mirny_fixed.setRowCount(2) 
     self.mirny_fixed.setFont(QFont('Arial', 12))
     self.mirny_fixed.setFrameStyle(QFrame.NoFrame)
+
     #SHAPING THE FIRST 3 COLUMNS
     self.mirny_fixed.setColumnWidth(0,50)
     self.mirny_fixed.setColumnWidth(1,180)
     self.mirny_fixed.setColumnWidth(2,100)
     self.mirny_fixed.setColumnWidth(3,5)
+
     #making first three columns vertically wider to fit with header 
     for i in range(4):
         self.mirny_fixed.setSpan(0, i, 2, 1)
@@ -1253,6 +1261,7 @@ def mirny_tab_build(self):
     #Separator
     self.mirny_fixed.setItem(0,3, QTableWidgetItem())
     self.mirny_fixed.item(0,3).setBackground(self.grey)
+    
     #populating edge number, name and time
     for i in range(3):
         self.mirny_fixed.setItem(0,i, QTableWidgetItem(str(self.experiment.title_mirny_tab[i])))
@@ -1379,7 +1388,7 @@ def slow_dds_tab_build(self):
         #headers Channel attributes (f, Amp, att, phase, state)
         self.slow_dds_table.setItem(1,6*i + 1, QTableWidgetItem('f (MHz)'))
         self.slow_dds_table.setItem(1,6*i + 2, QTableWidgetItem('Amp (dBm)'))
-        self.slow_dds_table.setItem(1,6*i + 3, QTableWidgetItem('Att (dBm)'))
+        self.slow_dds_table.setItem(1,6*i + 3, QTableWidgetItem('Att (dB)'))
         self.slow_dds_table.setItem(1,6*i + 4, QTableWidgetItem('phase (deg)'))
         self.slow_dds_table.setItem(1,6*i + 5, QTableWidgetItem('state'))
 
