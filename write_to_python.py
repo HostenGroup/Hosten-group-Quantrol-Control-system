@@ -105,7 +105,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
         indentation += "    "
     # owl end
 
-    # 10 ns delay to avoid collision of the last edge assignment of digital channels as there is at most 8 channel changes at a given time stamp
+    # 10 ns delay to avoid collision of the last edge assignment of digital channels as there is at most camera_trigger_ttl channel changes at a given time stamp
     file.write(indentation + "delay(10*ns)\n")
     # If scan is needed 
     if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
@@ -169,7 +169,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                     file.write(indentation + "delay(5*ms)\n")
 
                 if channel.changed == True:
-                    if self.experiment.cam_trigger_off == True and index in config.camera_trigger_ttl: # want to skip cam triggering for channel 8 only
+                    if self.experiment.cam_trigger_off == True and index in config.camera_trigger_ttl: # want to skip cam triggering for channel camera_trigger_ttl only
                         if channel.value == 1: # 1 is on 
                             file.write(indentation + "if i_cam_trigger_off_runs" + str(index) + " > 0:   # Skip cam triggering \n" )
                             indentation += "    "
