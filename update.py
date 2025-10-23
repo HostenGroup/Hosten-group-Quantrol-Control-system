@@ -263,10 +263,10 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.dds_channels_number):
         for setting in range(4,-1,-1): #start an update from the state of the channel to properly update the color coding
-            for row in range(2, self.sequence_num_rows+2): # plus 2 because of 2 rows used for title
-                channel = self.experiment.sequence[row-2].dds[channel_index]
+            for row in range(self.sequence_num_rows): # plus 2 because of 2 rows used for title
+                channel = self.experiment.sequence[row].dds[channel_index]
                 # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
-                col = channel_index * 6 + 4 + setting
+                col = channel_index * 6 + 1 + setting
                 table_item = self.dds_table.item(row, col)
                 exec("self.channel_entry = channel.%s" %self.setting_dict[setting])
                 channel_entry = self.channel_entry
@@ -601,15 +601,15 @@ def from_object(self):
         self.analog_table.setRowCount(self.sequence_num_rows)
         self.analog_dummy.setRowCount(self.sequence_num_rows)
     if config.dds_channels_number > 0:
-        self.dds_table.setRowCount(self.sequence_num_rows+2) #2 first rows are used for title name 
-        self.dds_dummy.setRowCount(self.sequence_num_rows+2) #2 first rows are used for title name 
+        self.dds_table.setRowCount(self.sequence_num_rows) #2 first rows are used for title name 
+        self.dds_seq.setRowCount(self.sequence_num_rows) #2 first rows are used for title name 
     if config.mirny_channels_number > 0:
         self.mirny_table.setRowCount(self.sequence_num_rows+2) #2 first rows are used for title name 
         self.mirny_dummy.setRowCount(self.sequence_num_rows+2) #2 first rows are used for title name 
     if config.sampler_channels_number > 0:
         self.sampler_table.setRowCount(self.sequence_num_rows)
     #Separator
-    self.making_separator()
+    # self.making_separator()
     #Update titles
     if config.digital_channels_number > 0:
         self.digital_table.setHorizontalHeaderLabels(self.experiment.title_digital_tab)
@@ -624,14 +624,14 @@ def from_object(self):
     #Update DDS titles
     if config.dds_channels_number > 0:
         for i in range(config.dds_channels_number):
-            self.dds_dummy_header.setItem(0,6*i+4, QTableWidgetItem(str(self.experiment.title_dds_tab[i+4])))
-            self.dds_dummy_header.item(0,6*i+4).setTextAlignment(Qt.AlignCenter)
+            self.dds_table_header.setItem(0,6*i+1, QTableWidgetItem(str(self.experiment.title_dds_tab[i+4])))
+            self.dds_table_header.item(0,6*i+1).setTextAlignment(Qt.AlignCenter)
             #headers Channel attributes (f, Amp, att, phase, state)
-            self.dds_dummy_header.setItem(1,6*i+4, QTableWidgetItem('f (MHz)'))
-            self.dds_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (%)'))
-            self.dds_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dB)'))
-            self.dds_dummy_header.setItem(1,6*i+7, QTableWidgetItem('phase (deg)'))
-            self.dds_dummy_header.setItem(1,6*i+8, QTableWidgetItem('state'))
+            self.dds_table_header.setItem(1,6*i+1, QTableWidgetItem('f (MHz)'))
+            self.dds_table_header.setItem(1,6*i+2, QTableWidgetItem('Amp (%)'))
+            self.dds_table_header.setItem(1,6*i+3, QTableWidgetItem('Att (dB)'))
+            self.dds_table_header.setItem(1,6*i+4, QTableWidgetItem('phase (deg)'))
+            self.dds_table_header.setItem(1,6*i+5, QTableWidgetItem('state'))
 
 
     #Update MIRNY titles
@@ -695,9 +695,9 @@ def from_object(self):
             self.analog_dummy.setItem(row,2, QTableWidgetItem(str(edge.value)))
 
         if config.dds_channels_number > 0:
-            self.dds_dummy.setItem(row+2,0, QTableWidgetItem(str(row)))
-            self.dds_dummy.setItem(row+2,1, QTableWidgetItem(edge.name))
-            self.dds_dummy.setItem(row+2,2, QTableWidgetItem(str(edge.value)))   
+            self.dds_seq.setItem(row,0, QTableWidgetItem(str(row)))
+            self.dds_seq.setItem(row,1, QTableWidgetItem(edge.name))
+            self.dds_seq.setItem(row,2, QTableWidgetItem(str(edge.value)))   
         
         if config.mirny_channels_number > 0:
             self.mirny_dummy.setItem(row+2,0, QTableWidgetItem(str(row)))
@@ -831,10 +831,10 @@ def from_object(self):
     if config.dds_channels_number > 0:
         for channel_index in range(config.dds_channels_number):
             for setting in range(5):
-                for row in range(2, self.sequence_num_rows+2): # plus 2 because of 2 rows used for title
-                    channel = self.experiment.sequence[row-2].dds[channel_index]
+                for row in range(self.sequence_num_rows): # plus 2 because of 2 rows used for title
+                    channel = self.experiment.sequence[row].dds[channel_index]
                     # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
-                    col = channel_index * 6 + 4 + setting
+                    col = channel_index * 6 + 1 + setting
                     exec("self.channel_entry = channel.%s" %self.setting_dict[setting])
                     channel_entry = self.channel_entry
                     if channel.changed: 
@@ -890,7 +890,7 @@ def from_object(self):
     if config.mirny_channels_number > 0:
         for channel_index in range(config.mirny_channels_number):
             for setting in range(5):
-                for row in range(2, self.sequence_num_rows+2): # plus 2 because of 2 rows used for title
+                for row in range(self.sequence_num_rows+2): # plus 2 because of 2 rows used for title
                     channel = self.experiment.sequence[row-2].mirny[channel_index]
                     # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
                     col = channel_index * 6 + 4 + setting
@@ -951,7 +951,7 @@ def from_object(self):
     if config.slow_dds_channels_number > 0:
         for channel_index in range(config.slow_dds_channels_number):
             for setting in range(5):
-                row = 2
+                row = 0
                 channel = self.experiment.slow_dds[channel_index]
                 # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
                 col = channel_index * 6 + 1 + setting

@@ -35,7 +35,7 @@ def sequence_tab_build(self):
     self.sequence_table.setRowCount(1)
     self.sequence_table.setHorizontalHeaderLabels(["#", "Name","ID", "Time expression","Time (ms)"])
     self.sequence_table.verticalHeader().setVisible(False)
-    self.sequence_table.horizontalHeader().setFixedHeight(int(self.SCALE_W*60))
+    self.sequence_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.sequence_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.sequence_table.setFont(QFont('Arial', self.scale_font(12)))
     self.sequence_table.setColumnWidth(0,int(self.SCALE_W*50))
@@ -55,7 +55,7 @@ def sequence_tab_build(self):
     self.sequence_table.setItem(0, 2, QTableWidgetItem(self.experiment.sequence[0].id))
     self.sequence_table.setItem(0, 3, QTableWidgetItem(self.experiment.sequence[0].expression))
     self.sequence_table.setItem(0, 4, QTableWidgetItem(str(self.experiment.sequence[0].value)))
-    
+    self.sequence_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
 
 
@@ -402,7 +402,7 @@ def digital_tab_build(self):
     self.digital_table.setRowCount(1) 
     self.digital_table.setHorizontalHeaderLabels(self.experiment.title_digital_tab)
     self.digital_table.verticalHeader().setVisible(False)
-    self.digital_table.horizontalHeader().setFixedHeight(int(self.SCALE_W*60))
+    self.digital_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.digital_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.digital_table.setFont(QFont('Arial', self.scale_font(12)))
     self.digital_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
@@ -439,7 +439,7 @@ def digital_tab_build(self):
     self.digital_dummy.setRowCount(1)
     self.digital_dummy.setHorizontalHeaderLabels(self.experiment.title_digital_tab[0:3])
     self.digital_dummy.verticalHeader().setVisible(False)
-    self.digital_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_W*60))
+    self.digital_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.digital_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.digital_dummy.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.digital_dummy.setFont(QFont('Arial', self.scale_font(12)))
@@ -521,7 +521,7 @@ def analog_tab_build(self):
     self.analog_table.setRowCount(1)
     self.analog_table.setHorizontalHeaderLabels(self.experiment.title_analog_tab)
     self.analog_table.verticalHeader().setVisible(False)
-    self.analog_table.horizontalHeader().setFixedHeight(int(self.SCALE_W*60))
+    self.analog_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.analog_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.analog_table.setFont(QFont('Arial', self.scale_font(12)))
     self.analog_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
@@ -558,7 +558,7 @@ def analog_tab_build(self):
     self.analog_dummy.setRowCount(1)
     self.analog_dummy.setHorizontalHeaderLabels(self.experiment.title_analog_tab[0:3])
     self.analog_dummy.verticalHeader().setVisible(False)
-    self.analog_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_W*60))
+    self.analog_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.analog_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.analog_dummy.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.analog_dummy.setFont(QFont('Arial', self.scale_font(12)))
@@ -622,169 +622,191 @@ def analog_tab_build(self):
     
 
 def dds_tab_build(self):
-    self.dds_tab_num_cols = 6*config.dds_channels_number + 3
+    self.dds_tab_num_cols = 6*config.dds_channels_number
     #DDS TABLE WIDGET
     self.dds_tab_widget = QWidget()
     #DDS LABLE
     dds_lable = QLabel(self.dds_tab_widget)
     dds_lable.setText("DDS channels")
     dds_lable.setFont(QFont('Arial', self.scale_font(14)))
-    dds_lable.setGeometry(*self.scale_geom(85, 0, 400, 30))
+    dds_lable.setGeometry(*self.scale_geom(10, 0, 320, 30))
+    dds_lable.setAlignment(Qt.AlignCenter)
     self.sequence_num_rows = len(self.experiment.sequence)
     
-    #DDS TAB LAYOUT
+    #DDS TAB LAYOUT, main table with actual numbers (bottom right)
     self.dds_table = QTableWidget(self.dds_tab_widget)
-    self.dds_table.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 1020)))
+    # self.dds_table.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 1020)))
+    self.dds_table.setGeometry(QRect(*self.scale_geom(10 + 320,30 + 90, 1580, 1000)))
     self.dds_table.setColumnCount(self.dds_tab_num_cols)
-    self.dds_table.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
+    # self.dds_table.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.dds_table.verticalHeader().setVisible(False)
     self.dds_table.horizontalHeader().setVisible(False)
-    self.dds_table.setRowCount(3) # 5 is an arbitrary number we just need to have rows in order to span them
+    self.dds_table.setRowCount(1) # 5 is an arbitrary number we just need to have rows in order to span them
     self.dds_table.horizontalHeader().setMinimumSectionSize(0)
     self.dds_table.setFont(QFont('Arial', self.scale_font(12)))
     self.dds_table.setFrameStyle(QFrame.NoFrame)
+    
+
+
     #SHAPING THE FIRST 3 COLUMNS 
-    self.dds_table.setColumnWidth(0,int(self.SCALE_W*(50)))
-    self.dds_table.setColumnWidth(1,int(self.SCALE_W*(180)))
-    self.dds_table.setColumnWidth(2,int(self.SCALE_W*(100)))
-    self.dds_table.setColumnWidth(3,int(self.SCALE_W*(5)))
+    # self.dds_table.setColumnWidth(0,int(self.SCALE_W*(50)))
+    # self.dds_table.setColumnWidth(1,int(self.SCALE_W*(180)))
+    # self.dds_table.setColumnWidth(2,int(self.SCALE_W*(100)))
+    # self.dds_table.setColumnWidth(3,int(self.SCALE_W*(5)))
 
     delegate = ReadOnlyDelegate(self)
     #SHAPING THE TABLE
     for i in range(config.dds_channels_number):
-        self.dds_table.setSpan(0,4 + 6*i, 1, 5) # stretching the title of the channel
-        self.dds_table.setColumnWidth(3 + 6*i,int(self.SCALE_W*( 5))) # making separation line thin
-        self.dds_table.setColumnWidth(8 + 6*i,int(self.SCALE_W*( 45))) # making state column smaller
-        self.dds_table.setItemDelegateForColumn(3 + 6*i,delegate) #making separation line uneditable
+        # self.dds_table.setSpan(0,1 + 6*i, 1, 5) # stretching the title of the channel
+        self.dds_table.setItem(0,6*i + 0, QTableWidgetItem())
+        self.dds_table.item(0,6*i + 0).setBackground(self.grey)
+
+        self.dds_table.setColumnWidth(0 + 6*i,int(self.SCALE_W*( 5))) # making separation line thin
+        self.dds_table.setColumnWidth(5 + 6*i,int(self.SCALE_W*( 45))) # making state column smaller
+        self.dds_table.setItemDelegateForColumn(0 + 6*i,delegate) #making separation line uneditable
     
     #making first three columns verticaly wider to fit with header 
-    for i in range(3):
-        self.dds_table.setSpan(0, i, 2, 1)
-        self.dds_table.setItemDelegateForColumn(i,delegate)
+    # for i in range(3):
+    #     self.dds_table.setSpan(0, i, 2, 1)
+    #     self.dds_table.setItemDelegateForColumn(i,delegate)
     #Filling the default values of DDS table
     for index, channel in enumerate(self.experiment.sequence[0].dds):
         #plus 4 is because first 4 columns are used by number, name, time and separator(dark grey line)
-        col = 4 + index * 6  
+        col = 1 + index * 6  
         for setting in range(5):
-            exec("self.dds_table.setItem(2, col + setting, QTableWidgetItem(str(channel.%s.expression)))" %self.setting_dict[setting])
-            exec("self.dds_table.item(2, col + setting).setToolTip(str(channel.%s.value))" %self.setting_dict[setting])
+            exec("self.dds_table.setItem(0, col + setting, QTableWidgetItem(str(channel.%s.expression)))" %self.setting_dict[setting])
+            exec("self.dds_table.item(0, col + setting).setToolTip(str(channel.%s.value))" %self.setting_dict[setting])
             if channel.state.value == 1:
-                self.dds_table.item(2, col + setting).setBackground(self.green)
+                self.dds_table.item(0, col + setting).setBackground(self.green)
             else:  
-                self.dds_table.item(2, col + setting).setBackground(self.red)
+                self.dds_table.item(0, col + setting).setBackground(self.red)
 
 
     self.dds_table.itemChanged.connect(self.dds_table_changed)
 
     #Dummy table that will display edge number, name and time and will be fixed (LEFT SIDE OF THE TABLE)
-    self.dds_dummy = QTableWidget(self.dds_tab_widget)
-    self.dds_dummy.setGeometry(QRect(*self.scale_geom(10,30,335,1003)))
-    self.dds_dummy.setColumnCount(4)
-    self.dds_dummy.setRowCount(3)
-    self.dds_dummy.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
-    self.dds_dummy.verticalHeader().setVisible(False)
-    self.dds_dummy.horizontalHeader().setVisible(False)
-    self.dds_dummy.horizontalHeader().setMinimumSectionSize(0)
-    self.dds_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
-    self.dds_dummy.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.dds_dummy.setFont(QFont('Arial', self.scale_font(12)))
-    self.dds_dummy.setColumnWidth(0,int(self.SCALE_W*(50)))
-    self.dds_dummy.setColumnWidth(1,int(self.SCALE_W*(180)))
-    self.dds_dummy.setColumnWidth(2,int(self.SCALE_W*(100)))
-    self.dds_dummy.setColumnWidth(3,int(self.SCALE_W*(5)))
-    self.dds_dummy.setFrameStyle(QFrame.NoFrame)
+
+    #table with times, names of edges and numbers of edges (bottom left)
+
+    self.dds_seq = QTableWidget(self.dds_tab_widget)
+    self.dds_seq.setGeometry(QRect(*self.scale_geom(10,30+90,320,1000)))
+    self.dds_seq.setColumnCount(4)
+    self.dds_seq.setRowCount(1)
+    # self.dds_seq.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
+    self.dds_seq.verticalHeader().setVisible(False)
+    self.dds_seq.horizontalHeader().setVisible(False)
+    self.dds_seq.horizontalHeader().setMinimumSectionSize(0)
+    self.dds_seq.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
+    self.dds_seq.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+    self.dds_seq.setFont(QFont('Arial', self.scale_font(12)))
+    self.dds_seq.setColumnWidth(0,int(self.SCALE_W*(40)))
+    self.dds_seq.setColumnWidth(1,int(self.SCALE_W*(180)))
+    self.dds_seq.setColumnWidth(2,int(self.SCALE_W*(100)))
+    self.dds_seq.setColumnWidth(3,int(self.SCALE_W*(5)))
+    self.dds_seq.setFrameStyle(QFrame.NoFrame)
 
     #making first three columns vertically wider to fit with header 
-    for i in range(3):
-        self.dds_dummy.setSpan(0, i, 2, 1)
-        self.dds_dummy.setItemDelegateForColumn(i,delegate)
+    for i in range(4):
+        # self.dds_seq.setSpan(0, i, 2, 1)
+        self.dds_seq.setItemDelegateForColumn(i,delegate)
 
     #Filling the left part of the DDS table
-    self.dds_dummy.setItem(2, 0, QTableWidgetItem("0"))
-    self.dds_dummy.setItem(2, 1, QTableWidgetItem(self.experiment.sequence[0].name))
-    self.dds_dummy.setItem(2, 2, QTableWidgetItem(str(self.experiment.sequence[0].value)))
+    self.dds_seq.setItem(0, 0, QTableWidgetItem("0"))
+    self.dds_seq.setItem(0, 1, QTableWidgetItem(self.experiment.sequence[0].name))
+    self.dds_seq.setItem(0, 2, QTableWidgetItem(str(self.experiment.sequence[0].value)))
 
 
     #Dummy horizontal header (TOP SIDE OF THE TABLE)
-    self.dds_dummy_header = QTableWidget(self.dds_tab_widget)
-    self.dds_dummy_header.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 90)))
-    self.dds_dummy_header.setColumnCount(self.dds_tab_num_cols)
-    self.dds_dummy_header.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
-    self.dds_dummy_header.verticalHeader().setVisible(False)
-    self.dds_dummy_header.horizontalHeader().setVisible(False)
-    self.dds_dummy_header.setRowCount(2) 
-    self.dds_dummy_header.horizontalHeader().setMinimumSectionSize(0)
-    self.dds_dummy_header.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
-    self.dds_dummy_header.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.dds_dummy_header.setFont(QFont('Arial', self.scale_font(12)))
-    self.dds_dummy_header.setFrameStyle(QFrame.NoFrame)
+
+    #table header for actual numbers (top right)
+
+    self.dds_table_header = QTableWidget(self.dds_tab_widget)
+    # self.dds_table_header.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 90)))
+    self.dds_table_header.setGeometry(QRect(*self.scale_geom(10 + 320, 30, 1580, 90)))
+
+    self.dds_table_header.setColumnCount(self.dds_tab_num_cols)
+    self.dds_table_header.setRowCount(2) 
+
+    # self.dds_table_header.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
+    self.dds_table_header.setRowHeight(0,int(self.SCALE_H*(45)))
+    self.dds_table_header.setRowHeight(0,int(self.SCALE_H*(45)))
+    self.dds_table_header.verticalHeader().setVisible(False)
+    self.dds_table_header.horizontalHeader().setVisible(False)
+    self.dds_table_header.horizontalHeader().setMinimumSectionSize(0)
+    self.dds_table_header.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
+    self.dds_table_header.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+
+    self.dds_table_header.setFont(QFont('Arial', self.scale_font(12)))
+    self.dds_table_header.setFrameStyle(QFrame.NoFrame)
     
     #SHAPING THE FIRST 3 COLUMNS 
-    self.dds_dummy_header.setColumnWidth(0,int(self.SCALE_W*(50))) 
-    self.dds_dummy_header.setColumnWidth(1,int(self.SCALE_W*(180)))
-    self.dds_dummy_header.setColumnWidth(2,int(self.SCALE_W*(100)))
+    # self.dds_table_header.setColumnWidth(0,int(self.SCALE_W*(50))) 
+    # self.dds_table_header.setColumnWidth(1,int(self.SCALE_W*(180)))
+    # self.dds_table_header.setColumnWidth(2,int(self.SCALE_W*(100)))
 
     #SHAPING THE TABLE
     for i in range(config.dds_channels_number):
-        self.dds_dummy_header.setSpan(0,4 + 6*i, 1, 5) # stretching the title of the channel
-        self.dds_dummy_header.setColumnWidth(3 + 6*i,int(self.SCALE_W*( 5))) # making separation line thin
-        self.dds_dummy_header.setColumnWidth(8 + 6*i,int(self.SCALE_W*( 45))) # making state column smaller
-        self.dds_dummy_header.setItemDelegateForColumn(3 + 6*i,delegate) #making separation line uneditable
+        self.dds_table_header.setSpan(0,1 + 6*i, 1, 5) # stretching the title of the channel
+        self.dds_table_header.setColumnWidth(0 + 6*i,int(self.SCALE_W*( 5))) # making separation line thin
+        self.dds_table_header.setColumnWidth(5 + 6*i,int(self.SCALE_W*( 45))) # making state column smaller
+        self.dds_table_header.setItemDelegateForColumn(0 + 6*i,delegate) #making separation line uneditable
 
-    self.dds_dummy_header.setItemDelegateForRow(1, delegate) #making row number 2 uneditable
+    self.dds_table_header.setItemDelegateForRow(1, delegate) #making row number 2 uneditable
 
     #populating headers and separators
     for i in range(config.dds_channels_number):
         #separator
-        self.dds_dummy_header.setSpan(0, 6*i + 3, self.sequence_num_rows+2, 1)
-        self.dds_dummy_header.setItem(0,6*i + 3, QTableWidgetItem())
-        self.dds_dummy_header.item(0, 6*i + 3).setBackground(self.grey)
+        self.dds_table_header.setSpan(0, 6*i + 0, 2, 1)
+        self.dds_table_header.setItem(0,6*i + 0, QTableWidgetItem())
+        self.dds_table_header.item(0, 6*i + 0).setBackground(self.grey)
         #headers Channel
-        self.dds_dummy_header.setItem(0,6*i+4, QTableWidgetItem(str(self.experiment.title_dds_tab[i+4])))
-        self.dds_dummy_header.item(0,6*i+4).setTextAlignment(Qt.AlignCenter)
+        self.dds_table_header.setItem(0,6*i+1, QTableWidgetItem(str(self.experiment.title_dds_tab[i+4])))
+        self.dds_table_header.item(0,6*i+1).setTextAlignment(Qt.AlignCenter)
         #headers Channel attributes (f, Amp, att, phase, state)
-        self.dds_dummy_header.setItem(1,6*i+4, QTableWidgetItem('f (MHz)'))
-        self.dds_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (%)'))
-        self.dds_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dB)'))
-        self.dds_dummy_header.setItem(1,6*i+7, QTableWidgetItem('phase (deg)'))
-        self.dds_dummy_header.setItem(1,6*i+8, QTableWidgetItem('state'))
+        self.dds_table_header.setItem(1,6*i+1, QTableWidgetItem('f (MHz)'))
+        self.dds_table_header.setItem(1,6*i+2, QTableWidgetItem('Amp (%)'))
+        self.dds_table_header.setItem(1,6*i+3, QTableWidgetItem('Att (dB)'))
+        self.dds_table_header.setItem(1,6*i+4, QTableWidgetItem('phase (deg)'))
+        self.dds_table_header.setItem(1,6*i+5, QTableWidgetItem('state'))
 
-    self.dds_dummy_header.itemChanged.connect(self.dds_dummy_header_changed)
+    self.dds_table_header.itemChanged.connect(self.dds_table_header_changed)
 
     #Making fixed corner (TOP LEFT SIDE OF THE TABLE)
-    self.dds_fixed = QTableWidget(self.dds_tab_widget)
-    self.dds_fixed.setGeometry(QRect(*self.scale_geom(10, 30, 335, 90)))
-    self.dds_fixed.setColumnCount(4)
-    self.dds_fixed.horizontalHeader().setFixedHeight(int(self.SCALE_W*90))
-    self.dds_fixed.verticalHeader().setVisible(False)
-    self.dds_fixed.horizontalHeader().setVisible(False)
-    self.dds_fixed.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.dds_fixed.horizontalHeader().setMinimumSectionSize(0)
-    self.dds_fixed.setRowCount(1) 
-    self.dds_fixed.setFont(QFont('Arial', self.scale_font(12)))
-    self.dds_fixed.setFrameStyle(QFrame.NoFrame)
+
+    self.dds_seq_header = QTableWidget(self.dds_tab_widget)
+    self.dds_seq_header.setGeometry(QRect(*self.scale_geom(10, 30, 320, 90)))
+    self.dds_seq_header.setColumnCount(3)
+    # self.dds_seq_header.horizontalHeader().setFixedHeight(int(self.SCALE_H*90))
+    self.dds_seq_header.verticalHeader().setVisible(False)
+    self.dds_seq_header.horizontalHeader().setVisible(False)
+    self.dds_seq_header.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+    self.dds_seq_header.horizontalHeader().setMinimumSectionSize(0)
+    self.dds_seq_header.setRowCount(1) 
+    self.dds_seq_header.setFont(QFont('Arial', self.scale_font(12)))
+    self.dds_seq_header.setFrameStyle(QFrame.NoFrame)
     
     #SHAPING THE FIRST 3 COLUMNS
-    self.dds_fixed.setColumnWidth(0,int(self.SCALE_W*(50)))
-    self.dds_fixed.setColumnWidth(1,int(self.SCALE_W*(180)))
-    self.dds_fixed.setColumnWidth(2,int(self.SCALE_W*(100)))
-    self.dds_fixed.setColumnWidth(3,int(self.SCALE_W*(5)))
+    self.dds_seq_header.setColumnWidth(0,int(self.SCALE_W*(40)))
+    self.dds_seq_header.setColumnWidth(1,int(self.SCALE_W*(180)))
+    self.dds_seq_header.setColumnWidth(2,int(self.SCALE_W*(100)))
+    # self.dds_seq_header.setColumnWidth(3,int(self.SCALE_W*(5)))
     #making first three columns vertically wider to fit with header 
-    self.dds_fixed.setRowHeight(0, self.dds_fixed.height())
-    for i in range(4):
-        # self.dds_fixed.setSpan(0, i, 2, 1)
-        self.dds_fixed.setItemDelegateForColumn(i,delegate)
+    self.dds_seq_header.setRowHeight(0,int(self.SCALE_H*(90)))
+    for i in range(3):
+        # self.dds_seq_header.setSpan(0, i, 2, 1)
+        self.dds_seq_header.setItemDelegateForColumn(i,delegate)
     
     #Separator
-    self.dds_fixed.setItem(0,3, QTableWidgetItem())
-    self.dds_fixed.item(0,3).setBackground(self.grey)
+    # self.dds_seq_header.setItem(0,3, QTableWidgetItem())
+    # self.dds_seq_header.item(0,3).setBackground(self.grey)
+
     #populating edge number, name and time
     for i in range(3):
-        self.dds_fixed.setItem(0,i, QTableWidgetItem(str(self.experiment.title_dds_tab[i])))
-        self.dds_fixed.item(0,i).setTextAlignment(Qt.AlignCenter)
+        self.dds_seq_header.setItem(0,i, QTableWidgetItem(str(self.experiment.title_dds_tab[i])))
+        self.dds_seq_header.item(0,i).setTextAlignment(Qt.AlignCenter)
 
     #MAKING VERTICAL SCROLL BARS COMMON FOR DDS TABLE
-    self.dds_tables = [self.dds_table,self.dds_dummy,self.analog_table,self.analog_dummy, self.digital_table, self.digital_dummy, self.sequence_table]
+    self.dds_tables = [self.dds_table,self.dds_seq,self.analog_table,self.analog_dummy, self.digital_table, self.digital_dummy, self.sequence_table]
 
     def move_other_scrollbars_vertical(idx,bar):
         scrollbars = {tbl.verticalScrollBar() for tbl in self.dds_tables}
@@ -792,27 +814,27 @@ def dds_tab_build(self):
         for bar in scrollbars:
             bar.setValue(idx)
         
-    self.dds_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.dds_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.dds_fixed.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.dds_fixed.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_seq.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_seq_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_seq_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     
     for tbl in self.dds_tables:
         scrollbar = tbl.verticalScrollBar()
         scrollbar.valueChanged.connect(lambda idx,bar=scrollbar: move_other_scrollbars_vertical(idx, bar))
 
     #MAKING HORIZONTAL SCROLL BARS COMMON FOR DDS TABLE
-    self.dds_dummy_tables = [self.dds_table,self.dds_dummy_header]
+    self.dds_seq_tables = [self.dds_table,self.dds_table_header]
 
     def move_other_scrollbars_horizontal(idx,bar):
-        scrollbars = {tbl.horizontalScrollBar() for tbl in self.dds_dummy_tables}
+        scrollbars = {tbl.horizontalScrollBar() for tbl in self.dds_seq_tables}
         scrollbars.remove(bar)
         for bar in scrollbars:
             bar.setValue(idx)
         
-    self.dds_dummy_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.dds_dummy_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    for tbl in self.dds_dummy_tables:
+    self.dds_table_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_table_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    for tbl in self.dds_seq_tables:
         scrollbar = tbl.horizontalScrollBar()
         scrollbar.valueChanged.connect(lambda idx,bar=scrollbar: move_other_scrollbars_horizontal(idx, bar))
 
@@ -877,7 +899,7 @@ def variables_tab_build(self):
     self.variables_table.setColumnCount(variables_num_columns)
     self.variables_table.setHorizontalHeaderLabels(["Name", "Value"])
     self.variables_table.verticalHeader().setVisible(False)
-    self.variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_W*50))
+    self.variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.variables_table.setFont(QFont('Arial', self.scale_font(12)))
     self.variables_table.setColumnWidth(0,int(self.SCALE_W*(205)))
@@ -913,7 +935,7 @@ def variables_tab_build(self):
     self.derived_variables_table.setColumnCount(derived_variables_num_columns)
     self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Edge id","Function in python syntax", "Initial value"]) #RACOON
     self.derived_variables_table.verticalHeader().setVisible(False)
-    self.derived_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_W*50))
+    self.derived_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.derived_variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.derived_variables_table.setFont(QFont('Arial', self.scale_font(12)))
     self.derived_variables_table.setColumnWidth(0,int(self.SCALE_W*(130)))
@@ -970,7 +992,7 @@ def variables_tab_build(self):
     self.lookup_variables_table.setColumnCount(lookup_variables_num_columns)
     self.lookup_variables_table.setHorizontalHeaderLabels(["Name", "Agrument", "Lookup list name"])
     self.lookup_variables_table.verticalHeader().setVisible(False)
-    self.lookup_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_W*50))
+    self.lookup_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.lookup_variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.lookup_variables_table.setFont(QFont('Arial', self.scale_font(12)))
     self.lookup_variables_table.setColumnWidth(0,int(self.SCALE_W*(180)))
@@ -1033,7 +1055,7 @@ def sampler_tab_build(self):
     self.sampler_table.setRowCount(1) 
     self.sampler_table.setHorizontalHeaderLabels(self.experiment.title_sampler_tab)
     self.sampler_table.verticalHeader().setVisible(False)
-    self.sampler_table.horizontalHeader().setFixedHeight(int(self.SCALE_W*60))
+    self.sampler_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.sampler_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.sampler_table.setFont(QFont('Arial', self.scale_font(12)))
     self.sampler_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
@@ -1125,7 +1147,7 @@ def mirny_tab_build(self):
     self.mirny_table = QTableWidget(self.mirny_tab_widget)
     self.mirny_table.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 1020)))
     self.mirny_table.setColumnCount(self.mirny_tab_num_cols)
-    self.mirny_table.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
+    self.mirny_table.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.mirny_table.verticalHeader().setVisible(False)
     self.mirny_table.horizontalHeader().setVisible(False)
     self.mirny_table.setRowCount(3) # 5 is an arbitrary number we just need to have rows in order to span them
@@ -1170,7 +1192,7 @@ def mirny_tab_build(self):
     self.mirny_dummy.setGeometry(QRect(*self.scale_geom(10,30,335,1003)))
     self.mirny_dummy.setColumnCount(4)
     self.mirny_dummy.setRowCount(3)
-    self.mirny_dummy.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
+    self.mirny_dummy.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.mirny_dummy.verticalHeader().setVisible(False)
     self.mirny_dummy.horizontalHeader().setVisible(False)
     self.mirny_dummy.horizontalHeader().setMinimumSectionSize(0)
@@ -1197,7 +1219,7 @@ def mirny_tab_build(self):
     self.mirny_dummy_header = QTableWidget(self.mirny_tab_widget)
     self.mirny_dummy_header.setGeometry(QRect(*self.scale_geom(10,30,1905,90)))
     self.mirny_dummy_header.setColumnCount(self.mirny_tab_num_cols)
-    self.mirny_dummy_header.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
+    self.mirny_dummy_header.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.mirny_dummy_header.verticalHeader().setVisible(False)
     self.mirny_dummy_header.horizontalHeader().setVisible(False)
     self.mirny_dummy_header.setRowCount(2) 
@@ -1244,7 +1266,7 @@ def mirny_tab_build(self):
     self.mirny_fixed.setGeometry(QRect(*self.scale_geom(10,30, 335,90)))
     # self.mirny_fixed.setGeometry(QRect(*self.scale_geom(10,30, 300,50)))
     self.mirny_fixed.setColumnCount(4)
-    self.mirny_fixed.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
+    self.mirny_fixed.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.mirny_fixed.verticalHeader().setVisible(False)
     self.mirny_fixed.horizontalHeader().setVisible(False)
     self.mirny_fixed.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
@@ -1260,7 +1282,7 @@ def mirny_tab_build(self):
     self.mirny_fixed.setColumnWidth(3,int(self.SCALE_W*(5)))
 
     #making first three columns vertically wider to fit with header 
-    self.mirny_fixed.setRowHeight(0, self.dds_fixed.height())
+    self.mirny_fixed.setRowHeight(0, self.dds_seq_header.height())
     for i in range(4):
         # self.mirny_fixed.setSpan(0, i, 2, 1)
         self.mirny_fixed.setItemDelegateForColumn(i,delegate)
@@ -1364,7 +1386,7 @@ def slow_dds_tab_build(self):
     self.slow_dds_table = QTableWidget(self.slow_dds_tab_widget)
     self.slow_dds_table.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 1020)))
     self.slow_dds_table.setColumnCount(self.slow_dds_tab_num_cols)
-    self.slow_dds_table.horizontalHeader().setMinimumHeight(int(self.SCALE_W*50))
+    self.slow_dds_table.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.slow_dds_table.verticalHeader().setVisible(False)
     self.slow_dds_table.horizontalHeader().setVisible(False)
     self.slow_dds_table.setRowCount(3) 

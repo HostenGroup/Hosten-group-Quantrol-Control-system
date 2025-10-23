@@ -491,7 +491,7 @@ class MainWindow(QMainWindow):
         if config.slow_dds_channels_number > 0:
             tabs.slow_dds_tab_build(self)
         tabs.variables_tab_build(self)
-        self.making_separator()
+        # self.making_separator()
        
         #ADDING TABS TO MAIN WINDOW
         self.main_window.addTab(self.sequence_tab_widget, "Sequence")
@@ -613,52 +613,52 @@ class MainWindow(QMainWindow):
 
 
 
-    def making_separator(self):
-        '''
-        The function does include a separator in the table that is coloured in dark grey for better visual separation across all tabs
-        Fucntion is called each time the new edge is being incerted
-        '''
-        #making the separation rows a single column
-        if self.sequence_num_rows > 1: # to avoid having a warning that single cell span won't be added
-            if config.dds_channels_number > 0:
-                self.digital_table.setSpan(0,3, self.sequence_num_rows, 1)
-            if config.analog_channels_number > 0:
-                self.analog_table.setSpan(0,3, self.sequence_num_rows, 1)
-            if config.sampler_channels_number > 0:
-                self.sampler_table.setSpan(0,3, self.sequence_num_rows, 1)
+    # def making_separator(self):
+    #     '''
+    #     The function does include a separator in the table that is coloured in dark grey for better visual separation across all tabs
+    #     Fucntion is called each time the new edge is being incerted
+    #     '''
+    #     #making the separation rows a single column
+    #     if self.sequence_num_rows > 1: # to avoid having a warning that single cell span won't be added
+    #         if config.dds_channels_number > 0:
+    #             self.digital_table.setSpan(0,3, self.sequence_num_rows, 1)
+    #         if config.analog_channels_number > 0:
+    #             self.analog_table.setSpan(0,3, self.sequence_num_rows, 1)
+    #         if config.sampler_channels_number > 0:
+    #             self.sampler_table.setSpan(0,3, self.sequence_num_rows, 1)
  
-        # grey coloured separating line digital tab
-        if config.digital_channels_number > 0:
-            self.digital_table.setItem(0,3, QTableWidgetItem())
-            self.digital_table.item(0,3).setBackground(self.grey)
-        # grey coloured separating line analog tab
-        if config.analog_channels_number > 0:
-            self.analog_table.setItem(0,3, QTableWidgetItem())
-            self.analog_table.item(0,3).setBackground(self.grey)
-        # grey coloured separating line dds tab
-        if config.dds_channels_number > 0:
-            self.dds_dummy.setSpan(0,3, self.sequence_num_rows + 2, 1)  
-            self.dds_dummy.setItem(0,3, QTableWidgetItem())
-            self.dds_dummy.item(0,3).setBackground(self.grey)
-            # grey coloured separating line in dds tab between channels
-            for i in range(config.dds_channels_number):
-                self.dds_table.setSpan(0, 6*i + 3, self.sequence_num_rows+2, 1)
-                self.dds_table.setItem(0,6*i + 3, QTableWidgetItem())
-                self.dds_table.item(0, 6*i + 3).setBackground(self.grey)
-        # grey coloured separating line mirny tab
-        if config.mirny_channels_number > 0:
-            self.mirny_dummy.setSpan(0,3, self.sequence_num_rows + 2, 1)  
-            self.mirny_dummy.setItem(0,3, QTableWidgetItem())
-            self.mirny_dummy.item(0,3).setBackground(self.grey)
-            # grey coloured separating line in mirny tab between channels
-            for i in range(config.mirny_channels_number):
-                self.mirny_table.setSpan(0, 6*i + 3, self.sequence_num_rows+2, 1)
-                self.mirny_table.setItem(0,6*i + 3, QTableWidgetItem())
-                self.mirny_table.item(0, 6*i + 3).setBackground(self.grey)
-        # grey coloured separating line sampler tab
-        if config.sampler_channels_number > 0:
-            self.sampler_table.setItem(0,3, QTableWidgetItem())
-            self.sampler_table.item(0,3).setBackground(self.grey)
+    #     # grey coloured separating line digital tab
+    #     if config.digital_channels_number > 0:
+    #         self.digital_table.setItem(0,3, QTableWidgetItem())
+    #         self.digital_table.item(0,3).setBackground(self.grey)
+    #     # grey coloured separating line analog tab
+    #     if config.analog_channels_number > 0:
+    #         self.analog_table.setItem(0,3, QTableWidgetItem())
+    #         self.analog_table.item(0,3).setBackground(self.grey)
+    #     # grey coloured separating line dds tab
+    #     if config.dds_channels_number > 0:
+    #         self.dds_seq.setSpan(0,3, self.sequence_num_rows + 2, 1)  
+    #         self.dds_seq.setItem(0,3, QTableWidgetItem())
+    #         self.dds_seq.item(0,3).setBackground(self.grey)
+    #         # grey coloured separating line in dds tab between channels
+    #         for i in range(config.dds_channels_number):
+    #             self.dds_table.setSpan(0, 6*i + 3, self.sequence_num_rows+2, 1)
+    #             self.dds_table.setItem(0,6*i + 3, QTableWidgetItem())
+    #             self.dds_table.item(0, 6*i + 3).setBackground(self.grey)
+    #     # grey coloured separating line mirny tab
+    #     if config.mirny_channels_number > 0:
+    #         self.mirny_dummy.setSpan(0,3, self.sequence_num_rows + 2, 1)  
+    #         self.mirny_dummy.setItem(0,3, QTableWidgetItem())
+    #         self.mirny_dummy.item(0,3).setBackground(self.grey)
+    #         # grey coloured separating line in mirny tab between channels
+    #         for i in range(config.mirny_channels_number):
+    #             self.mirny_table.setSpan(0, 6*i + 3, self.sequence_num_rows+2, 1)
+    #             self.mirny_table.setItem(0,6*i + 3, QTableWidgetItem())
+    #             self.mirny_table.item(0, 6*i + 3).setBackground(self.grey)
+    #     # grey coloured separating line sampler tab
+    #     if config.sampler_channels_number > 0:
+    #         self.sampler_table.setItem(0,3, QTableWidgetItem())
+    #         self.sampler_table.item(0,3).setBackground(self.grey)
      
 
 
@@ -1097,9 +1097,9 @@ class MainWindow(QMainWindow):
         self.analog_dummy.item(edge_num,0).setBackground(set_color)
         self.analog_dummy.item(edge_num,1).setBackground(set_color)
         self.analog_dummy.item(edge_num,2).setBackground(set_color)
-        self.dds_dummy.item(edge_num+2,0).setBackground(set_color)
-        self.dds_dummy.item(edge_num+2,1).setBackground(set_color)
-        self.dds_dummy.item(edge_num+2,2).setBackground(set_color)
+        self.dds_seq.item(edge_num+2,0).setBackground(set_color)
+        self.dds_seq.item(edge_num+2,1).setBackground(set_color)
+        self.dds_seq.item(edge_num+2,2).setBackground(set_color)
         self.to_update = True        
 
 
@@ -1120,7 +1120,7 @@ class MainWindow(QMainWindow):
             elif self.main_window.currentIndex() == 2:
                 edge_num = self.analog_dummy.selectedIndexes()[0].row()    
             elif self.main_window.currentIndex() == 3:
-                edge_num = self.dds_dummy.selectedIndexes()[0].row() - 2 # because top 2 rows are used for title   
+                edge_num = self.dds_seq.selectedIndexes()[0].row() - 2 # because top 2 rows are used for title   
             elif self.main_window.currentIndex() == 4:
                 edge_num = self.mirny_dummy.selectedIndexes()[0].row() - 2 # because top 2 rows are used for title   
             write_to_python.create_go_to_edge(self, edge_num=edge_num)
@@ -2311,9 +2311,9 @@ class MainWindow(QMainWindow):
         if self.to_update:
             row = item.row()
             col = item.column()
-            edge_num = row - 2
-            channel = (col - 4)//6 #4 columns for edge and separation. division by 5 channel settings and 1 separation
-            setting = col - 4 - 6 * channel # the number is a sequential value of setting. Frequency is 0, Amplitude 1, attenuation 2, phase 3, state 4
+            edge_num = row
+            channel = (col - 1)//6 #4 columns for edge and separation. division by 5 channel settings and 1 separation
+            setting = col - 1 - 6 * channel # the number is a sequential value of setting. Frequency is 0, Amplitude 1, attenuation 2, phase 3, state 4
             if self.dds_table.item(row,col).text() == "": #User deleted the value. The function will display the previously set state
                 if edge_num == 0: #Default edge
                     self.error_message("You can not delete initial value!", "Initial value is needed!")
@@ -2324,7 +2324,7 @@ class MainWindow(QMainWindow):
                     #Removing background color
                     self.update_off()
                     for index_setting in range(5):
-                        self.dds_table.item(row, channel*6 + 4 + index_setting).setBackground(self.white)
+                        self.dds_table.item(row, channel*6 + 1 + index_setting).setBackground(self.white)
                     self.experiment.sequence[edge_num].dds[channel].changed = False
                     self.update_on()
                     update.dds_tab(self)
@@ -2361,14 +2361,15 @@ class MainWindow(QMainWindow):
 
 
 
-    def dds_dummy_header_changed(self, item):
+    def dds_table_header_changed(self, item):
         '''
         Function is used when the user wants to change the name of the dds title. 
         It overwrites the value of the corresponding title name in the experiment object so when it is saved the changes are persitent.
         '''
         if self.to_update:
             col = item.column()
-            self.experiment.title_dds_tab[(col-4)//6 + 4] = self.dds_dummy_header.item(0,col).text() # title has 3 leading names and a separator
+            print(col)
+            self.experiment.title_dds_tab[(col - 1)//6 + 4] = self.dds_table_header.item(0,col).text() # title has 3 leading names and a separator
 
 
 
