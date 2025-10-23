@@ -417,23 +417,17 @@ class MainWindow(QMainWindow):
         self.main_window = QTabWidget()
         self.setCentralWidget(self.main_window)
 
+        ORIG_W = 1920
+        ORIG_H = 1200
 
-        # self.app = QApplication([])
-        # self.screen = QGuiApplication.primaryScreen().availableGeometry()
-        # self.H_size = self.screen.size().height()
-        # self.W_size = self.screen.size().width()
-        # # print(self.H_size,self.W_size)
+        # self.setGeometry(0,0,1920,1200)
+        tup = self._fit_to_work_area()
+        CURRENT_W = tup[2]
+        CURRENT_H = tup[3]
+        
+        self.SCALE_W = float(1.0*CURRENT_W/ORIG_W)
+        self.SCALE_H = float(1.0*CURRENT_H/ORIG_H)
 
-        # self.orig_H = 1200
-        # self.orig_W = 1920
-        # # self.H_SCALE = 1.0
-        # # self.W_SCALE = 1.0
-        # self.H_SCALE = 1.0*self.H_size/self.orig_H
-        # self.W_SCALE = 1.0*self.W_size/self.orig_W
-        
-        # self.setGeometry(0,0,int(self.orig_W * self.W_SCALE),int(self.orig_H * self.H_SCALE))
-        self.setGeometry(0,0,1920,1200)
-        
         #Declaring global variables
         self.experiment = self.Experiment()
         self.sequence_num_rows = 1
@@ -525,10 +519,40 @@ class MainWindow(QMainWindow):
     ||      ||    ||  ||   |||  ||  ||    ||      ||    ||   ||  ||   |||  ||    ||
     ||       ||||||   ||    ||  ||||||    ||    ||||||   |||||   ||    ||  ||||||||  ||  ||  ||
     '''
-    
+    def _fit_to_work_area(self):
+        '''
+        The function sets the geometry of the main window to the size of the working area of the screen
+        '''
+        self.showNormal()
+        QApplication.processEvents()
 
+        screen = self.windowHandle().screen() or QGuiApplication.primaryScreen()
+        work = screen.availableGeometry()
 
+        # frame margins
+        frame = self.frameGeometry()
+        client = self.geometry()
+        ml = client.x() - frame.x()
+        mt = client.y() - frame.y()
+        mr = frame.right() - client.right()
+        mb = frame.bottom() - client.bottom()
 
+        # set so client fills work area
+        work_adj = work.adjusted(ml, mt, -mr, -mb)
+        self.setGeometry(work_adj)
+        return work_adj.x(), work_adj.y(), work_adj.width(), work_adj.height()
+
+    def scale_geom(self,x,y,w,h):
+        '''
+        The function is used to scale the geometry
+        '''
+        return ( int(x*self.SCALE_W), int(y*self.SCALE_H), int(w*self.SCALE_W), int(h*self.SCALE_H) )
+        
+    def scale_font(self,s):
+        '''
+        The function is used to scale the font
+        '''
+        return int(s*min(self.SCALE_W, self.SCALE_H))
 
     def init_default_values(self):
         '''
@@ -3253,7 +3277,7 @@ def run():
     '''
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.show()
+    window.showMaximized()
     try:
         sys.exit(app.exec_())
     except:
