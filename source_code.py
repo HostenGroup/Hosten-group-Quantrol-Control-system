@@ -648,6 +648,7 @@ class MainWindow(QMainWindow):
         '''
         index = 0
         output_eval = ""
+        output_expression = ""
         output_for_python = ""
         current = ""
         is_scanned = False
@@ -664,10 +665,13 @@ class MainWindow(QMainWindow):
             if text[index] == "-" or text[index] == "+" or text[index] == "/" or text[index] == "*":
                 current.replace(" ", "")
                 try: #If the current convertible to float type of value
-                    float_current = float(current)
+                    # float_current = float(current)
+                    float_current = float(int(float(current)*1e6)/1e6) # rounding numbers down to 6 decimal places
+                    output_expression += str(float_current) + text[index]
                     output_eval += str(float_current) + text[index]
                     output_for_python += str(float_current) + text[index]
                 except: #If the current is a variable name
+                    output_expression += current + text[index]
                     output_eval += "self.experiment.variables['" + current + "'].value" + text[index]
                     variable = self.experiment.variables[current]
                     if self.experiment.do_scan and variable.is_scanned:#if scanned assign the python form else assign the value
@@ -694,6 +698,7 @@ class MainWindow(QMainWindow):
         # Removing all additional characters in the end. Making a+2+ into a+2
         output_eval = output_eval[:-1]
         output_for_python = output_for_python[:-1]
+        output_expression = output_expression[:-1]
         # If for_python can be evaluated, then just store the value. Otherwise we keep the original form
         try:
             exec("self.temp =" + output_for_python)
@@ -705,7 +710,7 @@ class MainWindow(QMainWindow):
             output_eval = str(float(output_eval))
         except:
             pass
-        return (output_eval, output_for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) #Since we added an additional sign we need to remove it # owl
+        return (output_expression, output_eval, output_for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) #Since we added an additional sign we need to remove it # owl
 
 
 
@@ -822,7 +827,7 @@ class MainWindow(QMainWindow):
                 else:                        
                     try:
                         expression = table_item.text()
-                        (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
+                        (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
                         exec("self.value = " + str(evaluation)) # this is done here to be able to assign value of the id# type variable
                         if self.value < 0: #restricting negative values for time
                             self.error_message("Negative values are not allowed", "Negative time value")
@@ -1699,7 +1704,7 @@ class MainWindow(QMainWindow):
         if self.to_update: 
             try:
                 expression = self.number_of_steps_input.text()
-                (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
+                (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                 exec("self.value = " + str(evaluation))
                 if self.value > 0: #check whether it is a positive integer
                     self.experiment.number_of_steps = int(self.value)
@@ -1722,7 +1727,7 @@ class MainWindow(QMainWindow):
         if self.to_update: 
             try:
                 expression = self.number_of_runs_input.text()
-                (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
+                (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                 exec("self.value = " + str(evaluation))
                 if self.value > 0: 
                     self.experiment.number_of_runs = int(self.value)
@@ -1860,7 +1865,7 @@ class MainWindow(QMainWindow):
         if self.to_update: 
             try:
                 expression = self.cam_trigger_off_input.text()
-                (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
+                (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                 exec("self.value = " + str(evaluation))
                 if self.value > 0: 
                     self.experiment.cam_trigger_off_runs = int(self.value)
@@ -2141,7 +2146,7 @@ class MainWindow(QMainWindow):
                 try: 
                     #Checking whether the expression can be evaluated and the value is within allowed range
                     expression = table_item.text()
-                    (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
                     exec("self.value = " + evaluation)
                     if (self.value == 0 or self.value == 1):
                         channel.changed = True
@@ -2235,7 +2240,7 @@ class MainWindow(QMainWindow):
                 try:
                     #Checking whether the expression can be evaluated and the value is within allowed range                    
                     expression = table_item.text()
-                    (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
                     exec("self.value =" + evaluation)
                     if (self.value <= 9.9 and self.value >= -9.9):
                         channel.expression = expression
@@ -2295,7 +2300,7 @@ class MainWindow(QMainWindow):
                     #RACOON FLAG
                     #Checking whether the expression can be evaluated and the value is within allowed range                     
                     expression = self.dds_table.item(row,col).text()
-                    (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
                     exec("self.dummy_val =" + evaluation)
                     maximum, minimum = self.max_dict_dds[setting], self.min_dict_dds[setting]
                     if (self.dummy_val <= maximum and self.dummy_val >= minimum): 
@@ -2368,7 +2373,7 @@ class MainWindow(QMainWindow):
                 try:
                     #Checking whether the expression can be evaluated and the value is within allowed range                     
                     expression = self.mirny_table.item(row,col).text()
-                    (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
                     exec("self.dummy_val =" + evaluation)
                     maximum, minimum = self.max_dict_mirny[setting], self.min_dict_mirny[setting]
                     if (self.dummy_val <= maximum and self.dummy_val >= minimum): 
@@ -2432,7 +2437,7 @@ class MainWindow(QMainWindow):
                     try:
                         #Checking whether the expression can be evaluated and the value is within allowed range                     
                         expression = self.slow_dds_table.item(row,col).text()
-                        (evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
+                        (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
                         exec("self.dummy_val =" + evaluation)
                         maximum, minimum = self.max_dict_dds[setting], self.min_dict_dds[setting]
                         if (self.dummy_val <= maximum and self.dummy_val >= minimum): #Change accepted
@@ -2526,9 +2531,27 @@ class MainWindow(QMainWindow):
         It checks if the variable is used in any expression by deleting it and trying to evaluate every expression.
         the backup is used in order to be able to revert the changes in case the variable is used somewhere.
         '''
-        try:
-            row = self.variables_table.selectedIndexes()[0].row()
-            name = self.variables_table.item(row,0).text()
+        # var_table = self.variables_table_variables
+
+        var_tables0 = ['variables_table_sequence','variables_table_analog',
+                      'variables_table_digital','variables_table_dds',
+                      'variables_table_mirny','variables_table_sampler','variables_table_variables']
+        var_tables = [name for name in var_tables0 if hasattr(self, name)]
+        selected = False
+        for var_table_i in var_tables:
+            try:
+                var_attr = getattr(self, var_table_i)
+                row = var_attr.selectedIndexes()[0].row()
+                selected = True
+                var_table = var_attr
+            except:
+                pass
+        
+
+
+        if selected:
+            row = var_table.selectedIndexes()[0].row()
+            name = var_table.item(row,0).text()
             variable = self.experiment.new_variables[row]
             if name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
                 #Checking if the variable is being scanned or ramped
@@ -2561,15 +2584,24 @@ class MainWindow(QMainWindow):
                         if not is_lookup_argument:
                             backup = deepcopy(self.experiment.variables[name]) #used to be able to revert the process of deletion
                             del self.experiment.variables[name]
-                            self.variables_table.setCurrentCell(row-1,0)
+                            var_table.setCurrentCell(row-1,0)
                             return_value = update.digital_analog_dds_mirny_tabs(self) #we need to update only values not expressions
                             if return_value == None: #Variable can be deleted
                                 del self.experiment.new_variables[row]
-                                update.variables_tab(self)
+                                # update.digital_analog_dds_mirny_tabs(self) 
+                                # update.variables_tab(self)
+                                # update.sequence_tab(self)
+                                # update.sampler_tab(self)
+                                update.all_tabs(self)
+                                update.from_object(self)
                             else: #Variable can not be deleted. Reverting all changes back to previous state
                                 self.experiment.variables[name] = backup
-                                update.digital_analog_dds_mirny_tabs(self) 
-                                update.variables_tab(self)
+                                # update.digital_analog_dds_mirny_tabs(self) 
+                                # update.variables_tab(self)
+                                # update.sequence_tab(self)
+                                # update.sampler_tab(self)
+                                update.all_tabs(self)
+                                update.from_object(self)
                                 self.error_message('The variable is used in %s.'%return_value, 'Can not delete used variable')
                         else:
                             self.error_message("The variable is used as a argument in lookup variables. Remove it from the Lookup variables table before deleting it.", "Lookup variable's argument")
@@ -2579,7 +2611,7 @@ class MainWindow(QMainWindow):
                     self.error_message("The variable is scanned or ramped. Remove it from the scan or ramp table before deleting.", "Scanned or Ramped variable") 
             else:
                 self.error_message("The variable is sampled. Remove it from the sampler tab before deleting.", "Sampled variable")
-        except: #In case the user pressed delete variable button without selecting the variable that needs to be deleted
+        else: #In case the user pressed delete variable button without selecting the variable that needs to be deleted
             self.error_message("Select the variable that needs to be deleted", "No variable selected")
 
 
@@ -2594,10 +2626,16 @@ class MainWindow(QMainWindow):
         variable_name = self.find_new_variable_name_unused()
         self.experiment.new_variables.append(self.Variable(variable_name, 0.0, 0.0))
         self.experiment.variables[variable_name] = self.Variable(variable_name, 0.0, 0.0)
-        update.variables_tab(self, derived_variables = False)
+        # update.variables_tab(self, derived_variables = False)
+        # update.digital_analog_dds_mirny_tabs(self)
+        # update.sampler_tab(self)
+        # update.all_tabs(self)
+        update.all_tabs(self,derived_variables = False)
 
 
 
+
+    
 
 
     def variables_table_changed(self, item):
@@ -2608,11 +2646,26 @@ class MainWindow(QMainWindow):
         It also makes sure that if the variable is used the expression when its value is changed the expression evaluation remains in the
         allowed parameters range.       
         '''
+        
+        # print(var_table.objectName())
+        var_tables0 = ['variables_table_sequence','variables_table_analog',
+                      'variables_table_digital','variables_table_dds',
+                      'variables_table_mirny','variables_table_sampler','variables_table_variables']
+        var_table_names = [name for name in var_tables0 if hasattr(self, name)]
+        # blockers = []
+        for var_table_name in var_table_names:
+            # print(var_table_name)
+            var_table_block = getattr(self, var_table_name)
+            # blockers.append(QSignalBlocker(var_table_block))
+            var_table_block.blockSignals(True)
+
+        var_table = item.tableWidget()
         if self.to_update:
             row = item.row()
             col = item.column()
             variable = self.experiment.new_variables[row]
-            table_item = self.variables_table.item(row,col)
+            table_item = var_table.item(row,col)
+            
             if col == 0: #Variable name was changed
                 if variable.name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
                     #Checking if the variable is being scanned or ramped 
@@ -2714,30 +2767,44 @@ class MainWindow(QMainWindow):
                 #variable.value is used as a back up if evaluation is not possible since we do not change self.experiment.new_variables to check if the variable is used or not
                 try:
                     #Checking if the new value resulting in the values allowed for each parameter it is used in
-                    self.experiment.variables[variable.name].value = float(table_item.text())
+                    self.experiment.variables[variable.name].value = float(int(float(table_item.text())*1e6)/1e6)
+                    # self.experiment.variables[variable.name].value = float(table_item.text())
                     return_value = update.digital_analog_dds_mirny_tabs(self) # we do not need to update expressions only update values.
                     if return_value == None: #The value can be updated
                         variable.value = self.experiment.variables[variable.name].value
                         table_item.setText(str(variable.value))
-                        update.sequence_tab(self)
-                        update.digital_analog_dds_mirny_tabs(self)
+                        # update.sequence_tab(self)
+                        # update.digital_analog_dds_mirny_tabs(self)
+                        # update.sampler_tab(self)
                         update.from_object(self)
+                        update.all_tabs(self)
+                        
                     else: #The value can not be updated, reverting every evaluation done before.
                         self.error_message("Evaluation is out of allowed range occured in %s. Variable value can not be assigned" %return_value, "Wrong entry")
                         self.experiment.variables[variable.name].value = variable.value 
                         self.update_off()
                         table_item.setText(str(variable.value))
                         self.update_on()
-                        update.sequence_tab(self) 
-                        update.digital_analog_dds_mirny_tabs(self)
+                        # update.sequence_tab(self) 
+                        # update.digital_analog_dds_mirny_tabs(self)
+                        # update.sampler_tab(self)
                         update.from_object(self)
+                        update.all_tabs(self)
+
                 except: #Restricting the user from using anything but the integer values and floating numbers
                     self.update_off()
                     table_item.setText(str(variable.value))
                     self.update_on()
-                    update.digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations=False)                    
+                    # update.digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations=False)   
+                    update.all_tabs(self,update_expressions_and_evaluations=False)   
+                    update.from_object(self)              
                     self.error_message("Only integers and floating numbers are allowed.", "Wrong entry")
-
+        
+        for var_table_name in var_table_names:
+            # print(var_table_name)
+            var_table_block = getattr(self, var_table_name)
+            # blockers.append(QSignalBlocker(var_table_block))
+            var_table_block.blockSignals(False)    
 
 
 
