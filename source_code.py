@@ -35,6 +35,8 @@ import threading
 import subprocess
 import config
 from scipy.io import savemat, loadmat
+import pandas as pd
+import json
 
 
 # Subclass QMainWindow to customize your application's main window
@@ -491,7 +493,7 @@ class MainWindow(QMainWindow):
         if config.slow_dds_channels_number > 0:
             tabs.slow_dds_tab_build(self)
         tabs.variables_tab_build(self)
-        # self.making_separator()
+        # tabs.making_separator(self)
        
         #ADDING TABS TO MAIN WINDOW
         self.main_window.addTab(self.sequence_tab_widget, "Sequence")
@@ -600,67 +602,12 @@ class MainWindow(QMainWindow):
 
     
 
-
-
     def message_to_logger(self, message):
         '''
         The function is taking a message in terms of the String and displays it into the logger with the current time stamp
         where the time is the system time now
         '''
         self.logger.appendPlainText(datetime.now().strftime("%D %H:%M:%S - ") + message)
-
- 
-
-
-
-    # def making_separator(self):
-    #     '''
-    #     The function does include a separator in the table that is coloured in dark grey for better visual separation across all tabs
-    #     Fucntion is called each time the new edge is being incerted
-    #     '''
-    #     #making the separation rows a single column
-    #     if self.sequence_num_rows > 1: # to avoid having a warning that single cell span won't be added
-    #         if config.dds_channels_number > 0:
-    #             self.digital_table.setSpan(0,3, self.sequence_num_rows, 1)
-    #         if config.analog_channels_number > 0:
-    #             self.analog_table.setSpan(0,3, self.sequence_num_rows, 1)
-    #         if config.sampler_channels_number > 0:
-    #             self.sampler_table.setSpan(0,3, self.sequence_num_rows, 1)
- 
-    #     # grey coloured separating line digital tab
-    #     if config.digital_channels_number > 0:
-    #         self.digital_table.setItem(0,3, QTableWidgetItem())
-    #         self.digital_table.item(0,3).setBackground(self.grey)
-    #     # grey coloured separating line analog tab
-    #     if config.analog_channels_number > 0:
-    #         self.analog_table.setItem(0,3, QTableWidgetItem())
-    #         self.analog_table.item(0,3).setBackground(self.grey)
-    #     # grey coloured separating line dds tab
-    #     if config.dds_channels_number > 0:
-    #         self.dds_seq.setSpan(0,3, self.sequence_num_rows + 2, 1)  
-    #         self.dds_seq.setItem(0,3, QTableWidgetItem())
-    #         self.dds_seq.item(0,3).setBackground(self.grey)
-    #         # grey coloured separating line in dds tab between channels
-    #         for i in range(config.dds_channels_number):
-    #             self.dds_table.setSpan(0, 6*i + 3, self.sequence_num_rows+2, 1)
-    #             self.dds_table.setItem(0,6*i + 3, QTableWidgetItem())
-    #             self.dds_table.item(0, 6*i + 3).setBackground(self.grey)
-    #     # grey coloured separating line mirny tab
-    #     if config.mirny_channels_number > 0:
-    #         self.mirny_dummy.setSpan(0,3, self.sequence_num_rows + 2, 1)  
-    #         self.mirny_dummy.setItem(0,3, QTableWidgetItem())
-    #         self.mirny_dummy.item(0,3).setBackground(self.grey)
-    #         # grey coloured separating line in mirny tab between channels
-    #         for i in range(config.mirny_channels_number):
-    #             self.mirny_table.setSpan(0, 6*i + 3, self.sequence_num_rows+2, 1)
-    #             self.mirny_table.setItem(0,6*i + 3, QTableWidgetItem())
-    #             self.mirny_table.item(0, 6*i + 3).setBackground(self.grey)
-    #     # grey coloured separating line sampler tab
-    #     if config.sampler_channels_number > 0:
-    #         self.sampler_table.setItem(0,3, QTableWidgetItem())
-    #         self.sampler_table.item(0,3).setBackground(self.grey)
-     
-
 
 
 
@@ -672,15 +619,11 @@ class MainWindow(QMainWindow):
 
 
 
-
-
     def update_off(self):
         '''
         Function that sets the self.to_update to false. It was created to make the code more readable
         '''
         self.to_update = False
-
-
 
 
 
@@ -696,8 +639,6 @@ class MainWindow(QMainWindow):
         msg.setWindowTitle(title)
         msg.exec_()
  
-
-
 
 
     def decode_input(self, text):
@@ -768,8 +709,6 @@ class MainWindow(QMainWindow):
 
 
 
-
-
     def remove_restricted_characters(self, text):
         '''
         Function is used to remove the restricted characters from the variable names.
@@ -780,8 +719,6 @@ class MainWindow(QMainWindow):
             text = text.replace(character, "")
         return text
     
-
-
 
     
     def update_sequence_edge_colors(self): 
@@ -832,8 +769,6 @@ class MainWindow(QMainWindow):
                 pass 
 
 
-
-
     
     def startID_edge_next_to_endID_edge(self): 
         # check if all end ID edges right after start ID edges for all ramp variables
@@ -851,8 +786,6 @@ class MainWindow(QMainWindow):
                 break
         return startID_next_to_endID
     
-
-
 
 
     #SEQUENCE TAB RELATED FUNCTIONS
@@ -1182,7 +1115,36 @@ class MainWindow(QMainWindow):
     # owl end
 
 
-
+    # def export_metadata(self):
+    #     # edge_dict = {
+    #     #         'name':[],
+    #     #         'id':[],
+    #     #         'value': [],
+    #     #         'expression':[],
+    #     #         'digital':[],
+    #     #         'analog':[],
+    #     #         'dds':[],
+    #     #         'mirny':[],
+    #     #         'sampler':[],
+    #     #         'slow_dds':[],
+    #     #         }
+        
+    #     # metadata = {'edges':[],
+    #     #             'variables':[],
+    #     #             'global_parameters':{}
+    #     #             }
+        
+    #     edge_dict = {}
+    #     seq_arr = self.experiment.sequence
+    #     for edge in seq_arr:
+    #         edge_dict['name'] = edge.name
+    #         edge_dict['value'] = edge.value
+    #         edge_dict['expression'] = edge.expression
+    #         digital_dict = {}
+    #         for ch in edge.digital:
+    #             digital_dict[]
+            
+    
 
 
     def run_experiment_button_clicked(self): 
@@ -3268,7 +3230,26 @@ class MainWindow(QMainWindow):
                 table_item.setText(channel)
                 self.update_on()
 
+def to_dict(obj):
+        """Recursively convert an object and its attributes to a dictionary."""
+        if isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+        if isinstance(obj, (list, tuple, set)):
+            return [to_dict(i) for i in obj]
+        if isinstance(obj, dict):
+            return {k: to_dict(v) for k, v in obj.items()}
 
+        # for class instances
+        result = {}
+        for attr, value in obj.__dict__.items():
+
+            condition = str(attr)[:2] != 'is' \
+                and str(attr) != 'changed' \
+                and str(attr) != 'for_python' \
+                and str(attr) != 'evaluation'
+            if condition:
+                result[attr] = to_dict(value)
+        return result
 
 
 
@@ -3281,7 +3262,12 @@ def run():
     window.showMaximized()
     try:
         sys.exit(app.exec_())
+        
     except:
+        # df = pd.DataFrame(to_dict(window.experiment))
+        # print(df)
+        with open('metadata.json', "w") as outfile:
+            json.dump(to_dict(window.experiment),outfile,indent=4)
         print("Exiting")
 
 

@@ -2,6 +2,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import config
+import tabs
 
 def sequence_tab(self):
     self.update_off()
@@ -267,10 +268,13 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                 channel = self.experiment.sequence[row].dds[channel_index]
                 # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
                 col = channel_index * 6 + 1 + setting
+                # sep_item = self.dds_table.item(row, channel_index * 6)
+                
                 table_item = self.dds_table.item(row, col)
                 exec("self.channel_entry = channel.%s" %self.setting_dict[setting])
                 channel_entry = self.channel_entry
                 if channel.changed: #Channel state needs to be updated
+                    # sep_item.setBackground(self.grey)
                     #Updating expressions and evaluations
                     if update_expressions_and_evaluations:
                         channel_entry.expression = table_item.text()
@@ -354,6 +358,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                             table_item.setToolTip(str(channel_entry.value))
                     #Color coding the values
                     table_item.setBackground(self.white)
+                
                         
     self.update_on()
 
@@ -609,7 +614,7 @@ def from_object(self):
     if config.sampler_channels_number > 0:
         self.sampler_table.setRowCount(self.sequence_num_rows)
     #Separator
-    # self.making_separator()
+    # tabs.making_separator(self)
     #Update titles
     if config.digital_channels_number > 0:
         self.digital_table.setHorizontalHeaderLabels(self.experiment.title_digital_tab)

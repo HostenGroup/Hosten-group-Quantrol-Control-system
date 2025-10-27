@@ -12,11 +12,118 @@ class ReadOnlyDelegate(QStyledItemDelegate):
     '''
     def createEditor(self, parent, option, index):
         return
+    
+# def making_separator(self):
+#         '''
+#         The function does include a separator in the table that is coloured in dark grey for better visual separation across all tabs
+#         Fucntion is called each time the new edge is being incerted
+#         '''
+#         #making the separation rows a single column
+#         if self.sequence_num_rows > 1: # to avoid having a warning that single cell span won't be added
+#             if config.dds_channels_number > 0:
+#                 self.digital_table.setSpan(0,3, self.sequence_num_rows, 1)
+#             if config.analog_channels_number > 0:
+#                 self.analog_table.setSpan(0,3, self.sequence_num_rows, 1)
+#             if config.sampler_channels_number > 0:
+#                 self.sampler_table.setSpan(0,3, self.sequence_num_rows, 1)
+ 
+#         # grey coloured separating line digital tab
+#         if config.digital_channels_number > 0:
+#             self.digital_table.setItem(0,3, QTableWidgetItem())
+#             self.digital_table.item(0,3).setBackground(self.grey)
+#         # grey coloured separating line analog tab
+#         if config.analog_channels_number > 0:
+#             self.analog_table.setItem(0,3, QTableWidgetItem())
+#             self.analog_table.item(0,3).setBackground(self.grey)
+#         # grey coloured separating line dds tab
+#         if config.dds_channels_number > 0:
+#             self.dds_seq.setSpan(0,3, self.sequence_num_rows, 1)  
+#             self.dds_seq.setItem(0,3, QTableWidgetItem())
+#             self.dds_seq.item(0,3).setBackground(self.grey)
+#             # grey coloured separating line in dds tab between channels
+#             for i in range(config.dds_channels_number):
+#                 self.dds_table.setSpan(0, 6*i + 3, self.sequence_num_rows, 1)
+#                 self.dds_table.setItem(0,6*i + 3, QTableWidgetItem())
+#                 self.dds_table.item(0, 6*i + 3).setBackground(self.grey)
+#         # grey coloured separating line mirny tab
+#         if config.mirny_channels_number > 0:
+#             self.mirny_dummy.setSpan(0,3, self.sequence_num_rows, 1)  
+#             self.mirny_dummy.setItem(0,3, QTableWidgetItem())
+#             self.mirny_dummy.item(0,3).setBackground(self.grey)
+#             # grey coloured separating line in mirny tab between channels
+#             for i in range(config.mirny_channels_number):
+#                 self.mirny_table.setSpan(0, 6*i + 3, self.sequence_num_rows, 1)
+#                 self.mirny_table.setItem(0,6*i + 3, QTableWidgetItem())
+#                 self.mirny_table.item(0, 6*i + 3).setBackground(self.grey)
+#         # grey coloured separating line sampler tab
+#         if config.sampler_channels_number > 0:
+#             self.sampler_table.setItem(0,3, QTableWidgetItem())
+#             self.sampler_table.item(0,3).setBackground(self.grey)
+
+def variables_sidebar_build(self):
+    return
 
 
+def bottom_buttons_build(self,tab):
+    # BUTTONS AT THE BOTTOM
+    y_val = 1200-40-30
+    #button to stop continuous run
+    self.stop_continuous_run_button_dds = QPushButton(tab)
+    self.stop_continuous_run_button_dds.setFont(QFont('Arial', self.scale_font(14)))
+    self.stop_continuous_run_button_dds.setGeometry(*self.scale_geom(10, y_val, 200, 30))
+    self.stop_continuous_run_button_dds.setText("Stop experiment")
+    self.stop_continuous_run_button_dds.clicked.connect(self.stop_continuous_run_button_clicked)
+    self.stop_continuous_run_button_dds.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
+   
+    #button to start continuous run
+    self.continuous_run_button_dds = QPushButton(tab)
+    self.continuous_run_button_dds.setFont(QFont('Arial', self.scale_font(14)))
+    self.continuous_run_button_dds.setGeometry(*self.scale_geom(220, y_val, 200, 30))
+    self.continuous_run_button_dds.setText("Continuous run")
+    self.continuous_run_button_dds.clicked.connect(self.continuous_run_button_clicked)
+    self.continuous_run_button_dds.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
+ 
+    #run experiment
+    self.run_experiment_button_dds = QPushButton(tab)
+    self.run_experiment_button_dds.setFont(QFont('Arial', self.scale_font(14)))
+    self.run_experiment_button_dds.setGeometry(*self.scale_geom(430, y_val, 200, 30))
+    self.run_experiment_button_dds.setText("Run experiment")
+    self.run_experiment_button_dds.clicked.connect(self.run_experiment_button_clicked) 
+    self.run_experiment_button_dds.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
+    
+    #go to edge
+    self.go_to_edge_button_dds = QPushButton(tab)
+    self.go_to_edge_button_dds.setFont(QFont('Arial', self.scale_font(14)))
+    self.go_to_edge_button_dds.setGeometry(*self.scale_geom(640, y_val, 200, 30))
+    self.go_to_edge_button_dds.setText("Go to Edge")
+    self.go_to_edge_button_dds.clicked.connect(self.go_to_edge_button_clicked)
+    self.go_to_edge_button_dds.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
 
+    # owl begin
+    #multiple runs
+    self.multiple_runs_button_sequence = QPushButton(tab)
+    self.multiple_runs_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
+    self.multiple_runs_button_sequence.setGeometry(*self.scale_geom(850, y_val, 200, 30))
+    self.multiple_runs_button_sequence.setText("Multiple runs")
+    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
+    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
+
+     
+    #num of runs for multiple runs
+    self.number_of_runs_label = QLabel(tab)
+    self.number_of_runs_label.setFont(QFont('Arial', self.scale_font(14)))
+    self.number_of_runs_label.setText("Number of runs")
+    self.number_of_runs_label.setGeometry(*self.scale_geom(1060, y_val, 150, 30))
+    self.number_of_runs_input = QLineEdit(tab)
+    self.number_of_runs_input.setGeometry(*self.scale_geom(1190, y_val, 50, 30))
+    self.number_of_runs_input.setFont(QFont('Arial', self.scale_font(14)))
+    self.number_of_runs_input.editingFinished.connect(self.number_of_runs_input_changed)
+    self.number_of_runs_input.setText("10")
+    # owl end
+
+# SEQUENCE TAB
 def sequence_tab_build(self):
-    #SEQUENCE TAB WIDGET
+    
     self.sequence_tab_widget = QWidget()
     self.sequence_lable = QLabel(self.sequence_tab_widget)
     self.sequence_lable.setText("Timing Sequence")
@@ -187,60 +294,6 @@ def sequence_tab_build(self):
     self.experiment.cont_run_after_exp = False  # off at the beginning
     
 
-    #BUTTONS AT THE BOTTOM
-    #button to stop continuous run
-    self.stop_continuous_run_button_sequence = QPushButton(self.sequence_tab_widget)
-    self.stop_continuous_run_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.stop_continuous_run_button_sequence.setGeometry(*self.scale_geom(10, 1060, 200, 30))
-    self.stop_continuous_run_button_sequence.setText("Stop experiment")  # renamed, before Stop continuous run
-    self.stop_continuous_run_button_sequence.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_sequence.setToolTip("Stop experiment button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
-   
-    #button to start continuous run
-    self.continuous_run_button_sequence = QPushButton(self.sequence_tab_widget)
-    self.continuous_run_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.continuous_run_button_sequence.setGeometry(*self.scale_geom(220, 1060, 200, 30))
-    self.continuous_run_button_sequence.setText("Continuous run")
-    self.continuous_run_button_sequence.clicked.connect(self.continuous_run_button_clicked)
-    self.continuous_run_button_sequence.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
- 
-    #run experiment
-    self.run_experiment_button_sequence = QPushButton(self.sequence_tab_widget)
-    self.run_experiment_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.run_experiment_button_sequence.setGeometry(*self.scale_geom(430, 1060, 200, 30))
-    self.run_experiment_button_sequence.setText("Run experiment")
-    self.run_experiment_button_sequence.clicked.connect(self.run_experiment_button_clicked) 
-    self.run_experiment_button_sequence.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
-    
-    #go to edge
-    self.go_to_edge_button_sequence = QPushButton(self.sequence_tab_widget)
-    self.go_to_edge_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.go_to_edge_button_sequence.setGeometry(*self.scale_geom(640, 1060, 200, 30))
-    self.go_to_edge_button_sequence.setText("Go to Edge")
-    self.go_to_edge_button_sequence.clicked.connect(self.go_to_edge_button_clicked)
-    self.go_to_edge_button_sequence.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
-    
-    # owl begin
-    #multiple runs
-    self.multiple_runs_button_sequence = QPushButton(self.sequence_tab_widget)
-    self.multiple_runs_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.multiple_runs_button_sequence.setGeometry(*self.scale_geom(850, 1060, 200, 30))
-    self.multiple_runs_button_sequence.setText("Multiple runs")
-    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
-    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
-    
-    #num of runs for multiple runs
-    self.number_of_runs_label = QLabel(self.sequence_tab_widget)
-    self.number_of_runs_label.setFont(QFont('Arial', self.scale_font(14)))
-    self.number_of_runs_label.setText("Number of runs")
-    self.number_of_runs_label.setGeometry(*self.scale_geom(1050, 1060, 150, 30))
-    self.number_of_runs_input = QLineEdit(self.sequence_tab_widget)
-    self.number_of_runs_input.setGeometry(*self.scale_geom(1190, 1060, 50, 30))
-    self.number_of_runs_input.setFont(QFont('Arial', self.scale_font(14)))
-    self.number_of_runs_input.editingFinished.connect(self.number_of_runs_input_changed)
-    self.number_of_runs_input.setText("10")
-    # owl end
-
     #TABLE OF SCANNING PARAMETERS
     self.scan_table_parameters = QTableWidget()
     self.scan_table_parameters.setColumnCount(3)
@@ -384,6 +437,8 @@ def sequence_tab_build(self):
     self.clear_logger_button.setText("Clear logger")
     self.clear_logger_button.clicked.connect(self.clear_logger_button_clicked)
 
+    bottom_buttons_build(self,self.sequence_tab_widget)
+
 # DIGITAL TAB
 def digital_tab_build(self):
     self.digital_tab_num_cols = config.digital_channels_number + 4    
@@ -418,6 +473,8 @@ def digital_tab_build(self):
     #self.digital_table.setItemDelegateForRow(0, delegate)
     for i in range(4, self.digital_tab_num_cols):
         exec("self.digital_table.setColumnWidth(%d,int(self.SCALE_W*(%d)))" % (i, self.digital_and_analog_table_column_width))
+    
+    
     #Filling the DIGITAL table
     for index, channel in enumerate(self.experiment.sequence[0].digital):
         col = index + 4
@@ -426,6 +483,7 @@ def digital_tab_build(self):
             self.digital_table.item(0, col).setBackground(self.green)
         else:
             self.digital_table.item(0, col).setBackground(self.red)
+    
     #Binding functions
     self.digital_table.itemChanged.connect(self.digital_table_changed)
     self.digital_table.horizontalHeader().sectionClicked.connect(self.digital_table_header_clicked)
@@ -434,7 +492,7 @@ def digital_tab_build(self):
 
     #Dummy table that will display edge number, name and time and will be fixed
     self.digital_dummy = QTableWidget(self.digital_tab_widget)
-    self.digital_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1003)))
+    self.digital_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1020)))
     self.digital_dummy.setColumnCount(3)
     self.digital_dummy.setRowCount(1)
     self.digital_dummy.setHorizontalHeaderLabels(self.experiment.title_digital_tab[0:3])
@@ -447,6 +505,7 @@ def digital_tab_build(self):
     self.digital_dummy.setColumnWidth(1,int(self.SCALE_W*(180)))
     self.digital_dummy.setColumnWidth(2,int(self.SCALE_W*(100)))
     self.digital_dummy.setFrameStyle(QFrame.NoFrame)
+    
     #Setting the left part of the DIGITAL table (edge number, name, time)
     self.digital_dummy.setItem(0, 0, QTableWidgetItem("0"))
     self.digital_dummy.setItem(0, 1, QTableWidgetItem(self.experiment.sequence[0].name))
@@ -458,51 +517,9 @@ def digital_tab_build(self):
     self.digital_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.digital_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-    #BUTTONS AT THE BOTTOM
-    #button to stop continuous run
-    self.stop_continuous_run_button_digital = QPushButton(self.digital_tab_widget)
-    self.stop_continuous_run_button_digital.setFont(QFont('Arial', self.scale_font(14)))
-    self.stop_continuous_run_button_digital.setGeometry(*self.scale_geom(10, 1060, 200, 30))
-    self.stop_continuous_run_button_digital.setText("Stop experiment")
-    self.stop_continuous_run_button_digital.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_digital.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
-   
-    #button to start continuous run
-    self.continuous_run_button_digital = QPushButton(self.digital_tab_widget)
-    self.continuous_run_button_digital.setFont(QFont('Arial', self.scale_font(14)))
-    self.continuous_run_button_digital.setGeometry(*self.scale_geom(220, 1060, 200, 30))
-    self.continuous_run_button_digital.setText("Continuous run")
-    self.continuous_run_button_digital.clicked.connect(self.continuous_run_button_clicked)
-    self.continuous_run_button_digital.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
-    
- 
-    #run experiment
-    self.run_experiment_button_digital = QPushButton(self.digital_tab_widget)
-    self.run_experiment_button_digital.setFont(QFont('Arial', self.scale_font(14)))
-    self.run_experiment_button_digital.setGeometry(*self.scale_geom(430, 1060, 200, 30))
-    self.run_experiment_button_digital.setText("Run experiment")
-    self.run_experiment_button_digital.clicked.connect(self.run_experiment_button_clicked) 
-    self.run_experiment_button_digital.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
-    
-    #go to edge
-    self.go_to_edge_button_digital = QPushButton(self.digital_tab_widget)
-    self.go_to_edge_button_digital.setFont(QFont('Arial', self.scale_font(14)))
-    self.go_to_edge_button_digital.setGeometry(*self.scale_geom(640, 1060, 200, 30))
-    self.go_to_edge_button_digital.setText("Go to Edge")
-    self.go_to_edge_button_digital.clicked.connect(self.go_to_edge_button_clicked)
-    self.go_to_edge_button_digital.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
+    bottom_buttons_build(self,self.digital_tab_widget)
 
-    # owl begin
-    #multiple runs
-    self.multiple_runs_button_sequence = QPushButton(self.digital_tab_widget)
-    self.multiple_runs_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.multiple_runs_button_sequence.setGeometry(*self.scale_geom(850, 1060, 200, 30))
-    self.multiple_runs_button_sequence.setText("Multiple runs")
-    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
-    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
-
-
-#ANALOG TAB
+# ANALOG TAB
 def analog_tab_build(self):
     self.analog_tab_num_cols = config.analog_channels_number + 4    
     #ANALOG TAB WIDGET
@@ -578,49 +595,9 @@ def analog_tab_build(self):
     self.analog_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.analog_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-    #BUTTONS AT THE BOTTOM
-    #button to stop continuous run
-    self.stop_continuous_run_button_analog = QPushButton(self.analog_tab_widget)
-    self.stop_continuous_run_button_analog.setFont(QFont('Arial', self.scale_font(14)))
-    self.stop_continuous_run_button_analog.setGeometry(*self.scale_geom(10, 1060, 200, 30))
-    self.stop_continuous_run_button_analog.setText("Stop experiment")
-    self.stop_continuous_run_button_analog.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_analog.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
-   
-    #button to start continuous run
-    self.continuous_run_button_analog = QPushButton(self.analog_tab_widget)
-    self.continuous_run_button_analog.setFont(QFont('Arial', self.scale_font(14)))
-    self.continuous_run_button_analog.setGeometry(*self.scale_geom(220, 1060, 200, 30))
-    self.continuous_run_button_analog.setText("Continuous run")
-    self.continuous_run_button_analog.clicked.connect(self.continuous_run_button_clicked)
-    self.continuous_run_button_analog.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
- 
-    #run experiment
-    self.run_experiment_button_analog = QPushButton(self.analog_tab_widget)
-    self.run_experiment_button_analog.setFont(QFont('Arial', self.scale_font(14)))
-    self.run_experiment_button_analog.setGeometry(*self.scale_geom(430, 1060, 200, 30))
-    self.run_experiment_button_analog.setText("Run experiment")
-    self.run_experiment_button_analog.clicked.connect(self.run_experiment_button_clicked) 
-    self.run_experiment_button_analog.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
-    
-    #go to edge
-    self.go_to_edge_button_analog = QPushButton(self.analog_tab_widget)
-    self.go_to_edge_button_analog.setFont(QFont('Arial', self.scale_font(14)))
-    self.go_to_edge_button_analog.setGeometry(*self.scale_geom(640, 1060, 200, 30))
-    self.go_to_edge_button_analog.setText("Go to Edge")
-    self.go_to_edge_button_analog.clicked.connect(self.go_to_edge_button_clicked)
-    self.go_to_edge_button_analog.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
+    bottom_buttons_build(self,self.analog_tab_widget)
 
-    # owl begin
-    #multiple runs
-    self.multiple_runs_button_sequence = QPushButton(self.analog_tab_widget)
-    self.multiple_runs_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.multiple_runs_button_sequence.setGeometry(*self.scale_geom(850, 1060, 200, 30))
-    self.multiple_runs_button_sequence.setText("Multiple runs")
-    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
-    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
-    
-
+# DDS TAB
 def dds_tab_build(self):
     self.dds_tab_num_cols = 6*config.dds_channels_number
     #DDS TABLE WIDGET
@@ -690,7 +667,7 @@ def dds_tab_build(self):
 
     self.dds_seq = QTableWidget(self.dds_tab_widget)
     self.dds_seq.setGeometry(QRect(*self.scale_geom(10,30+90,320,1000)))
-    self.dds_seq.setColumnCount(4)
+    self.dds_seq.setColumnCount(3)
     self.dds_seq.setRowCount(1)
     # self.dds_seq.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.dds_seq.verticalHeader().setVisible(False)
@@ -702,7 +679,7 @@ def dds_tab_build(self):
     self.dds_seq.setColumnWidth(0,int(self.SCALE_W*(40)))
     self.dds_seq.setColumnWidth(1,int(self.SCALE_W*(180)))
     self.dds_seq.setColumnWidth(2,int(self.SCALE_W*(100)))
-    self.dds_seq.setColumnWidth(3,int(self.SCALE_W*(5)))
+    # self.dds_seq.setColumnWidth(3,int(self.SCALE_W*(5)))
     self.dds_seq.setFrameStyle(QFrame.NoFrame)
 
     #making first three columns vertically wider to fit with header 
@@ -838,52 +815,11 @@ def dds_tab_build(self):
         scrollbar = tbl.horizontalScrollBar()
         scrollbar.valueChanged.connect(lambda idx,bar=scrollbar: move_other_scrollbars_horizontal(idx, bar))
 
-    
-    #BUTTONS AT THE BOTTOM
-    #button to stop continuous run
-    self.stop_continuous_run_button_dds = QPushButton(self.dds_tab_widget)
-    self.stop_continuous_run_button_dds.setFont(QFont('Arial', self.scale_font(14)))
-    self.stop_continuous_run_button_dds.setGeometry(*self.scale_geom(10, 1060, 200, 30))
-    self.stop_continuous_run_button_dds.setText("Stop experiment")
-    self.stop_continuous_run_button_dds.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_dds.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
-   
-    #button to start continuous run
-    self.continuous_run_button_dds = QPushButton(self.dds_tab_widget)
-    self.continuous_run_button_dds.setFont(QFont('Arial', self.scale_font(14)))
-    self.continuous_run_button_dds.setGeometry(*self.scale_geom(220, 1060, 200, 30))
-    self.continuous_run_button_dds.setText("Continuous run")
-    self.continuous_run_button_dds.clicked.connect(self.continuous_run_button_clicked)
-    self.continuous_run_button_dds.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
- 
-    #run experiment
-    self.run_experiment_button_dds = QPushButton(self.dds_tab_widget)
-    self.run_experiment_button_dds.setFont(QFont('Arial', self.scale_font(14)))
-    self.run_experiment_button_dds.setGeometry(*self.scale_geom(430, 1060, 200, 30))
-    self.run_experiment_button_dds.setText("Run experiment")
-    self.run_experiment_button_dds.clicked.connect(self.run_experiment_button_clicked) 
-    self.run_experiment_button_dds.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
-    
-    #go to edge
-    self.go_to_edge_button_dds = QPushButton(self.dds_tab_widget)
-    self.go_to_edge_button_dds.setFont(QFont('Arial', self.scale_font(14)))
-    self.go_to_edge_button_dds.setGeometry(*self.scale_geom(640, 1060, 200, 30))
-    self.go_to_edge_button_dds.setText("Go to Edge")
-    self.go_to_edge_button_dds.clicked.connect(self.go_to_edge_button_clicked)
-    self.go_to_edge_button_dds.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
+    bottom_buttons_build(self,self.dds_tab_widget)
 
-    # owl begin
-    #multiple runs
-    self.multiple_runs_button_sequence = QPushButton(self.dds_tab_widget)
-    self.multiple_runs_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.multiple_runs_button_sequence.setGeometry(*self.scale_geom(850, 1060, 200, 30))
-    self.multiple_runs_button_sequence.setText("Multiple runs")
-    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
-    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
-
-
+#VARIABLES TAB
 def variables_tab_build(self):
-    #VARIABLES TAB WIDGET
+    
     self.variables_tab_widget = QWidget()
     #VARIABLES LABLE
     variables_lable = QLabel(self.variables_tab_widget)
@@ -1036,6 +972,8 @@ def variables_tab_build(self):
     self.load_lookup_list.setText("Load lookup list")
     self.load_lookup_list.setToolTip("Button is used to load the lookup list for the variable. First choose the lookup variable by right clicking it in the lookup variables table. After that navigate and open the lookup variable list. It should be of the .mat format.")
     self.load_lookup_list.clicked.connect(self.load_lookup_list_button_clicked)
+
+    bottom_buttons_build(self,self.variables_tab_widget)
         
 # SAMPLER TAB
 def sampler_tab_build(self):
@@ -1088,50 +1026,9 @@ def sampler_tab_build(self):
         exec("self.sampler_table.setItemDelegateForColumn(%d,delegate)" %_)
 
     
-    #BUTTONS AT THE BOTTOM
-    #button to stop continuous run
-    self.stop_continuous_run_button_sampler = QPushButton(self.sampler_tab_widget)
-    self.stop_continuous_run_button_sampler.setFont(QFont('Arial', self.scale_font(14)))
-    self.stop_continuous_run_button_sampler.setGeometry(*self.scale_geom(10, 1060, 200, 30))
-    self.stop_continuous_run_button_sampler.setText("Stop experiment")
-    self.stop_continuous_run_button_sampler.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_sampler.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
-   
-    #button to start continuous run
-    self.continuous_run_button_sampler = QPushButton(self.sampler_tab_widget)
-    self.continuous_run_button_sampler.setFont(QFont('Arial', self.scale_font(14)))
-    self.continuous_run_button_sampler.setGeometry(*self.scale_geom(220, 1060, 200, 30))
-    self.continuous_run_button_sampler.setText("Continuous run")
-    self.continuous_run_button_sampler.clicked.connect(self.continuous_run_button_clicked)
-    self.continuous_run_button_sampler.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
-    
- 
-    #run experiment
-    self.run_experiment_button_sampler = QPushButton(self.sampler_tab_widget)
-    self.run_experiment_button_sampler.setFont(QFont('Arial', self.scale_font(14)))
-    self.run_experiment_button_sampler.setGeometry(*self.scale_geom(430, 1060, 200, 30))
-    self.run_experiment_button_sampler.setText("Run experiment")
-    self.run_experiment_button_sampler.clicked.connect(self.run_experiment_button_clicked) 
-    self.run_experiment_button_sampler.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
-    
-    #go to edge
-    self.go_to_edge_button_sampler = QPushButton(self.sampler_tab_widget)
-    self.go_to_edge_button_sampler.setFont(QFont('Arial', self.scale_font(14)))
-    self.go_to_edge_button_sampler.setGeometry(*self.scale_geom(640, 1060, 200, 30))
-    self.go_to_edge_button_sampler.setText("Go to Edge")
-    self.go_to_edge_button_sampler.clicked.connect(self.go_to_edge_button_clicked)
-    self.go_to_edge_button_sampler.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
+    bottom_buttons_build(self,self.sampler_tab_widget)
 
-    # owl begin
-    #multiple runs
-    self.multiple_runs_button_sequence = QPushButton(self.sampler_tab_widget)
-    self.multiple_runs_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.multiple_runs_button_sequence.setGeometry(*self.scale_geom(850, 1060, 200, 30))
-    self.multiple_runs_button_sequence.setText("Multiple runs")
-    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
-    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
-    
-
+# MIRNY TAB
 def mirny_tab_build(self):
     self.mirny_tab_num_cols = 6*config.mirny_channels_number + 3
     #MIRNY TABLE WIDGET
@@ -1329,48 +1226,9 @@ def mirny_tab_build(self):
         scrollbar.valueChanged.connect(lambda idx,bar=scrollbar: move_other_scrollbars_horizontal(idx, bar))
 
     
-    #BUTTONS AT THE BOTTOM
-    #button to stop continuous run
-    self.stop_continuous_run_button_mirny = QPushButton(self.mirny_tab_widget)
-    self.stop_continuous_run_button_mirny.setFont(QFont('Arial', self.scale_font(14)))
-    self.stop_continuous_run_button_mirny.setGeometry(*self.scale_geom(10, 1060, 200, 30))
-    self.stop_continuous_run_button_mirny.setText("Stop experiment")
-    self.stop_continuous_run_button_mirny.clicked.connect(self.stop_continuous_run_button_clicked)
-    self.stop_continuous_run_button_mirny.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
-   
-    #button to start continuous run
-    self.continuous_run_button_mirny = QPushButton(self.mirny_tab_widget)
-    self.continuous_run_button_mirny.setFont(QFont('Arial', self.scale_font(14)))
-    self.continuous_run_button_mirny.setGeometry(*self.scale_geom(220, 1060, 200, 30))
-    self.continuous_run_button_mirny.setText("Continuous run")
-    self.continuous_run_button_mirny.clicked.connect(self.continuous_run_button_clicked)
-    self.continuous_run_button_mirny.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
- 
-    #run experiment
-    self.run_experiment_button_mirny = QPushButton(self.mirny_tab_widget)
-    self.run_experiment_button_mirny.setFont(QFont('Arial', self.scale_font(14)))
-    self.run_experiment_button_mirny.setGeometry(*self.scale_geom(430, 1060, 200, 30))
-    self.run_experiment_button_mirny.setText("Run experiment")
-    self.run_experiment_button_mirny.clicked.connect(self.run_experiment_button_clicked) 
-    self.run_experiment_button_mirny.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
-    
-    #go to edge
-    self.go_to_edge_button_mirny = QPushButton(self.mirny_tab_widget)
-    self.go_to_edge_button_mirny.setFont(QFont('Arial', self.scale_font(14)))
-    self.go_to_edge_button_mirny.setGeometry(*self.scale_geom(640, 1060, 200, 30))
-    self.go_to_edge_button_mirny.setText("Go to Edge")
-    self.go_to_edge_button_mirny.clicked.connect(self.go_to_edge_button_clicked)
-    self.go_to_edge_button_mirny.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
+    bottom_buttons_build(self,self.mirny_tab_widget)
 
-    #multiple runs
-    self.multiple_runs_button_sequence = QPushButton(self.mirny_tab_widget)
-    self.multiple_runs_button_sequence.setFont(QFont('Arial', self.scale_font(14)))
-    self.multiple_runs_button_sequence.setGeometry(*self.scale_geom(850, 1060, 200, 30))
-    self.multiple_runs_button_sequence.setText("Multiple runs")
-    self.multiple_runs_button_sequence.clicked.connect(self.multiple_runs_button_clicked)
-    self.multiple_runs_button_sequence.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
-
-
+# SLOW DDS TAB
 def slow_dds_tab_build(self):
     self.slow_dds_tab_num_cols = 6*config.slow_dds_channels_number
     #SLOW_DDS TABLE WIDGET
@@ -1434,7 +1292,11 @@ def slow_dds_tab_build(self):
     #button to set slow dds states
     self.set_slow_dds_states = QPushButton(self.slow_dds_tab_widget)
     self.set_slow_dds_states.setFont(QFont('Arial', self.scale_font(14)))
-    self.set_slow_dds_states.setGeometry(*self.scale_geom(10, 150, 200, 30))
+    self.set_slow_dds_states.setGeometry(*self.scale_geom(10, 1200-40-60-5, 200, 30))
     self.set_slow_dds_states.setText("Set slow DDS states")
     self.set_slow_dds_states.clicked.connect(self.set_slow_dds_states_button_clicked)
     self.set_slow_dds_states.setToolTip("Set slow dds states button is used to prepare the experimental description and run it to set the states of only the slow dds channels. Any experiment that has been running at the time of pressing this button will be interrupted and might leave the experiment in a random state that might be not safe. It is a user responsibility to make sure that this button is clicked only when there is no experiment running. This should be fine since this DDSs should be used permanently and only changed quite rarely.")
+
+    bottom_buttons_build(self,self.slow_dds_tab_widget)
+
+
