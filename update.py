@@ -56,7 +56,7 @@ def sequence_tab(self, new_variables = True):
         self.sequence_table.item(row, 4).setText(str(edge.value))
         # self.sequence_table.item(row, 4).setText(str(edge.value))
 
-    self.number_of_runs_input.setText(str(self.experiment.number_of_runs)) # owl 
+    # self.number_of_runs_input_sequence.setText(str(self.experiment.number_of_runs)) # owl 
 
     try: # try, except in order to be able to use old sequences (before 09/25) for this change
         self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
@@ -694,6 +694,7 @@ def all_tabs(self, update_expressions_and_evaluations = True,
     
 
 def from_object(self):
+
     '''
     This function rebuilds all tabs by looking at the self.experiment object
     It reassigns title names, refills every table
@@ -1099,3 +1100,23 @@ def from_object(self):
     # building ramped variables table from the self.experiment.ramped_variables array
     ramp_table(self)
     self.update_on()                  
+
+
+
+def number_of_runs(self):
+    self.number_of_runs_input_sequence.setText(str(self.experiment.number_of_runs))
+    self.number_of_runs_input_variables.setText(str(self.experiment.number_of_runs))
+    if config.analog_channels_number > 0:
+        self.number_of_runs_input_analog.setText(str(self.experiment.number_of_runs))
+    if config.digital_channels_number > 0:
+        self.number_of_runs_input_digital.setText(str(self.experiment.number_of_runs))
+    if config.dds_channels_number > 0:
+        self.number_of_runs_input_dds.setText(str(self.experiment.number_of_runs))
+    if config.mirny_channels_number > 0:
+        self.number_of_runs_input_mirny.setText(str(self.experiment.number_of_runs))
+    if config.sampler_channels_number > 0:
+        self.number_of_runs_input_sampler.setText(str(self.experiment.number_of_runs))
+    if config.slow_dds_channels_number > 0:
+        self.number_of_runs_input_slow_dds.setText(str(self.experiment.number_of_runs))
+
+

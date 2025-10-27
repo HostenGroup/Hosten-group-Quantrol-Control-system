@@ -1322,6 +1322,7 @@ def slow_dds_tab_build(self):
     self.set_slow_dds_states.clicked.connect(self.set_slow_dds_states_button_clicked)
     self.set_slow_dds_states.setToolTip("Set slow dds states button is used to prepare the experimental description and run it to set the states of only the slow dds channels. Any experiment that has been running at the time of pressing this button will be interrupted and might leave the experiment in a random state that might be not safe. It is a user responsibility to make sure that this button is clicked only when there is no experiment running. This should be fine since this DDSs should be used permanently and only changed quite rarely.")
 
-    bottom_buttons_build(self,self.slow_dds_tab_widget)
+    self.number_of_runs_input_slow_dds = bottom_buttons_build(self,self.slow_dds_tab_widget)
+    self.variables_table_slow_dds, self.delete_variable_slow_dds = variables_sidebar_build(self,self.slow_dds_tab_widget)
 
 

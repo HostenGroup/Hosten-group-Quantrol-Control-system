@@ -1724,6 +1724,17 @@ class MainWindow(QMainWindow):
         '''
         analog to number_of_steps_input_changed
         '''
+
+        tab_names = ['number_of_runs_input_sequence','number_of_runs_input_analog',
+                      'number_of_runs_input_digital','number_of_runs_input_dds',
+                      'number_of_runs_input_mirny','number_of_runs_input_sampler','number_of_runs_input_variables']
+        var_table_names = [name for name in tab_names if hasattr(self, name)]
+
+        for var_table_name in var_table_names:
+            var_table_block = getattr(self, var_table_name)
+            var_table_block.blockSignals(True)
+
+
         if self.to_update: 
             try:
                 expression = self.number_of_runs_input.text()
@@ -1736,8 +1747,16 @@ class MainWindow(QMainWindow):
             except:
                 self.error_message("Expression can not be evaluated", "Wrong entry")
             self.update_off()
-            self.number_of_runs_input.setText(str(self.experiment.number_of_runs))
+            # self.number_of_runs_input.setText(str(self.experiment.number_of_runs))
+            # update.number_of_runs(self)
+            for var_table_name in var_table_names:
+                var_table = getattr(self, var_table_name)
+                var_table.setText(str(self.experiment.number_of_runs))
             self.update_on()
+
+        for var_table_name in var_table_names:
+            var_table_block = getattr(self, var_table_name)
+            var_table_block.blockSignals(False)
 
 
 
