@@ -11,6 +11,7 @@ dataset_db*
 /device_db.py
 config.py
 led.py
+metadata.json
 
 
 
