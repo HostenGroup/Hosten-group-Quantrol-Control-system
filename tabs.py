@@ -68,7 +68,9 @@ def variables_sidebar_build(self,tab):
     variables_lable = QLabel(tab)
     variables_lable.setText("Constant variables")
     variables_lable.setFont(QFont('Arial', self.scale_font(14)))
-    variables_lable.setGeometry(*self.scale_geom(x_val+20, 0, 400, 30))
+    variables_lable.setGeometry(*self.scale_geom(x_val, 0, width_of_table_variables, 30))
+    variables_lable.setAlignment(Qt.AlignCenter)
+    
     #VARIABLES TABLE LAYOUT
     self.variables_table = QTableWidget(tab)
     
@@ -81,9 +83,11 @@ def variables_sidebar_build(self,tab):
     self.variables_table.verticalHeader().setVisible(False)
     self.variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
+    self.variables_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.variables_table.setFont(QFont('Arial', self.scale_font(12)))
     self.variables_table.setColumnWidth(0,int(self.SCALE_W*(100)))
-    self.variables_table.setColumnWidth(1,int(self.SCALE_W*(99)))
+    self.variables_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+    # self.variables_table.setColumnWidth(1,int(self.SCALE_W*(99)))
     #when table contents are changed
     self.variables_table.itemChanged.connect(self.variables_table_changed)
 
@@ -110,7 +114,7 @@ def bottom_buttons_build(self,tab):
     #button to stop continuous run
     self.stop_continuous_run_button = QPushButton(tab)
     self.stop_continuous_run_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.stop_continuous_run_button.setGeometry(*self.scale_geom(10, y_val, 200, 30))
+    self.stop_continuous_run_button.setGeometry(*self.scale_geom(10, y_val, self.button_w, self.button_h))
     self.stop_continuous_run_button.setText("Stop experiment")
     self.stop_continuous_run_button.clicked.connect(self.stop_continuous_run_button_clicked)
     self.stop_continuous_run_button.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
@@ -118,7 +122,7 @@ def bottom_buttons_build(self,tab):
     #button to start continuous run
     self.continuous_run_button = QPushButton(tab)
     self.continuous_run_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.continuous_run_button.setGeometry(*self.scale_geom(220, y_val, 200, 30))
+    self.continuous_run_button.setGeometry(*self.scale_geom(self.button_w + 20, y_val, self.button_w, self.button_h))
     self.continuous_run_button.setText("Continuous run")
     self.continuous_run_button.clicked.connect(self.continuous_run_button_clicked)
     self.continuous_run_button.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
@@ -126,7 +130,7 @@ def bottom_buttons_build(self,tab):
     #run experiment
     self.run_experiment_button = QPushButton(tab)
     self.run_experiment_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.run_experiment_button.setGeometry(*self.scale_geom(430, y_val, 200, 30))
+    self.run_experiment_button.setGeometry(*self.scale_geom(2*self.button_w + 30, y_val, self.button_w, self.button_h))
     self.run_experiment_button.setText("Run experiment")
     self.run_experiment_button.clicked.connect(self.run_experiment_button_clicked) 
     self.run_experiment_button.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
@@ -134,7 +138,7 @@ def bottom_buttons_build(self,tab):
     #go to edge
     self.go_to_edge_button = QPushButton(tab)
     self.go_to_edge_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.go_to_edge_button.setGeometry(*self.scale_geom(640, y_val, 200, 30))
+    self.go_to_edge_button.setGeometry(*self.scale_geom(3*self.button_w + 40, y_val, self.button_w, self.button_h))
     self.go_to_edge_button.setText("Go to Edge")
     self.go_to_edge_button.clicked.connect(self.go_to_edge_button_clicked)
     self.go_to_edge_button.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
@@ -143,7 +147,7 @@ def bottom_buttons_build(self,tab):
     #multiple runs
     self.multiple_runs_button = QPushButton(tab)
     self.multiple_runs_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.multiple_runs_button.setGeometry(*self.scale_geom(850, y_val, 200, 30))
+    self.multiple_runs_button.setGeometry(*self.scale_geom(4*self.button_w + 50, y_val, self.button_w, self.button_h))
     self.multiple_runs_button.setText("Multiple runs")
     self.multiple_runs_button.clicked.connect(self.multiple_runs_button_clicked)
     self.multiple_runs_button.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
@@ -153,63 +157,17 @@ def bottom_buttons_build(self,tab):
     self.number_of_runs_label = QLabel(tab)
     self.number_of_runs_label.setFont(QFont('Arial', self.scale_font(14)))
     self.number_of_runs_label.setText("Number of runs")
-    self.number_of_runs_label.setGeometry(*self.scale_geom(1060, y_val, 150, 30))
+    self.number_of_runs_label.setGeometry(*self.scale_geom(5*self.button_w + 60, y_val, int(0.7*self.button_w), self.button_h))
     self.number_of_runs_input = QLineEdit(tab)
-    self.number_of_runs_input.setGeometry(*self.scale_geom(1190, y_val, 50, 30))
+    self.number_of_runs_input.setGeometry(*self.scale_geom(5*self.button_w + 60 + int(0.7*self.button_w), y_val, int(0.3*self.button_w), self.button_h))
     self.number_of_runs_input.setFont(QFont('Arial', self.scale_font(14)))
     self.number_of_runs_input.editingFinished.connect(self.number_of_runs_input_changed)
     self.number_of_runs_input.setText("10")
     # owl end
     return self.number_of_runs_input
 
-# SEQUENCE TAB
-def sequence_tab_build(self):
-    
-    self.sequence_tab_widget = QWidget()
-    self.sequence_lable = QLabel(self.sequence_tab_widget)
-    self.sequence_lable.setText("Timing Sequence")
-    self.sequence_lable.setFont(QFont('Arial', self.scale_font(14)))
-    self.sequence_lable.setGeometry(*self.scale_geom(85, 0, 200, 30))
 
-    #file_name label
-    self.file_name_lable = QLabel(self.sequence_tab_widget)
-    self.file_name_lable.setFont(QFont('Arial', self.scale_font(10)))
-    self.file_name_lable.setGeometry(*self.scale_geom(275, 2, 600, 30))
-
-    #SEQUENCE TAB LAYOUT
-    self.sequence_table = QTableWidget(self.sequence_tab_widget)
-    width_of_table = 600
-    self.sequence_table.setGeometry(QRect(*self.scale_geom(10, 30, width_of_table, 1020)))  #size of the table
-    sequence_num_columns = 5
-    self.sequence_table.setColumnCount(sequence_num_columns)
-    self.sequence_table.setRowCount(1)
-    self.sequence_table.setHorizontalHeaderLabels(["#", "Name","ID", "Time expression","Time (ms)"])
-    self.sequence_table.verticalHeader().setVisible(False)
-    self.sequence_table.horizontalHeader().setMinimumSectionSize(1)
-    self.sequence_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
-    self.sequence_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
-    self.sequence_table.setFont(QFont('Arial', self.scale_font(12)))
-    self.sequence_table.setColumnWidth(0,int(self.SCALE_W*30))
-    self.sequence_table.setColumnWidth(1,int(self.SCALE_W*220))
-    self.sequence_table.setColumnWidth(2,int(self.SCALE_W*40))
-    self.sequence_table.setColumnWidth(3,int(self.SCALE_W*210))
-    self.sequence_table.setColumnWidth(4,int(self.SCALE_W*100))
-    self.sequence_table.itemChanged.connect(self.sequence_table_changed)
-    delegate = ReadOnlyDelegate(self)
-    self.sequence_table.setItemDelegateForRow(0,delegate)
-    self.sequence_table.setItemDelegateForColumn(0,delegate)
-    self.sequence_table.setItemDelegateForColumn(2,delegate)
-    self.sequence_table.setItemDelegateForColumn(4,delegate)
-    #Setting the default values 
-    self.sequence_table.setItem(0, 0, QTableWidgetItem("0"))
-    self.sequence_table.setItem(0, 1, QTableWidgetItem(self.experiment.sequence[0].name))
-    self.sequence_table.setItem(0, 2, QTableWidgetItem(self.experiment.sequence[0].id))
-    self.sequence_table.setItem(0, 3, QTableWidgetItem(self.experiment.sequence[0].expression))
-    self.sequence_table.setItem(0, 4, QTableWidgetItem(str(self.experiment.sequence[0].value)))
-    self.sequence_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-
-
-
+def sequence_tab_buttons_build(self,width_of_table):
     #BUTTONS
     #button to save current sequence
     self.save_sequence_button = QPushButton(self.sequence_tab_widget)
@@ -336,6 +294,59 @@ def sequence_tab_build(self):
     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
     self.cont_run_after_exp_button.setToolTip("Do automatic continuous run after expriment (run_experiment or multiple_runs). Button's color represents current state where green indicates that cont. run should be done, and red, when it should be avoided.")
     self.experiment.cont_run_after_exp = False  # off at the beginning
+
+# SEQUENCE TAB
+def sequence_tab_build(self):
+    
+    self.sequence_tab_widget = QWidget()
+    self.sequence_lable = QLabel(self.sequence_tab_widget)
+    self.sequence_lable.setText("Timing Sequence")
+    self.sequence_lable.setFont(QFont('Arial', self.scale_font(14)))
+    self.sequence_lable.setGeometry(*self.scale_geom(10, 0, 200, 30))
+    self.sequence_lable.setAlignment(Qt.AlignCenter)
+
+    width_of_table = 600
+    #file_name label
+    self.file_name_lable = QLabel(self.sequence_tab_widget)
+    self.file_name_lable.setFont(QFont('Arial', self.scale_font(10)))
+    self.file_name_lable.setGeometry(*self.scale_geom(275, 2, width_of_table, 30))
+
+    #SEQUENCE TAB LAYOUT
+    self.sequence_table = QTableWidget(self.sequence_tab_widget)
+    
+    self.sequence_table.setGeometry(QRect(*self.scale_geom(10, 30, width_of_table, 1020)))  #size of the table
+    sequence_num_columns = 5
+    self.sequence_table.setColumnCount(sequence_num_columns)
+    self.sequence_table.setRowCount(1)
+    self.sequence_table.setHorizontalHeaderLabels(["#", "Name","ID", "Time expression","Time (ms)"])
+    self.sequence_table.verticalHeader().setVisible(False)
+    self.sequence_table.horizontalHeader().setMinimumSectionSize(1)
+    self.sequence_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
+    self.sequence_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
+    self.sequence_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+    
+
+    self.sequence_table.setFont(QFont('Arial', self.scale_font(12)))
+    self.sequence_table.setColumnWidth(0,int(self.SCALE_W*30))
+    self.sequence_table.setColumnWidth(1,int(self.SCALE_W*220))
+    self.sequence_table.setColumnWidth(2,int(self.SCALE_W*40))
+    self.sequence_table.setColumnWidth(3,int(self.SCALE_W*210))
+    self.sequence_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+    # self.sequence_table.setColumnWidth(4,int(self.SCALE_W*100))
+    self.sequence_table.itemChanged.connect(self.sequence_table_changed)
+    delegate = ReadOnlyDelegate(self)
+    self.sequence_table.setItemDelegateForRow(0,delegate)
+    self.sequence_table.setItemDelegateForColumn(0,delegate)
+    self.sequence_table.setItemDelegateForColumn(2,delegate)
+    self.sequence_table.setItemDelegateForColumn(4,delegate)
+    #Setting the default values 
+    self.sequence_table.setItem(0, 0, QTableWidgetItem("0"))
+    self.sequence_table.setItem(0, 1, QTableWidgetItem(self.experiment.sequence[0].name))
+    self.sequence_table.setItem(0, 2, QTableWidgetItem(self.experiment.sequence[0].id))
+    self.sequence_table.setItem(0, 3, QTableWidgetItem(self.experiment.sequence[0].expression))
+    self.sequence_table.setItem(0, 4, QTableWidgetItem(str(self.experiment.sequence[0].value)))
+    self.sequence_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
     
 
     #TABLE OF SCANNING PARAMETERS
@@ -483,6 +494,9 @@ def sequence_tab_build(self):
 
     self.number_of_runs_input_sequence = bottom_buttons_build(self,self.sequence_tab_widget)
     self.variables_table_sequence, self.delete_variable_sequence = variables_sidebar_build(self,self.sequence_tab_widget)
+    sequence_tab_buttons_build(self,width_of_table)
+
+
 
 # DIGITAL TAB
 def digital_tab_build(self):
@@ -1324,5 +1338,17 @@ def slow_dds_tab_build(self):
 
     self.number_of_runs_input_slow_dds = bottom_buttons_build(self,self.slow_dds_tab_widget)
     self.variables_table_slow_dds, self.delete_variable_slow_dds = variables_sidebar_build(self,self.slow_dds_tab_widget)
+
+# ACQUISITION TAB
+def acquisition_tab_build(self):
+    self.acquisition_tab_widget = QWidget()
+
+
+
+
+
+
+    self.number_of_runs_input_acquisition = bottom_buttons_build(self,self.acquisition_tab_widget)
+    self.variables_table_acquisition, self.delete_variable_acquisition = variables_sidebar_build(self,self.acquisition_tab_widget)
 
 

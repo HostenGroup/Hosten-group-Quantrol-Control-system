@@ -683,6 +683,37 @@ def digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations = Tru
         self.update_on()
         return sequence_tab_return                
 
+
+def acquisition_tab(self,new_variables = True):
+    self.update_off()
+
+    
+    # updating the variables table
+    if new_variables:
+        self.variables_table_row_count = len(self.experiment.new_variables)
+        self.variables_table_acquisition.setRowCount(self.variables_table_row_count)
+        for row, variable in enumerate(self.experiment.new_variables):
+            self.variables_table_acquisition.setItem(row, 0, QTableWidgetItem(variable.name))
+            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+                item = QTableWidgetItem("scanned")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_acquisition.setItem(row, 1, item) 
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table_acquisition.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
+                self.experiment.variables[variable.name].value = 0
+                item = QTableWidgetItem("sampled")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_acquisition.setItem(row, 1, item) 
+            else:
+                self.variables_table_acquisition.setItem(row, 1, QTableWidgetItem(str(variable.value)))                      
+    self.update_on()
+
+
+
+
 def all_tabs(self, update_expressions_and_evaluations = True,
              update_values_and_tables = True, new_variables = True,
              derived_variables = True, lookup_variables = True):
@@ -691,6 +722,8 @@ def all_tabs(self, update_expressions_and_evaluations = True,
     digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations, update_values_and_tables)
     variables_tab(self,new_variables,derived_variables, lookup_variables)
     sampler_tab(self)
+    acquisition_tab(self)
+
     
 
 def from_object(self):
@@ -1101,22 +1134,5 @@ def from_object(self):
     ramp_table(self)
     self.update_on()                  
 
-
-
-def number_of_runs(self):
-    self.number_of_runs_input_sequence.setText(str(self.experiment.number_of_runs))
-    self.number_of_runs_input_variables.setText(str(self.experiment.number_of_runs))
-    if config.analog_channels_number > 0:
-        self.number_of_runs_input_analog.setText(str(self.experiment.number_of_runs))
-    if config.digital_channels_number > 0:
-        self.number_of_runs_input_digital.setText(str(self.experiment.number_of_runs))
-    if config.dds_channels_number > 0:
-        self.number_of_runs_input_dds.setText(str(self.experiment.number_of_runs))
-    if config.mirny_channels_number > 0:
-        self.number_of_runs_input_mirny.setText(str(self.experiment.number_of_runs))
-    if config.sampler_channels_number > 0:
-        self.number_of_runs_input_sampler.setText(str(self.experiment.number_of_runs))
-    if config.slow_dds_channels_number > 0:
-        self.number_of_runs_input_slow_dds.setText(str(self.experiment.number_of_runs))
 
 

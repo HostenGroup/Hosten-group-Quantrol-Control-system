@@ -11,8 +11,8 @@ Quantrol is used as a high level solution built on top of artiq infrastructure t
 timing control system with no prerequisite of coding. It features an easy to interpret table based experimental
 sequence description, variables use and scan, input values allowed range check and many more.
 
-Author  :   Vyacheslav Li (until 2.0), Andrea Pupic (later versions)
-Email   :   vyacheslav.li.1991@gmail.com, andrea.pupic@ist.ac.at
+Author  :   Vyacheslav Li (until 2.0), Andrea Pupic, Alexei Gurchenko (later versions)
+Email   :   vyacheslav.li.1991@gmail.com, andrea.pupic@ist.ac.at, alexei.gurchenko@ist.ac.at
 Date    :   07.30.2024 (2.0)
 Update  :   09.2025 
 Version :   2.3.3
@@ -427,10 +427,14 @@ class MainWindow(QMainWindow):
         CURRENT_W = tup[2]
         CURRENT_H = tup[3]
         
-        self.SCALE_W = float(1.0*CURRENT_W/ORIG_W)
-        self.SCALE_H = float(1.0*CURRENT_H/ORIG_H)
+       
 
         #Declaring global variables
+
+        self.SCALE_W = float(1.0*CURRENT_W/ORIG_W)
+        self.SCALE_H = float(1.0*CURRENT_H/ORIG_H)
+        self.button_w = 200
+        self.button_h = 30
         self.experiment = self.Experiment()
         self.sequence_num_rows = 1
         self.setting_dict = {0:"frequency", 1:"amplitude", 2:"attenuation", 3:"phase", 4:"state"}
@@ -480,6 +484,8 @@ class MainWindow(QMainWindow):
         
         self.init_default_values() #Reads the default state file and initializes the values
         tabs.sequence_tab_build(self)
+        tabs.variables_tab_build(self)
+        tabs.acquisition_tab_build(self)
         if config.digital_channels_number > 0:
             tabs.digital_tab_build(self)
         if config.analog_channels_number > 0:
@@ -492,11 +498,13 @@ class MainWindow(QMainWindow):
             tabs.mirny_tab_build(self)
         if config.slow_dds_channels_number > 0:
             tabs.slow_dds_tab_build(self)
-        tabs.variables_tab_build(self)
+        
         # tabs.making_separator(self)
        
         #ADDING TABS TO MAIN WINDOW
         self.main_window.addTab(self.sequence_tab_widget, "Sequence")
+        self.main_window.addTab(self.variables_tab_widget, "Variables")
+        self.main_window.addTab(self.acquisition_tab_widget, "Acquisition")
         if config.digital_channels_number > 0:
             self.main_window.addTab(self.digital_tab_widget, "Digital")
         if config.analog_channels_number > 0:
@@ -507,7 +515,6 @@ class MainWindow(QMainWindow):
             self.main_window.addTab(self.mirny_tab_widget, "Mirny")
         if config.sampler_channels_number > 0:
             self.main_window.addTab(self.sampler_tab_widget, "Sampler")
-        self.main_window.addTab(self.variables_tab_widget, "Variables")
         if config.slow_dds_channels_number > 0:
             self.main_window.addTab(self.slow_dds_tab_widget, "Slow DDS")
         self.to_update = True
@@ -1174,6 +1181,10 @@ class MainWindow(QMainWindow):
                 elif config.package_manager == "clang64":
                     # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
                     submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'run_experiment.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                
+                with open('metadata.json', "w") as outfile:
+                    json.dump(to_dict(self.experiment),outfile,indent=4)
+                
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1727,7 +1738,8 @@ class MainWindow(QMainWindow):
 
         tab_names = ['number_of_runs_input_sequence','number_of_runs_input_analog',
                       'number_of_runs_input_digital','number_of_runs_input_dds',
-                      'number_of_runs_input_mirny','number_of_runs_input_sampler','number_of_runs_input_variables']
+                      'number_of_runs_input_mirny','number_of_runs_input_sampler',
+                      'number_of_runs_input_variables','number_of_runs_input_acquisition']
         var_table_names = [name for name in tab_names if hasattr(self, name)]
 
         for var_table_name in var_table_names:
@@ -2554,7 +2566,8 @@ class MainWindow(QMainWindow):
 
         var_tables0 = ['variables_table_sequence','variables_table_analog',
                       'variables_table_digital','variables_table_dds',
-                      'variables_table_mirny','variables_table_sampler','variables_table_variables']
+                      'variables_table_mirny','variables_table_sampler',
+                      'variables_table_variables','variables_table_acquisition']
         var_tables = [name for name in var_tables0 if hasattr(self, name)]
         selected = False
         for var_table_i in var_tables:
@@ -2669,13 +2682,11 @@ class MainWindow(QMainWindow):
         # print(var_table.objectName())
         var_tables0 = ['variables_table_sequence','variables_table_analog',
                       'variables_table_digital','variables_table_dds',
-                      'variables_table_mirny','variables_table_sampler','variables_table_variables']
+                      'variables_table_mirny','variables_table_sampler',
+                      'variables_table_variables','variables_table_acquisition']
         var_table_names = [name for name in var_tables0 if hasattr(self, name)]
-        # blockers = []
         for var_table_name in var_table_names:
-            # print(var_table_name)
             var_table_block = getattr(self, var_table_name)
-            # blockers.append(QSignalBlocker(var_table_block))
             var_table_block.blockSignals(True)
 
         var_table = item.tableWidget()
@@ -3350,10 +3361,6 @@ def run():
         sys.exit(app.exec_())
         
     except:
-        # df = pd.DataFrame(to_dict(window.experiment))
-        # print(df)
-        with open('metadata.json', "w") as outfile:
-            json.dump(to_dict(window.experiment),outfile,indent=4)
         print("Exiting")
 
 
