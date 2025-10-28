@@ -2562,7 +2562,7 @@ class MainWindow(QMainWindow):
         It checks if the variable is used in any expression by deleting it and trying to evaluate every expression.
         the backup is used in order to be able to revert the changes in case the variable is used somewhere.
         '''
-        # var_table = self.variables_table_variables
+
 
         var_tables0 = ['variables_table_sequence','variables_table_analog',
                       'variables_table_digital','variables_table_dds',
@@ -2624,7 +2624,8 @@ class MainWindow(QMainWindow):
                                 # update.variables_tab(self)
                                 # update.sequence_tab(self)
                                 # update.sampler_tab(self)
-                                update.all_tabs(self)
+                                # update.all_tabs(self)
+                                update.variable_tables(self)
                                 update.from_object(self)
                             else: #Variable can not be deleted. Reverting all changes back to previous state
                                 self.experiment.variables[name] = backup
@@ -2632,7 +2633,8 @@ class MainWindow(QMainWindow):
                                 # update.variables_tab(self)
                                 # update.sequence_tab(self)
                                 # update.sampler_tab(self)
-                                update.all_tabs(self)
+                                # update.all_tabs(self)
+                                update.variable_tables(self)
                                 update.from_object(self)
                                 self.error_message('The variable is used in %s.'%return_value, 'Can not delete used variable')
                         else:
@@ -2658,15 +2660,15 @@ class MainWindow(QMainWindow):
         variable_name = self.find_new_variable_name_unused()
         self.experiment.new_variables.append(self.Variable(variable_name, 0.0, 0.0))
         self.experiment.variables[variable_name] = self.Variable(variable_name, 0.0, 0.0)
-        # update.variables_tab(self, derived_variables = False)
-        # update.digital_analog_dds_mirny_tabs(self)
-        # update.sampler_tab(self)
-        # update.all_tabs(self)
-        update.all_tabs(self,derived_variables = False)
+        # update.all_tabs(self,derived_variables = False)
+        update.variable_tables(self)
 
 
 
-
+    def block_all_signals(self, block=True):
+        self.blockSignals(block)
+        for child in self.findChildren(QObject):
+            child.blockSignals(block)
     
 
 
@@ -2679,22 +2681,19 @@ class MainWindow(QMainWindow):
         allowed parameters range.       
         '''
         
-        # print(var_table.objectName())
-        var_tables0 = ['variables_table_sequence','variables_table_analog',
-                      'variables_table_digital','variables_table_dds',
-                      'variables_table_mirny','variables_table_sampler',
-                      'variables_table_variables','variables_table_acquisition']
-        var_table_names = [name for name in var_tables0 if hasattr(self, name)]
-        for var_table_name in var_table_names:
-            var_table_block = getattr(self, var_table_name)
-            var_table_block.blockSignals(True)
+        # var_tables0 = ['variables_table_sequence','variables_table_analog',
+        #               'variables_table_digital','variables_table_dds',
+        #               'variables_table_mirny','variables_table_sampler',
+        #               'variables_table_variables','variables_table_acquisition,variables_table_slow_dds']
+        # var_table_names = [name for name in var_tables0 if hasattr(self, name)]
 
-        var_table = item.tableWidget()
+        var_table_sender = self.sender()
+
         if self.to_update:
             row = item.row()
             col = item.column()
             variable = self.experiment.new_variables[row]
-            table_item = var_table.item(row,col)
+            table_item = var_table_sender.item(row,col)
             
             if col == 0: #Variable name was changed
                 if variable.name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
@@ -2799,42 +2798,38 @@ class MainWindow(QMainWindow):
                     #Checking if the new value resulting in the values allowed for each parameter it is used in
                     self.experiment.variables[variable.name].value = float(int(float(table_item.text())*1e6)/1e6)
                     # self.experiment.variables[variable.name].value = float(table_item.text())
+
                     return_value = update.digital_analog_dds_mirny_tabs(self) # we do not need to update expressions only update values.
+
                     if return_value == None: #The value can be updated
                         variable.value = self.experiment.variables[variable.name].value
+                        self.update_off()
                         table_item.setText(str(variable.value))
-                        # update.sequence_tab(self)
+                        self.update_on()
                         # update.digital_analog_dds_mirny_tabs(self)
-                        # update.sampler_tab(self)
+                        update.variable_tables(self)
                         update.from_object(self)
-                        update.all_tabs(self)
-                        
                     else: #The value can not be updated, reverting every evaluation done before.
                         self.error_message("Evaluation is out of allowed range occured in %s. Variable value can not be assigned" %return_value, "Wrong entry")
                         self.experiment.variables[variable.name].value = variable.value 
                         self.update_off()
                         table_item.setText(str(variable.value))
                         self.update_on()
-                        # update.sequence_tab(self) 
-                        # update.digital_analog_dds_mirny_tabs(self)
-                        # update.sampler_tab(self)
+                        update.variable_tables(self)
                         update.from_object(self)
-                        update.all_tabs(self)
+                        
 
                 except: #Restricting the user from using anything but the integer values and floating numbers
                     self.update_off()
                     table_item.setText(str(variable.value))
                     self.update_on()
                     # update.digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations=False)   
-                    update.all_tabs(self,update_expressions_and_evaluations=False)   
+                    update.variable_tables(self)
+                      
                     update.from_object(self)              
                     self.error_message("Only integers and floating numbers are allowed.", "Wrong entry")
-        
-        for var_table_name in var_table_names:
-            # print(var_table_name)
-            var_table_block = getattr(self, var_table_name)
-            # blockers.append(QSignalBlocker(var_table_block))
-            var_table_block.blockSignals(False)    
+
+            
 
 
 

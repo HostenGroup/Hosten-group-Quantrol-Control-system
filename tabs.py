@@ -72,24 +72,24 @@ def variables_sidebar_build(self,tab):
     variables_lable.setAlignment(Qt.AlignCenter)
     
     #VARIABLES TABLE LAYOUT
-    self.variables_table = QTableWidget(tab)
+    variables_table = QTableWidget(tab)
     
     
-    self.variables_table.setGeometry(QRect(*self.scale_geom(x_val, 30, width_of_table_variables, 1010)))     #size of the table
+    variables_table.setGeometry(QRect(*self.scale_geom(x_val, 30, width_of_table_variables, 1010)))     #size of the table
     variables_num_columns = 2 #2 for proof of concept
-    self.variables_table.horizontalHeader().setMinimumSectionSize(1)
-    self.variables_table.setColumnCount(variables_num_columns)
-    self.variables_table.setHorizontalHeaderLabels(["Name", "Value"])
-    self.variables_table.verticalHeader().setVisible(False)
-    self.variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
-    self.variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
-    self.variables_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.variables_table.setFont(QFont('Arial', self.scale_font(12)))
-    self.variables_table.setColumnWidth(0,int(self.SCALE_W*(100)))
-    self.variables_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-    # self.variables_table.setColumnWidth(1,int(self.SCALE_W*(99)))
+    variables_table.horizontalHeader().setMinimumSectionSize(1)
+    variables_table.setColumnCount(variables_num_columns)
+    variables_table.setHorizontalHeaderLabels(["Name", "Value"])
+    variables_table.verticalHeader().setVisible(False)
+    variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
+    variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
+    variables_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+    variables_table.setFont(QFont('Arial', self.scale_font(12)))
+    variables_table.setColumnWidth(0,int(self.SCALE_W*(100)))
+    variables_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+    # variables_table.setColumnWidth(1,int(self.SCALE_W*(99)))
     #when table contents are changed
-    self.variables_table.itemChanged.connect(self.variables_table_changed)
+    variables_table.itemChanged.connect(self.variables_table_changed)
 
     #button to create new variable
     self.create_new_variable = QPushButton(tab)
@@ -105,7 +105,7 @@ def variables_sidebar_build(self,tab):
     self.delete_variable.setText("Delete variable")
     self.delete_variable.setToolTip("Button that is used to delete a new variable. First choose the new varibles by right clicking it in the variables table.")
     self.delete_variable.clicked.connect(self.delete_variable_button_clicked)
-    return (self.variables_table,self.delete_variable)
+    return (variables_table,self.delete_variable)
 
 
 def bottom_buttons_build(self,tab):

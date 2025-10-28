@@ -4,7 +4,7 @@ from PyQt5.QtGui import *
 import config
 import tabs
 
-def sequence_tab(self, new_variables = True):
+def sequence_tab(self):
     self.update_off()
     #Update expressions and evaluations   
     something_changed = True
@@ -62,30 +62,11 @@ def sequence_tab(self, new_variables = True):
         self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
     except:
         pass
-    if new_variables:
-        self.variables_table_row_count = len(self.experiment.new_variables)
-        self.variables_table_sequence.setRowCount(self.variables_table_row_count)
-        for row, variable in enumerate(self.experiment.new_variables):
-            self.variables_table_sequence.setItem(row, 0, QTableWidgetItem(variable.name))
-            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
-                item = QTableWidgetItem("scanned")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_sequence.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
-                item = QTableWidgetItem("ramped") 
-                item.setFlags(Qt.NoItemFlags) 
-                self.variables_table_sequence.setItem(row, 1, item)
-            elif variable.name in self.experiment.sampler_variables: 
-                self.experiment.variables[variable.name].value = 0
-                item = QTableWidgetItem("sampled")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_sequence.setItem(row, 1, item) 
-            else:
-                self.variables_table_sequence.setItem(row, 1, QTableWidgetItem(str(variable.value)))    
+
     self.update_on()
 
 
-def digital_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True, new_variables = True):
+def digital_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True):
     self.update_off()
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.digital_channels_number):
@@ -162,30 +143,11 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                         table_item.setToolTip(str(channel.value))
                 #Color coding the values
                 table_item.setBackground(self.white)   
-    if new_variables:
-        self.variables_table_row_count = len(self.experiment.new_variables)
-        self.variables_table_digital.setRowCount(self.variables_table_row_count)
-        for row, variable in enumerate(self.experiment.new_variables):
-            self.variables_table_digital.setItem(row, 0, QTableWidgetItem(variable.name))
-            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
-                item = QTableWidgetItem("scanned")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_digital.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
-                item = QTableWidgetItem("ramped") 
-                item.setFlags(Qt.NoItemFlags) 
-                self.variables_table_digital.setItem(row, 1, item)
-            elif variable.name in self.experiment.sampler_variables: 
-                self.experiment.variables[variable.name].value = 0
-                item = QTableWidgetItem("sampled")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_digital.setItem(row, 1, item) 
-            else:
-                self.variables_table_digital.setItem(row, 1, QTableWidgetItem(str(variable.value)))                              
+                        
     self.update_on()
 
 
-def sampler_tab(self,new_variables = True): # cow 
+def sampler_tab(self): # cow 
     self.update_off()
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.sampler_channels_number):
@@ -199,29 +161,10 @@ def sampler_tab(self,new_variables = True): # cow
             else:
                 table_item.setBackground(self.white)
     
-    if new_variables:
-        self.variables_table_row_count = len(self.experiment.new_variables)
-        self.variables_table_sampler.setRowCount(self.variables_table_row_count)
-        for row, variable in enumerate(self.experiment.new_variables):
-            self.variables_table_sampler.setItem(row, 0, QTableWidgetItem(variable.name))
-            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
-                item = QTableWidgetItem("scanned")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_sampler.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
-                item = QTableWidgetItem("ramped") 
-                item.setFlags(Qt.NoItemFlags) 
-                self.variables_table_sampler.setItem(row, 1, item)
-            elif variable.name in self.experiment.sampler_variables: 
-                self.experiment.variables[variable.name].value = 0
-                item = QTableWidgetItem("sampled")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_sampler.setItem(row, 1, item) 
-            else:
-                self.variables_table_sampler.setItem(row, 1, QTableWidgetItem(str(variable.value)))                             
+                        
     self.update_on()
 
-def analog_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True,new_variables = True):
+def analog_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True):
     '''
     This function updates expressions, evaluations, values and entries of analog table
     Used in analog_table_changed()
@@ -312,29 +255,10 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                         table_item.setToolTip(str(channel.value))
                 #Color coding the values
                 table_item.setBackground(self.white)
-    if new_variables:
-        self.variables_table_row_count = len(self.experiment.new_variables)
-        self.variables_table_analog.setRowCount(self.variables_table_row_count)
-        for row, variable in enumerate(self.experiment.new_variables):
-            self.variables_table_analog.setItem(row, 0, QTableWidgetItem(variable.name))
-            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
-                item = QTableWidgetItem("scanned")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_analog.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
-                item = QTableWidgetItem("ramped") 
-                item.setFlags(Qt.NoItemFlags) 
-                self.variables_table_analog.setItem(row, 1, item)
-            elif variable.name in self.experiment.sampler_variables: 
-                self.experiment.variables[variable.name].value = 0
-                item = QTableWidgetItem("sampled")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_analog.setItem(row, 1, item) 
-            else:
-                self.variables_table_analog.setItem(row, 1, QTableWidgetItem(str(variable.value)))
+    
     self.update_on()
 
-def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True, new_variables = True):
+def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True):
     '''
     This function updates expressions, evaluations, values and entries of dds table
     Used in dds_table_changed()
@@ -437,28 +361,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                             table_item.setToolTip(str(channel_entry.value))
                     #Color coding the values
                     table_item.setBackground(self.white)         
-    
-    # updating the variables table
-    if new_variables:
-        self.variables_table_row_count = len(self.experiment.new_variables)
-        self.variables_table_dds.setRowCount(self.variables_table_row_count)
-        for row, variable in enumerate(self.experiment.new_variables):
-            self.variables_table_dds.setItem(row, 0, QTableWidgetItem(variable.name))
-            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
-                item = QTableWidgetItem("scanned")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_dds.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
-                item = QTableWidgetItem("ramped") 
-                item.setFlags(Qt.NoItemFlags) 
-                self.variables_table_dds.setItem(row, 1, item)
-            elif variable.name in self.experiment.sampler_variables: 
-                self.experiment.variables[variable.name].value = 0
-                item = QTableWidgetItem("sampled")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_dds.setItem(row, 1, item) 
-            else:
-                self.variables_table_dds.setItem(row, 1, QTableWidgetItem(str(variable.value)))                      
+                         
     self.update_on()
 
 def closest_key(dictionary, target):
@@ -593,25 +496,7 @@ def variables_tab(self, new_variables = True, derived_variables = True, lookup_v
     #creating the variables tab from self.experiment.new_variables object
     self.update_off()
     if new_variables:
-        self.variables_table_row_count = len(self.experiment.new_variables)
-        self.variables_table_variables.setRowCount(self.variables_table_row_count)
-        for row, variable in enumerate(self.experiment.new_variables):
-            self.variables_table_variables.setItem(row, 0, QTableWidgetItem(variable.name))
-            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
-                item = QTableWidgetItem("scanned")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_variables.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
-                item = QTableWidgetItem("ramped") 
-                item.setFlags(Qt.NoItemFlags) 
-                self.variables_table_variables.setItem(row, 1, item)
-            elif variable.name in self.experiment.sampler_variables: 
-                self.experiment.variables[variable.name].value = 0
-                item = QTableWidgetItem("sampled")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_variables.setItem(row, 1, item) 
-            else:
-                self.variables_table_variables.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+        pass
     if derived_variables:
         self.derived_variables_row_count = len(self.experiment.derived_variables) + 1 #Since the first row is used for the dummy variable
         self.derived_variables_table.setRowCount(self.derived_variables_row_count)
@@ -686,29 +571,7 @@ def digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations = Tru
 
 def acquisition_tab(self,new_variables = True):
     self.update_off()
-
-    
-    # updating the variables table
-    if new_variables:
-        self.variables_table_row_count = len(self.experiment.new_variables)
-        self.variables_table_acquisition.setRowCount(self.variables_table_row_count)
-        for row, variable in enumerate(self.experiment.new_variables):
-            self.variables_table_acquisition.setItem(row, 0, QTableWidgetItem(variable.name))
-            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
-                item = QTableWidgetItem("scanned")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_acquisition.setItem(row, 1, item) 
-            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
-                item = QTableWidgetItem("ramped") 
-                item.setFlags(Qt.NoItemFlags) 
-                self.variables_table_acquisition.setItem(row, 1, item)
-            elif variable.name in self.experiment.sampler_variables: 
-                self.experiment.variables[variable.name].value = 0
-                item = QTableWidgetItem("sampled")
-                item.setFlags(Qt.NoItemFlags)
-                self.variables_table_acquisition.setItem(row, 1, item) 
-            else:
-                self.variables_table_acquisition.setItem(row, 1, QTableWidgetItem(str(variable.value)))                      
+                   
     self.update_on()
 
 
@@ -717,9 +580,8 @@ def acquisition_tab(self,new_variables = True):
 def all_tabs(self, update_expressions_and_evaluations = True,
              update_values_and_tables = True, new_variables = True,
              derived_variables = True, lookup_variables = True):
+    print('alltabs')
     sequence_tab(self)
-    analog_tab(self)
-    digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations, update_values_and_tables)
     variables_tab(self,new_variables,derived_variables, lookup_variables)
     sampler_tab(self)
     acquisition_tab(self)
@@ -727,7 +589,7 @@ def all_tabs(self, update_expressions_and_evaluations = True,
     
 
 def from_object(self):
-
+    print('build')
     '''
     This function rebuilds all tabs by looking at the self.experiment object
     It reassigns title names, refills every table
@@ -1135,4 +997,203 @@ def from_object(self):
     self.update_on()                  
 
 
+def variable_tables(self):
+    self.update_off()
+    # UPDATING VARIABLES TAB
+    self.variables_table_row_count = len(self.experiment.new_variables)
+    self.variables_table_variables.setRowCount(self.variables_table_row_count)
+    for row, variable in enumerate(self.experiment.new_variables):
+        self.variables_table_variables.setItem(row, 0, QTableWidgetItem(variable.name))
+        if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+            item = QTableWidgetItem("scanned")
+            item.setFlags(Qt.NoItemFlags)
+            self.variables_table_variables.setItem(row, 1, item) 
+        elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+            item = QTableWidgetItem("ramped") 
+            item.setFlags(Qt.NoItemFlags) 
+            self.variables_table_variables.setItem(row, 1, item)
+        elif variable.name in self.experiment.sampler_variables: 
+            self.experiment.variables[variable.name].value = 0
+            item = QTableWidgetItem("sampled")
+            item.setFlags(Qt.NoItemFlags)
+            self.variables_table_variables.setItem(row, 1, item) 
+        else:
+            self.variables_table_variables.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
 
+    # UPDATING SEQUENCE TAB
+    self.variables_table_row_count = len(self.experiment.new_variables)
+    self.variables_table_sequence.setRowCount(self.variables_table_row_count)
+    for row, variable in enumerate(self.experiment.new_variables):
+        self.variables_table_sequence.setItem(row, 0, QTableWidgetItem(variable.name))
+        if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+            item = QTableWidgetItem("scanned")
+            item.setFlags(Qt.NoItemFlags)
+            self.variables_table_sequence.setItem(row, 1, item) 
+        elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+            item = QTableWidgetItem("ramped") 
+            item.setFlags(Qt.NoItemFlags) 
+            self.variables_table_sequence.setItem(row, 1, item)
+        elif variable.name in self.experiment.sampler_variables: 
+            self.experiment.variables[variable.name].value = 0
+            item = QTableWidgetItem("sampled")
+            item.setFlags(Qt.NoItemFlags)
+            self.variables_table_sequence.setItem(row, 1, item) 
+        else:
+            self.variables_table_sequence.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+
+    # UPDATING ACQUISITION TAB
+    self.variables_table_row_count = len(self.experiment.new_variables)
+    self.variables_table_acquisition.setRowCount(self.variables_table_row_count)
+    for row, variable in enumerate(self.experiment.new_variables):
+        self.variables_table_acquisition.setItem(row, 0, QTableWidgetItem(variable.name))
+        if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+            item = QTableWidgetItem("scanned")
+            item.setFlags(Qt.NoItemFlags)
+            self.variables_table_acquisition.setItem(row, 1, item) 
+        elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+            item = QTableWidgetItem("ramped") 
+            item.setFlags(Qt.NoItemFlags) 
+            self.variables_table_acquisition.setItem(row, 1, item)
+        elif variable.name in self.experiment.sampler_variables: 
+            self.experiment.variables[variable.name].value = 0
+            item = QTableWidgetItem("sampled")
+            item.setFlags(Qt.NoItemFlags)
+            self.variables_table_acquisition.setItem(row, 1, item) 
+        else:
+            self.variables_table_acquisition.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+
+    # UPDATING DIGITAL TAB
+    if config.digital_channels_number > 0:
+        self.variables_table_row_count = len(self.experiment.new_variables)
+        self.variables_table_digital.setRowCount(self.variables_table_row_count)
+        for row, variable in enumerate(self.experiment.new_variables):
+            self.variables_table_digital.setItem(row, 0, QTableWidgetItem(variable.name))
+            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+                item = QTableWidgetItem("scanned")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_digital.setItem(row, 1, item) 
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table_digital.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
+                self.experiment.variables[variable.name].value = 0
+                item = QTableWidgetItem("sampled")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_digital.setItem(row, 1, item) 
+            else:
+                self.variables_table_digital.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+    
+    # UPDATING ANALOG TAB
+    if config.analog_channels_number > 0:
+        self.variables_table_row_count = len(self.experiment.new_variables)
+        self.variables_table_analog.setRowCount(self.variables_table_row_count)
+        for row, variable in enumerate(self.experiment.new_variables):
+            self.variables_table_analog.setItem(row, 0, QTableWidgetItem(variable.name))
+            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+                item = QTableWidgetItem("scanned")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_analog.setItem(row, 1, item) 
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table_analog.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
+                self.experiment.variables[variable.name].value = 0
+                item = QTableWidgetItem("sampled")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_analog.setItem(row, 1, item) 
+            else:
+                self.variables_table_analog.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+    
+    # UPDATING DDS TAB
+    if config.dds_channels_number > 0:
+        self.variables_table_row_count = len(self.experiment.new_variables)
+        self.variables_table_dds.setRowCount(self.variables_table_row_count)
+        for row, variable in enumerate(self.experiment.new_variables):
+            self.variables_table_dds.setItem(row, 0, QTableWidgetItem(variable.name))
+            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+                item = QTableWidgetItem("scanned")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_dds.setItem(row, 1, item) 
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table_dds.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
+                self.experiment.variables[variable.name].value = 0
+                item = QTableWidgetItem("sampled")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_dds.setItem(row, 1, item) 
+            else:
+                self.variables_table_dds.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+
+    # UPDATING MIRNY TAB
+    if config.mirny_channels_number > 0:
+        self.variables_table_row_count = len(self.experiment.new_variables)
+        self.variables_table_mirny.setRowCount(self.variables_table_row_count)
+        for row, variable in enumerate(self.experiment.new_variables):
+            self.variables_table_mirny.setItem(row, 0, QTableWidgetItem(variable.name))
+            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+                item = QTableWidgetItem("scanned")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_mirny.setItem(row, 1, item) 
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table_mirny.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
+                self.experiment.variables[variable.name].value = 0
+                item = QTableWidgetItem("sampled")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_mirny.setItem(row, 1, item) 
+            else:
+                self.variables_table_mirny.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+
+    # UPDATING SLOW DDS TAB
+    if config.slow_dds_channels_number > 0:
+        self.variables_table_row_count = len(self.experiment.new_variables)
+        self.variables_table_slow_dds.setRowCount(self.variables_table_row_count)
+        for row, variable in enumerate(self.experiment.new_variables):
+            self.variables_table_slow_dds.setItem(row, 0, QTableWidgetItem(variable.name))
+            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+                item = QTableWidgetItem("scanned")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_slow_dds.setItem(row, 1, item) 
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table_slow_dds.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
+                self.experiment.variables[variable.name].value = 0
+                item = QTableWidgetItem("sampled")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_slow_dds.setItem(row, 1, item) 
+            else:
+                self.variables_table_slow_dds.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+
+    # UPDATING SAMPLER TAB
+    if config.sampler_channels_number > 0:
+        self.variables_table_row_count = len(self.experiment.new_variables)
+        self.variables_table_sampler.setRowCount(self.variables_table_row_count)
+        for row, variable in enumerate(self.experiment.new_variables):
+            self.variables_table_sampler.setItem(row, 0, QTableWidgetItem(variable.name))
+            if self.experiment.do_scan and variable.is_scanned: #Highlighting that the variable is used in a scan
+                item = QTableWidgetItem("scanned")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_sampler.setItem(row, 1, item) 
+            elif self.experiment.do_ramp and variable.is_ramped: #Highlighting that the variable is used in a ramp
+                item = QTableWidgetItem("ramped") 
+                item.setFlags(Qt.NoItemFlags) 
+                self.variables_table_sampler.setItem(row, 1, item)
+            elif variable.name in self.experiment.sampler_variables: 
+                self.experiment.variables[variable.name].value = 0
+                item = QTableWidgetItem("sampled")
+                item.setFlags(Qt.NoItemFlags)
+                self.variables_table_sampler.setItem(row, 1, item) 
+            else:
+                self.variables_table_sampler.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+
+
+
+    self.update_on()
