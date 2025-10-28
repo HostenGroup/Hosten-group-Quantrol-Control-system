@@ -1739,17 +1739,19 @@ class MainWindow(QMainWindow):
         tab_names = ['number_of_runs_input_sequence','number_of_runs_input_analog',
                       'number_of_runs_input_digital','number_of_runs_input_dds',
                       'number_of_runs_input_mirny','number_of_runs_input_sampler',
-                      'number_of_runs_input_variables','number_of_runs_input_acquisition']
+                      'number_of_runs_input_variables','number_of_runs_input_acquisition','number_of_runs_input_slow_dds']
         var_table_names = [name for name in tab_names if hasattr(self, name)]
 
         for var_table_name in var_table_names:
             var_table_block = getattr(self, var_table_name)
             var_table_block.blockSignals(True)
+        
+        line = self.sender()
 
 
         if self.to_update: 
             try:
-                expression = self.number_of_runs_input.text()
+                expression = line.text()
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                 exec("self.value = " + str(evaluation))
                 if self.value > 0: 
