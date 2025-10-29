@@ -62,20 +62,21 @@ class ReadOnlyDelegate(QStyledItemDelegate):
 #             self.sampler_table.item(0,3).setBackground(self.grey)
 
 def variables_sidebar_build(self,tab):
-    width_of_table_variables = 200
+    width_of_table_variables = self.variables_table_width
+    height_of_table_variables = self.bottom_buttons_y_val - self.top_margin - 10
     x_val = 1920 - width_of_table_variables - 10
     #VARIABLES LABLE
     variables_lable = QLabel(tab)
     variables_lable.setText("Constant variables")
     variables_lable.setFont(QFont('Arial', self.scale_font(14)))
-    variables_lable.setGeometry(*self.scale_geom(x_val, 0, width_of_table_variables, 30))
+    variables_lable.setGeometry(*self.scale_geom(x_val, 0, width_of_table_variables, self.top_margin))
     variables_lable.setAlignment(Qt.AlignCenter)
     
     #VARIABLES TABLE LAYOUT
     variables_table = QTableWidget(tab)
     
     
-    variables_table.setGeometry(QRect(*self.scale_geom(x_val, 30, width_of_table_variables, 1010)))     #size of the table
+    variables_table.setGeometry(QRect(*self.scale_geom(x_val, self.top_margin, width_of_table_variables, height_of_table_variables)))     #size of the table
     variables_num_columns = 2 #2 for proof of concept
     variables_table.horizontalHeader().setMinimumSectionSize(1)
     variables_table.setColumnCount(variables_num_columns)
@@ -85,8 +86,8 @@ def variables_sidebar_build(self,tab):
     variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     variables_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     variables_table.setFont(QFont('Arial', self.scale_font(12)))
-    variables_table.setColumnWidth(0,int(self.SCALE_W*(100)))
-    variables_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+    variables_table.setColumnWidth(1,int(self.SCALE_W*(100)))
+    variables_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
     # variables_table.setColumnWidth(1,int(self.SCALE_W*(99)))
     #when table contents are changed
     variables_table.itemChanged.connect(self.variables_table_changed)
@@ -94,14 +95,14 @@ def variables_sidebar_build(self,tab):
     #button to create new variable
     self.create_new_variable = QPushButton(tab)
     self.create_new_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.create_new_variable.setGeometry(*self.scale_geom(x_val, 1050, 200, 30))
+    self.create_new_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + 2*self.sep + self.button_h, self.button_w, self.button_h))
     self.create_new_variable.setText("Create new variable")
     self.create_new_variable.setToolTip("Button that is used to create a new variable.")
     self.create_new_variable.clicked.connect(self.create_new_variable_button_clicked)
     #button to delete a variable
     self.delete_variable = QPushButton(tab)
     self.delete_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.delete_variable.setGeometry(*self.scale_geom(x_val, 1090, 200, 30))
+    self.delete_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + self.sep, self.button_w, self.button_h))
     self.delete_variable.setText("Delete variable")
     self.delete_variable.setToolTip("Button that is used to delete a new variable. First choose the new varibles by right clicking it in the variables table.")
     self.delete_variable.clicked.connect(self.delete_variable_button_clicked)
@@ -110,7 +111,7 @@ def variables_sidebar_build(self,tab):
 
 def bottom_buttons_build(self,tab):
     # BUTTONS AT THE BOTTOM
-    y_val = 1200-40-30
+    y_val = self.bottom_buttons_y_val
     #button to stop continuous run
     self.stop_continuous_run_button = QPushButton(tab)
     self.stop_continuous_run_button.setFont(QFont('Arial', self.scale_font(14)))
@@ -302,19 +303,20 @@ def sequence_tab_build(self):
     self.sequence_lable = QLabel(self.sequence_tab_widget)
     self.sequence_lable.setText("Timing Sequence")
     self.sequence_lable.setFont(QFont('Arial', self.scale_font(14)))
-    self.sequence_lable.setGeometry(*self.scale_geom(10, 0, 200, 30))
+    self.sequence_lable.setGeometry(*self.scale_geom(self.sep, 0, 200, self.top_margin))
     self.sequence_lable.setAlignment(Qt.AlignCenter)
 
     width_of_table = 600
+    height_of_table = self.bottom_buttons_y_val - self.top_margin - self.sep
     #file_name label
     self.file_name_lable = QLabel(self.sequence_tab_widget)
     self.file_name_lable.setFont(QFont('Arial', self.scale_font(10)))
-    self.file_name_lable.setGeometry(*self.scale_geom(275, 2, width_of_table, 30))
+    self.file_name_lable.setGeometry(*self.scale_geom(275, 2, width_of_table, self.top_margin))
 
     #SEQUENCE TAB LAYOUT
     self.sequence_table = QTableWidget(self.sequence_tab_widget)
     
-    self.sequence_table.setGeometry(QRect(*self.scale_geom(10, 30, width_of_table, 1020)))  #size of the table
+    self.sequence_table.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, width_of_table, height_of_table)))  #size of the table
     sequence_num_columns = 5
     self.sequence_table.setColumnCount(sequence_num_columns)
     self.sequence_table.setRowCount(1)
@@ -365,7 +367,7 @@ def sequence_tab_build(self):
     #Add scanned variable button
     self.add_scanned_variable_button = QPushButton()
     self.add_scanned_variable_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.add_scanned_variable_button.resize(int(self.SCALE_W*200), int(self.SCALE_H*50)) 
+    self.add_scanned_variable_button.resize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h)) 
     self.add_scanned_variable_button.setText("Add scanned variable")
     self.add_scanned_variable_button.clicked.connect(self.add_scanned_variable_button_pressed)#this should be modified
     self.add_scanned_variable_button.setToolTip("Add scanned variable button is used to add variables that require scanning. First the user should define the variables in the variblas tab and then add scanned variable and overwrite the name of the variable from None to the name of the variable that needs to be scanned. After that the variable value will be disabled and will display 'scanned'. The value of the scanned variable will be assigned to be the min value in order to allow sorting the time edges.")
@@ -399,13 +401,17 @@ def sequence_tab_build(self):
     temp.setLayout(hBox)
 
     #Scan parameters
+    x_val_ramp = 10 + width_of_table + 10 + self.button_w + 10
+    w_val_ramp = 1920 - x_val_ramp - 10 - self.variables_table_width - 10
+
+    
     self.scan_table = QGroupBox(self.sequence_tab_widget)
     self.scan_table.setTitle("Scan")
     self.scan_table.setCheckable(True)
     self.scan_table.setChecked(False)
     self.scan_table.setFont(QFont('Arial', self.scale_font(14)))
-    self.scan_table.move(int(self.SCALE_W*830), int(self.SCALE_H*20))
-    self.scan_table.setFixedSize(int(self.SCALE_W*800), int(self.SCALE_H*300))  # owl
+    self.scan_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*20))
+    self.scan_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*300))  # owl
     self.scan_table.toggled.connect(self.scan_table_checked)
     vBox = QVBoxLayout()
     self.scan_table.setLayout(vBox)
@@ -424,14 +430,15 @@ def sequence_tab_build(self):
     self.ramp_table_parameters.setColumnWidth(0,int(self.SCALE_W*145))
     self.ramp_table_parameters.setColumnWidth(1,int(self.SCALE_W*80))
     self.ramp_table_parameters.setColumnWidth(2,int(self.SCALE_W*80))
-    self.ramp_table_parameters.setColumnWidth(3,int(self.SCALE_W*400))
+    # self.ramp_table_parameters.setColumnWidth(3,int(self.SCALE_W*400))
     self.ramp_table_parameters.setColumnWidth(4,int(self.SCALE_W*60))
+    self.ramp_table_parameters.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
     self.ramp_table_parameters.itemChanged.connect(self.ramp_table_changed)
     
     #Add ramped variable button
     self.add_ramped_variable_button = QPushButton()
     self.add_ramped_variable_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.add_ramped_variable_button.setFixedSize(int(self.SCALE_W*200), int(self.SCALE_H*30)) # owl
+    self.add_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h)) # owl
     self.add_ramped_variable_button.setText("Add ramped variable")
     self.add_ramped_variable_button.clicked.connect(self.add_ramped_variable_button_pressed) #this should be modified
     self.add_ramped_variable_button.setToolTip("Ramped variables...")
@@ -439,7 +446,7 @@ def sequence_tab_build(self):
     #Delete ramped variable button
     self.delete_ramped_variable_button = QPushButton()
     self.delete_ramped_variable_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.delete_ramped_variable_button.setFixedSize(int(self.SCALE_W*200), int(self.SCALE_H*30)) # owl
+    self.delete_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h)) # owl
     self.delete_ramped_variable_button.setText("Delete ramped variable")
     self.delete_ramped_variable_button.clicked.connect(self.delete_ramped_variable_button_pressed)#this should be modified
     self.delete_ramped_variable_button.setToolTip("Delete ramped variable button ...")
@@ -463,8 +470,8 @@ def sequence_tab_build(self):
     self.ramp_table.setCheckable(True)
     self.ramp_table.setChecked(False)
     self.ramp_table.setFont(QFont('Arial', self.scale_font(14)))
-    self.ramp_table.move(int(self.SCALE_W*830), int(self.SCALE_H*320))  # owl
-    self.ramp_table.setFixedSize(int(self.SCALE_W*800), int(self.SCALE_H*546))  # owl
+    self.ramp_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*320))  # owl
+    self.ramp_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*546))  # owl
     self.ramp_table.toggled.connect(self.ramp_table_checked)
     vBox = QVBoxLayout()
     self.ramp_table.setLayout(vBox)
@@ -476,9 +483,10 @@ def sequence_tab_build(self):
 
 
     #show logger of the program
+    logger_width = 1920 - 10 - 10 - width_of_table - 10 - self.variables_table_width - 10
     self.logger = QPlainTextEdit(self.sequence_tab_widget)
     self.logger.setFont(QFont('Arial', self.scale_font(12)))
-    self.logger.setGeometry(*self.scale_geom(width_of_table + 20, 869, 500, 180)) # owl
+    self.logger.setGeometry(*self.scale_geom(width_of_table + 20, 870, logger_width, 210)) # owl
     self.logger.setReadOnly(True)
     self.logger.appendPlainText("Welcome to the %s lab! Hope you enjoy your stay here :)" %config.research_group_name)
     self.logger.appendPlainText("Don't forget to initialize the hardware after the power cycle!!!")
@@ -486,16 +494,16 @@ def sequence_tab_build(self):
     self.logger.appendPlainText(datetime.now().strftime("%D %H:%M:%S - ") + "Program initialized")
     
     #clear logger button
+    
     self.clear_logger_button = QPushButton(self.sequence_tab_widget)
     self.clear_logger_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.clear_logger_button.setGeometry(*self.scale_geom(width_of_table + 20, 820, 200, 30))
+    self.clear_logger_button.setGeometry(*self.scale_geom(10 + width_of_table + 10, 820, self.button_w, self.button_h))
     self.clear_logger_button.setText("Clear logger")
     self.clear_logger_button.clicked.connect(self.clear_logger_button_clicked)
 
     self.number_of_runs_input_sequence = bottom_buttons_build(self,self.sequence_tab_widget)
     self.variables_table_sequence, self.delete_variable_sequence = variables_sidebar_build(self,self.sequence_tab_widget)
     sequence_tab_buttons_build(self,width_of_table)
-
 
 
 # DIGITAL TAB
@@ -510,8 +518,10 @@ def digital_tab_build(self):
     digital_lable.setGeometry(*self.scale_geom(85, 0, 400, 30))
     
     #DIGITAL TAB LAYOUT
+    digital_table_w = 1920 - 2*self.sep - self.variables_table_width - self.sep
+    digital_table_h = self.bottom_buttons_y_val - self.top_margin - self.sep
     self.digital_table = QTableWidget(self.digital_tab_widget)
-    self.digital_table.setGeometry(QRect(*self.scale_geom(10, 30, 1705-10, 1020)))  
+    self.digital_table.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, digital_table_w, digital_table_h)))  
     self.digital_table.setColumnCount(self.digital_tab_num_cols)
     self.digital_table.setRowCount(1) 
     self.digital_table.setHorizontalHeaderLabels(self.experiment.title_digital_tab)
@@ -592,8 +602,10 @@ def analog_tab_build(self):
 
 
     #ANALOG TAB LAYOUT
+    analog_table_w = 1920 - 2*self.sep - self.variables_table_width - self.sep
+    analog_table_h = self.bottom_buttons_y_val - self.top_margin - self.sep
     self.analog_table = QTableWidget(self.analog_tab_widget)
-    self.analog_table.setGeometry(QRect(*self.scale_geom(10, 30, 1705-10, 1020)))  
+    self.analog_table.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, analog_table_w, analog_table_h)))  
     self.analog_table.setColumnCount(self.analog_tab_num_cols) 
     self.analog_table.setRowCount(1)
     self.analog_table.setHorizontalHeaderLabels(self.experiment.title_analog_tab)
@@ -663,34 +675,33 @@ def dds_tab_build(self):
     self.dds_tab_num_cols = 6*config.dds_channels_number
     #DDS TABLE WIDGET
     self.dds_tab_widget = QWidget()
+    
+    dds_table_w = 1920 - 2*self.sep - self.variables_table_width - self.sep
+    dds_table_h = self.bottom_buttons_y_val - self.top_margin - self.sep
+    dds_header_h = 90
+    dds_side_w = 320
+    
     #DDS LABLE
     dds_lable = QLabel(self.dds_tab_widget)
     dds_lable.setText("DDS channels")
     dds_lable.setFont(QFont('Arial', self.scale_font(14)))
-    dds_lable.setGeometry(*self.scale_geom(10, 0, 320, 30))
+    dds_lable.setGeometry(*self.scale_geom(self.sep, 0, dds_side_w, self.top_margin))
     dds_lable.setAlignment(Qt.AlignCenter)
     self.sequence_num_rows = len(self.experiment.sequence)
-    
+
     #DDS TAB LAYOUT, main table with actual numbers (bottom right)
     self.dds_table = QTableWidget(self.dds_tab_widget)
-    # self.dds_table.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 1020)))
-    self.dds_table.setGeometry(QRect(*self.scale_geom(10 + 320,30 + 90, 1370, 1000)))
+
+    self.dds_table.setGeometry(QRect(*self.scale_geom(self.sep + dds_side_w,self.top_margin + dds_header_h, dds_table_w - dds_side_w, dds_table_h - dds_header_h)))
     self.dds_table.setColumnCount(self.dds_tab_num_cols)
-    # self.dds_table.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
+
     self.dds_table.verticalHeader().setVisible(False)
     self.dds_table.horizontalHeader().setVisible(False)
-    self.dds_table.setRowCount(1) # 5 is an arbitrary number we just need to have rows in order to span them
+    self.dds_table.setRowCount(1)
     self.dds_table.horizontalHeader().setMinimumSectionSize(0)
     self.dds_table.setFont(QFont('Arial', self.scale_font(12)))
     self.dds_table.setFrameStyle(QFrame.NoFrame)
     
-
-
-    #SHAPING THE FIRST 3 COLUMNS 
-    # self.dds_table.setColumnWidth(0,int(self.SCALE_W*(50)))
-    # self.dds_table.setColumnWidth(1,int(self.SCALE_W*(180)))
-    # self.dds_table.setColumnWidth(2,int(self.SCALE_W*(100)))
-    # self.dds_table.setColumnWidth(3,int(self.SCALE_W*(5)))
 
     delegate = ReadOnlyDelegate(self)
     #SHAPING THE TABLE
@@ -708,10 +719,7 @@ def dds_tab_build(self):
         self.dds_table.setColumnWidth(5 + 6*i,int(self.SCALE_W*(40))) # making state column smaller
         self.dds_table.setItemDelegateForColumn(0 + 6*i,delegate) #making separation line uneditable
     
-    #making first three columns verticaly wider to fit with header 
-    # for i in range(3):
-    #     self.dds_table.setSpan(0, i, 2, 1)
-    #     self.dds_table.setItemDelegateForColumn(i,delegate)
+
     #Filling the default values of DDS table
     for index, channel in enumerate(self.experiment.sequence[0].dds):
         #plus 4 is because first 4 columns are used by number, name, time and separator(dark grey line)
@@ -732,10 +740,9 @@ def dds_tab_build(self):
     #table with times, names of edges and numbers of edges (bottom left)
 
     self.dds_seq = QTableWidget(self.dds_tab_widget)
-    self.dds_seq.setGeometry(QRect(*self.scale_geom(10,30+90,320,1000)))
+    self.dds_seq.setGeometry(QRect(*self.scale_geom(self.sep,self.top_margin + dds_header_h,dds_side_w,dds_table_h - dds_header_h)))
     self.dds_seq.setColumnCount(3)
     self.dds_seq.setRowCount(1)
-    # self.dds_seq.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
     self.dds_seq.verticalHeader().setVisible(False)
     self.dds_seq.horizontalHeader().setVisible(False)
     self.dds_seq.horizontalHeader().setMinimumSectionSize(0)
@@ -743,14 +750,12 @@ def dds_tab_build(self):
     self.dds_seq.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.dds_seq.setFont(QFont('Arial', self.scale_font(12)))
     self.dds_seq.setColumnWidth(0,int(self.SCALE_W*(40)))
-    self.dds_seq.setColumnWidth(1,int(self.SCALE_W*(180)))
     self.dds_seq.setColumnWidth(2,int(self.SCALE_W*(100)))
-    # self.dds_seq.setColumnWidth(3,int(self.SCALE_W*(5)))
+    self.dds_seq.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
     self.dds_seq.setFrameStyle(QFrame.NoFrame)
 
     #making first three columns vertically wider to fit with header 
     for i in range(4):
-        # self.dds_seq.setSpan(0, i, 2, 1)
         self.dds_seq.setItemDelegateForColumn(i,delegate)
 
     #Filling the left part of the DDS table
@@ -764,15 +769,12 @@ def dds_tab_build(self):
     #table header for actual numbers (top right)
 
     self.dds_table_header = QTableWidget(self.dds_tab_widget)
-    # self.dds_table_header.setGeometry(QRect(*self.scale_geom(10, 30, 1905, 90)))
-    self.dds_table_header.setGeometry(QRect(*self.scale_geom(10 + 320, 30, 1370, 90)))
-
+    self.dds_table_header.setGeometry(QRect(*self.scale_geom(self.sep + dds_side_w, self.top_margin, dds_table_w - dds_side_w, dds_header_h)))
     self.dds_table_header.setColumnCount(self.dds_tab_num_cols)
     self.dds_table_header.setRowCount(2) 
 
-    # self.dds_table_header.horizontalHeader().setMinimumHeight(int(self.SCALE_H*50))
-    self.dds_table_header.setRowHeight(0,int(self.SCALE_H*(45)))
-    self.dds_table_header.setRowHeight(0,int(self.SCALE_H*(45)))
+    self.dds_table_header.setRowHeight(0,int(self.SCALE_H*(dds_header_h/2)))
+    self.dds_table_header.setRowHeight(1,int(self.SCALE_H*(dds_header_h/2)))
     self.dds_table_header.verticalHeader().setVisible(False)
     self.dds_table_header.horizontalHeader().setVisible(False)
     self.dds_table_header.horizontalHeader().setMinimumSectionSize(0)
@@ -781,11 +783,6 @@ def dds_tab_build(self):
 
     self.dds_table_header.setFont(QFont('Arial', self.scale_font(12)))
     self.dds_table_header.setFrameStyle(QFrame.NoFrame)
-    
-    #SHAPING THE FIRST 3 COLUMNS 
-    # self.dds_table_header.setColumnWidth(0,int(self.SCALE_W*(50))) 
-    # self.dds_table_header.setColumnWidth(1,int(self.SCALE_W*(180)))
-    # self.dds_table_header.setColumnWidth(2,int(self.SCALE_W*(100)))
 
     #SHAPING THE TABLE
     for i in range(config.dds_channels_number):
@@ -821,26 +818,23 @@ def dds_tab_build(self):
     #Making fixed corner (TOP LEFT SIDE OF THE TABLE)
 
     self.dds_seq_header = QTableWidget(self.dds_tab_widget)
-    self.dds_seq_header.setGeometry(QRect(*self.scale_geom(10, 30, 320, 90)))
+    self.dds_seq_header.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, dds_side_w, dds_header_h)))
     self.dds_seq_header.setColumnCount(3)
-    # self.dds_seq_header.horizontalHeader().setFixedHeight(int(self.SCALE_H*90))
     self.dds_seq_header.verticalHeader().setVisible(False)
     self.dds_seq_header.horizontalHeader().setVisible(False)
     self.dds_seq_header.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.dds_seq_header.horizontalHeader().setMinimumSectionSize(0)
+    self.dds_seq_header.verticalHeader().setMinimumSectionSize(0)
     self.dds_seq_header.setRowCount(1) 
     self.dds_seq_header.setFont(QFont('Arial', self.scale_font(12)))
     self.dds_seq_header.setFrameStyle(QFrame.NoFrame)
     
     #SHAPING THE FIRST 3 COLUMNS
     self.dds_seq_header.setColumnWidth(0,int(self.SCALE_W*(40)))
-    self.dds_seq_header.setColumnWidth(1,int(self.SCALE_W*(180)))
     self.dds_seq_header.setColumnWidth(2,int(self.SCALE_W*(100)))
-    # self.dds_seq_header.setColumnWidth(3,int(self.SCALE_W*(5)))
-    #making first three columns vertically wider to fit with header 
-    self.dds_seq_header.setRowHeight(0,int(self.SCALE_H*(90)))
+    self.dds_seq_header.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+    self.dds_seq_header.setRowHeight(0,int(self.SCALE_H*(dds_header_h)))
     for i in range(3):
-        # self.dds_seq_header.setSpan(0, i, 2, 1)
         self.dds_seq_header.setItemDelegateForColumn(i,delegate)
     
     #Separator
@@ -1014,8 +1008,12 @@ def variables_tab_build(self):
         
 # SAMPLER TAB
 def sampler_tab_build(self):
+    sampler_table_w = 1920 - 2*self.sep - self.variables_table_width - self.sep
+    sampler_table_h = self.bottom_buttons_y_val - self.top_margin - self.sep
+    sampler_side_w = 320
+    sampler_header_h = 90
     self.sampler_tab_num_cols = config.sampler_channels_number + 4    
-    self.sampler_table_column_width = int(1365/config.sampler_channels_number)
+    self.sampler_table_column_width = int((sampler_table_w - sampler_side_w)/config.sampler_channels_number)-1
     #SAMPLER TAB WIDGET
     self.sampler_tab_widget = QWidget()
     sampler_lable = QLabel(self.sampler_tab_widget)
@@ -1025,17 +1023,17 @@ def sampler_tab_build(self):
     
     #SAMPLER TAB LAYOUT
     self.sampler_table = QTableWidget(self.sampler_tab_widget)
-    self.sampler_table.setGeometry(QRect(*self.scale_geom(10, 30, 1705, 1020)))  
+    self.sampler_table.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, sampler_table_w, sampler_table_h)))  
     self.sampler_table.setColumnCount(self.sampler_tab_num_cols)
     self.sampler_table.setRowCount(1) 
     self.sampler_table.setHorizontalHeaderLabels(self.experiment.title_sampler_tab)
     self.sampler_table.verticalHeader().setVisible(False)
-    self.sampler_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
+    self.sampler_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*sampler_header_h))
     self.sampler_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.sampler_table.setFont(QFont('Arial', self.scale_font(12)))
     self.sampler_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.sampler_table.horizontalHeader().setMinimumSectionSize(0)
-    self.sampler_table.setColumnWidth(0,int(self.SCALE_W*(50)))
+    self.sampler_table.setColumnWidth(0,int(self.SCALE_W*(40)))
     self.sampler_table.setColumnWidth(1,int(self.SCALE_W*(180)))
     self.sampler_table.setColumnWidth(2,int(self.SCALE_W*(100)))
     self.sampler_table.setColumnWidth(3,int(self.SCALE_W*(5)))

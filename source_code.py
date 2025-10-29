@@ -431,10 +431,17 @@ class MainWindow(QMainWindow):
 
         #Declaring global variables
 
+        # Geometry
         self.SCALE_W = float(1.0*CURRENT_W/ORIG_W)
         self.SCALE_H = float(1.0*CURRENT_H/ORIG_H)
         self.button_w = 200
         self.button_h = 30
+        self.top_margin = 30
+        self.sep = 10
+        self.variables_table_width = 250
+        self.bottom_buttons_y_val = 1200 - 2*self.button_h - 2*10 - self.button_h
+
+
         self.experiment = self.Experiment()
         self.sequence_num_rows = 1
         self.setting_dict = {0:"frequency", 1:"amplitude", 2:"attenuation", 3:"phase", 4:"state"}
