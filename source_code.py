@@ -422,7 +422,7 @@ class MainWindow(QMainWindow):
         ORIG_W = 1920
         ORIG_H = 1200
 
-        # self.setGeometry(0,0,1920,1200)
+        # self.setGeometry(*self.scale_geom(0,0,1920,1200))
         tup = self._fit_to_work_area()
         CURRENT_W = tup[2]
         CURRENT_H = tup[3]
@@ -440,6 +440,8 @@ class MainWindow(QMainWindow):
         self.sep = 10
         self.variables_table_width = 250
         self.bottom_buttons_y_val = 1200 - 2*self.button_h - 2*10 - self.button_h
+        self.button_font = 12
+        self.text_font = 12
 
 
         self.experiment = self.Experiment()
@@ -568,7 +570,8 @@ class MainWindow(QMainWindow):
         '''
         The function is used to scale the font
         '''
-        return int(s*min(self.SCALE_W, self.SCALE_H))
+        # return int(s*min(self.SCALE_W, self.SCALE_H))
+        return int(s*(self.SCALE_W * self.SCALE_H)**(0.5))
 
     def init_default_values(self):
         '''
@@ -1495,8 +1498,8 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to stop continuous run. It will stop anything and run the init_hardware.py file
         '''
         self.dialog = QDialog()
-        self.dialog.setGeometry(710, 435, 400, 120)
-        self.dialog.setFont(QFont('Arial', 14))
+        self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+        self.dialog.setFont(QFont('Arial', self.scale_font(14)))
         value_input = QLabel("Are you sure that you want to stop the experiment?")
         dialog_layout = QVBoxLayout()
         button_yes = QPushButton("Yes")
@@ -1560,8 +1563,8 @@ class MainWindow(QMainWindow):
         '''
         #The pop-up window to preven use from accidentally overwriting the default settings
         self.dialog = QDialog()
-        self.dialog.setGeometry(710, 435, 400, 120)
-        self.dialog.setFont(QFont('Arial', 14))
+        self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+        self.dialog.setFont(QFont('Arial', self.scale_font(14)))
         value_input = QLabel("Are you sure that you want to overwrite the default settings? Previous default settings will be lost!")
         dialog_layout = QVBoxLayout()
         button_update = QPushButton("Yes")
@@ -2128,8 +2131,6 @@ class MainWindow(QMainWindow):
 
 
 
-
-
     def digital_table_header_clicked(self, logicalIndex):
         '''
         Function is used when the user wants to change the digital table title name by clicking it.
@@ -2139,8 +2140,8 @@ class MainWindow(QMainWindow):
         if index > 3:
             #Pop up window to allow user to enter the name of the digital title
             self.dialog = QDialog()
-            self.dialog.setGeometry(710, 435, 400, 120)
-            self.dialog.setFont(QFont('Arial', 14))
+            self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+            self.dialog.setFont(QFont('Arial', self.scale_font(14)))
             value_input = QLineEdit()
             dialog_layout = QVBoxLayout()
             button_update = QPushButton("update")
@@ -2235,8 +2236,8 @@ class MainWindow(QMainWindow):
         index = logicalIndex
         if index > 3:
             self.dialog = QDialog()
-            self.dialog.setGeometry(710, 435, 400, 120)
-            self.dialog.setFont(QFont('Arial', 14))
+            self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+            self.dialog.setFont(QFont('Arial', self.scale_font(14)))
             value_input = QLineEdit()
             dialog_layout = QVBoxLayout()
             button_update = QPushButton("update")
@@ -2365,7 +2366,45 @@ class MainWindow(QMainWindow):
                     self.error_message('Expression can not be evaluated', 'Wrong entry')            
 
 
+    def dds_table_header_clicked(self, row, column):
+        '''
+        Function is used when the user wants to change the dds table title name by clicking it.
+        ligicalIndex is the internal item of the dds table header that reflects the index of the header clicked.
+        '''
 
+        if row == 0 and column % 6 != 0:
+            
+            index = column // 6
+
+            #Pop up window to allow user to enter the name of the digital title
+            self.dialog = QDialog()
+            self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+            self.dialog.setFont(QFont('Arial', self.scale_font(14)))
+            value_input = QLineEdit()
+            dialog_layout = QVBoxLayout()
+            button_update = QPushButton("update")
+            button_cancel = QPushButton("cancel")
+            dialog_layout.addWidget(value_input)
+            dialog_buttons_layout = QHBoxLayout()
+            dialog_buttons_layout.addWidget(button_update)
+            dialog_buttons_layout.addWidget(button_cancel)
+            dialog_layout.addLayout(dialog_buttons_layout)
+            self.dialog.setLayout(dialog_layout)
+            button_update.clicked.connect(lambda:self.update_dds_table_header(index, value_input.text()))
+            button_cancel.clicked.connect(lambda:self.dialog.reject())
+            self.dialog.setWindowTitle("Custom name for the channel") 
+            self.dialog.exec_()
+        else:
+            pass
+
+    
+    def update_dds_table_header(self, index, name):
+        if name != "":
+            self.experiment.title_dds_tab[index] = "DDS%d"%(index) + " " + name
+        else:
+            self.experiment.title_dds_tab[index] = "DDS%d"%(index)
+        self.dds_table_header.item(0,6*index+1).setText(self.experiment.title_dds_tab[index])
+        self.dialog.accept()
 
 
     def dds_table_header_changed(self, item):
@@ -2571,27 +2610,23 @@ class MainWindow(QMainWindow):
         It checks if the variable is used in any expression by deleting it and trying to evaluate every expression.
         the backup is used in order to be able to revert the changes in case the variable is used somewhere.
         '''
+        tab_sender = self.sender().parent()
 
+        for child in tab_sender.findChildren(QObject):
+            if hasattr(child, "is_var_table"):
+                var_table = child
 
-        var_tables0 = ['variables_table_sequence','variables_table_analog',
-                      'variables_table_digital','variables_table_dds',
-                      'variables_table_mirny','variables_table_sampler',
-                      'variables_table_variables','variables_table_acquisition']
-        var_tables = [name for name in var_tables0 if hasattr(self, name)]
         selected = False
-        for var_table_i in var_tables:
-            try:
-                var_attr = getattr(self, var_table_i)
-                row = var_attr.selectedIndexes()[0].row()
-                selected = True
-                var_table = var_attr
-            except:
-                pass
+        try:
+            row = var_table.selectedIndexes()[0].row()
+            selected = True
+        except:
+            pass
         
 
 
         if selected:
-            row = var_table.selectedIndexes()[0].row()
+            # row = var_table.selectedIndexes()[0].row()
             name = var_table.item(row,0).text()
             variable = self.experiment.new_variables[row]
             if name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
@@ -2629,22 +2664,12 @@ class MainWindow(QMainWindow):
                             return_value = update.digital_analog_dds_mirny_tabs(self) #we need to update only values not expressions
                             if return_value == None: #Variable can be deleted
                                 del self.experiment.new_variables[row]
-                                # update.digital_analog_dds_mirny_tabs(self) 
-                                # update.variables_tab(self)
-                                # update.sequence_tab(self)
-                                # update.sampler_tab(self)
-                                # update.all_tabs(self)
                                 update.variable_tables(self)
-                                update.from_object(self)
+                                update.all_values(self)
                             else: #Variable can not be deleted. Reverting all changes back to previous state
                                 self.experiment.variables[name] = backup
-                                # update.digital_analog_dds_mirny_tabs(self) 
-                                # update.variables_tab(self)
-                                # update.sequence_tab(self)
-                                # update.sampler_tab(self)
-                                # update.all_tabs(self)
                                 update.variable_tables(self)
-                                update.from_object(self)
+                                update.all_values(self)
                                 self.error_message('The variable is used in %s.'%return_value, 'Can not delete used variable')
                         else:
                             self.error_message("The variable is used as a argument in lookup variables. Remove it from the Lookup variables table before deleting it.", "Lookup variable's argument")
@@ -2689,13 +2714,6 @@ class MainWindow(QMainWindow):
         It also makes sure that if the variable is used the expression when its value is changed the expression evaluation remains in the
         allowed parameters range.       
         '''
-        
-        # var_tables0 = ['variables_table_sequence','variables_table_analog',
-        #               'variables_table_digital','variables_table_dds',
-        #               'variables_table_mirny','variables_table_sampler',
-        #               'variables_table_variables','variables_table_acquisition,variables_table_slow_dds']
-        # var_table_names = [name for name in var_tables0 if hasattr(self, name)]
-
         var_table_sender = self.sender()
 
         if self.to_update:
@@ -2817,7 +2835,7 @@ class MainWindow(QMainWindow):
                         self.update_on()
                         # update.digital_analog_dds_mirny_tabs(self)
                         update.variable_tables(self)
-                        update.from_object(self)
+                        update.all_values(self)
                     else: #The value can not be updated, reverting every evaluation done before.
                         self.error_message("Evaluation is out of allowed range occured in %s. Variable value can not be assigned" %return_value, "Wrong entry")
                         self.experiment.variables[variable.name].value = variable.value 
@@ -2825,7 +2843,7 @@ class MainWindow(QMainWindow):
                         table_item.setText(str(variable.value))
                         self.update_on()
                         update.variable_tables(self)
-                        update.from_object(self)
+                        update.all_values(self)
                         
 
                 except: #Restricting the user from using anything but the integer values and floating numbers
@@ -2835,7 +2853,7 @@ class MainWindow(QMainWindow):
                     # update.digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations=False)   
                     update.variable_tables(self)
                       
-                    update.from_object(self)              
+                    update.all_values(self)              
                     self.error_message("Only integers and floating numbers are allowed.", "Wrong entry")
 
             
@@ -3236,8 +3254,8 @@ class MainWindow(QMainWindow):
         if index > 3:
             #Pop up window to allow user to enter the name of the sampler title
             self.dialog = QDialog()
-            self.dialog.setGeometry(710, 435, 400, 120)
-            self.dialog.setFont(QFont('Arial', 14))
+            self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+            self.dialog.setFont(QFont('Arial', self.scale_font(14)))
             value_input = QLineEdit()
             dialog_layout = QVBoxLayout()
             button_update = QPushButton("update")

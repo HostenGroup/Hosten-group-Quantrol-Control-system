@@ -74,6 +74,7 @@ def variables_sidebar_build(self,tab):
     
     #VARIABLES TABLE LAYOUT
     variables_table = QTableWidget(tab)
+    variables_table.is_var_table = True
     
     
     variables_table.setGeometry(QRect(*self.scale_geom(x_val, self.top_margin, width_of_table_variables, height_of_table_variables)))     #size of the table
@@ -95,18 +96,18 @@ def variables_sidebar_build(self,tab):
     #button to create new variable
     self.create_new_variable = QPushButton(tab)
     self.create_new_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.create_new_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + 2*self.sep + self.button_h, self.button_w, self.button_h))
-    self.create_new_variable.setText("Create new variable")
+    self.create_new_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + self.sep, self.button_w, self.button_h))
+    self.create_new_variable.setText("Create variable")
     self.create_new_variable.setToolTip("Button that is used to create a new variable.")
     self.create_new_variable.clicked.connect(self.create_new_variable_button_clicked)
     #button to delete a variable
-    self.delete_variable = QPushButton(tab)
-    self.delete_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.delete_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + self.sep, self.button_w, self.button_h))
-    self.delete_variable.setText("Delete variable")
-    self.delete_variable.setToolTip("Button that is used to delete a new variable. First choose the new varibles by right clicking it in the variables table.")
-    self.delete_variable.clicked.connect(self.delete_variable_button_clicked)
-    return (variables_table,self.delete_variable)
+    delete_variable = QPushButton(tab)
+    delete_variable.setFont(QFont('Arial', self.scale_font(14)))
+    delete_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + 2*self.sep + self.button_h, self.button_w, self.button_h))
+    delete_variable.setText("Delete variable")
+    delete_variable.setToolTip("Button that is used to delete a new variable. First choose the new varibles by right clicking it in the variables table.")
+    delete_variable.clicked.connect(self.delete_variable_button_clicked)
+    return (variables_table,delete_variable)
 
 
 def bottom_buttons_build(self,tab):
@@ -712,11 +713,11 @@ def dds_tab_build(self):
         self.dds_table.horizontalHeader().setMinimumSectionSize(0)
 
         self.dds_table.setColumnWidth(0 + 6*i,int(self.SCALE_W*(5))) # making separation line thin
-        self.dds_table.setColumnWidth(1 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table.setColumnWidth(2 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table.setColumnWidth(3 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table.setColumnWidth(4 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table.setColumnWidth(5 + 6*i,int(self.SCALE_W*(40))) # making state column smaller
+        self.dds_table.setColumnWidth(1 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table.setColumnWidth(2 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table.setColumnWidth(3 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table.setColumnWidth(4 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table.setColumnWidth(5 + 6*i,int(self.SCALE_W*(44))) # making state column smaller
         self.dds_table.setItemDelegateForColumn(0 + 6*i,delegate) #making separation line uneditable
     
 
@@ -734,6 +735,7 @@ def dds_tab_build(self):
 
 
     self.dds_table.itemChanged.connect(self.dds_table_changed)
+    
 
     #Dummy table that will display edge number, name and time and will be fixed (LEFT SIDE OF THE TABLE)
 
@@ -784,15 +786,18 @@ def dds_tab_build(self):
     self.dds_table_header.setFont(QFont('Arial', self.scale_font(12)))
     self.dds_table_header.setFrameStyle(QFrame.NoFrame)
 
+
+    self.dds_table_header.cellClicked.connect(self.dds_table_header_clicked)
     #SHAPING THE TABLE
     for i in range(config.dds_channels_number):
         self.dds_table_header.setSpan(0,1 + 6*i, 1, 5) # stretching the title of the channel
         self.dds_table_header.setColumnWidth(0 + 6*i,int(self.SCALE_W*(5))) # making separation line thin
-        self.dds_table_header.setColumnWidth(1 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table_header.setColumnWidth(2 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table_header.setColumnWidth(3 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table_header.setColumnWidth(4 + 6*i,int(self.SCALE_W*(100))) 
-        self.dds_table_header.setColumnWidth(5 + 6*i,int(self.SCALE_W*(40))) # making state column smaller
+        self.dds_table_header.setColumnWidth(1 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table_header.setColumnWidth(2 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table_header.setColumnWidth(3 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table_header.setColumnWidth(4 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table_header.setColumnWidth(5 + 6*i,int(self.SCALE_W*(44))) # making state column smaller
+        # self.dds_table_header.horizontalHeader().setSectionResizeMode(5 + 6*i, QHeaderView.Stretch)
         self.dds_table_header.setItemDelegateForColumn(0 + 6*i,delegate) #making separation line uneditable
 
     self.dds_table_header.setItemDelegateForRow(1, delegate) #making row number 2 uneditable
@@ -813,7 +818,7 @@ def dds_tab_build(self):
         self.dds_table_header.setItem(1,6*i+4, QTableWidgetItem('phase (deg)'))
         self.dds_table_header.setItem(1,6*i+5, QTableWidgetItem('state'))
 
-    self.dds_table_header.itemChanged.connect(self.dds_table_header_changed)
+    # self.dds_table_header.itemChanged.connect(self.dds_table_header_changed)
 
     #Making fixed corner (TOP LEFT SIDE OF THE TABLE)
 
@@ -885,18 +890,23 @@ def dds_tab_build(self):
 #VARIABLES TAB
 def variables_tab_build(self):
     
+    derived_variables_table_w = 2*self.sep + 3*self.button_w
+    lookup_variables_table_w = 2*self.sep + 3*self.button_w
+    derived_variables_table_h = self.bottom_buttons_y_val - self.top_margin - 2*self.sep - self.button_h
+
     self.variables_tab_widget = QWidget()
     
     #DERIVED VARIABLES LABLE
     derived_variables_lable = QLabel(self.variables_tab_widget)
     derived_variables_lable.setText("Derived variables")
     derived_variables_lable.setFont(QFont('Arial', self.scale_font(14)))
-    derived_variables_lable.setGeometry(*self.scale_geom(315, 0, 400, 30))
+    derived_variables_lable.setGeometry(*self.scale_geom(self.sep, 0, derived_variables_table_w, self.button_h))
+    derived_variables_lable.setAlignment(Qt.AlignCenter)
 
     #DERIVED VARIABLES TABLE LAYOUT
     self.derived_variables_table = QTableWidget(self.variables_tab_widget)
-    width_of_table_variables = 420
-    self.derived_variables_table.setGeometry(QRect(*self.scale_geom(240, 30, 700, 1010)))  #size of the table
+    
+    self.derived_variables_table.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, derived_variables_table_w, derived_variables_table_h)))  #size of the table
     derived_variables_num_columns = 5 #RACOON
     self.derived_variables_table.setColumnCount(derived_variables_num_columns)
     self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Edge id","Function in python syntax", "Initial value"]) #RACOON
@@ -904,11 +914,12 @@ def variables_tab_build(self):
     self.derived_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.derived_variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.derived_variables_table.setFont(QFont('Arial', self.scale_font(12)))
-    self.derived_variables_table.setColumnWidth(0,int(self.SCALE_W*(130)))
-    self.derived_variables_table.setColumnWidth(1,int(self.SCALE_W*(100)))
+    self.derived_variables_table.setColumnWidth(0,int(self.SCALE_W*(120)))
+    self.derived_variables_table.setColumnWidth(1,int(self.SCALE_W*(90)))
     self.derived_variables_table.setColumnWidth(2,int(self.SCALE_W*(70)))
-    self.derived_variables_table.setColumnWidth(3,int(self.SCALE_W*(310)))
+    # self.derived_variables_table.setColumnWidth(3,int(self.SCALE_W*(310)))
     self.derived_variables_table.setColumnWidth(4,int(self.SCALE_W*(88))) #RACOON
+    self.derived_variables_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
     self.derived_variables_table.setRowCount(1)
     prototypeItem = QTableWidgetItem()
     prototypeItem.setTextAlignment(Qt.AlignCenter)
@@ -932,15 +943,15 @@ def variables_tab_build(self):
     #button to create new derived variable
     self.create_derived_variable = QPushButton(self.variables_tab_widget)
     self.create_derived_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.create_derived_variable.setGeometry(*self.scale_geom(240, 1050, 200, 30))
-    self.create_derived_variable.setText("Create derived variable")
+    self.create_derived_variable.setGeometry(*self.scale_geom(self.sep, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
+    self.create_derived_variable.setText("Create derived var")
     self.create_derived_variable.setToolTip("Button that is used to create a new derived variable. Please input arguments and edge id before using the variable")
     self.create_derived_variable.clicked.connect(self.create_derived_variable_button_clicked)
     #button to delete a variable
     self.delete_derived_variable = QPushButton(self.variables_tab_widget)
     self.delete_derived_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.delete_derived_variable.setGeometry(*self.scale_geom(450, 1050, 200, 30))
-    self.delete_derived_variable.setText("Delete derived variable")
+    self.delete_derived_variable.setGeometry(*self.scale_geom(2*self.sep + self.button_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
+    self.delete_derived_variable.setText("Delete derived var")
     self.delete_derived_variable.setToolTip("Button that is used to delete a derived variable. First choose the derived variable by right clicking it in the derived variables table.")
     self.delete_derived_variable.clicked.connect(self.delete_derived_variable_button_clicked)
 
@@ -948,22 +959,24 @@ def variables_tab_build(self):
     lookup_variables_lable = QLabel(self.variables_tab_widget)
     lookup_variables_lable.setText("Lookup variables")
     lookup_variables_lable.setFont(QFont('Arial', self.scale_font(14)))
-    lookup_variables_lable.setGeometry(*self.scale_geom(1035, 0, 500, 30))
+    lookup_variables_lable.setGeometry(*self.scale_geom(2*self.sep + derived_variables_table_w, 0, lookup_variables_table_w, self.button_h))
+    lookup_variables_lable.setAlignment(Qt.AlignCenter)
 
     #LOOKUP VARIABLES TABLE LAYOUT
     self.lookup_variables_table = QTableWidget(self.variables_tab_widget)
-    width_of_table_variables = 420
-    self.lookup_variables_table.setGeometry(QRect(*self.scale_geom(960, 30, 745, 1010)))  #size of the table
+    
+    self.lookup_variables_table.setGeometry(QRect(*self.scale_geom(2*self.sep + derived_variables_table_w, self.top_margin, lookup_variables_table_w, derived_variables_table_h)))  #size of the table
     lookup_variables_num_columns = 3
     self.lookup_variables_table.setColumnCount(lookup_variables_num_columns)
-    self.lookup_variables_table.setHorizontalHeaderLabels(["Name", "Agrument", "Lookup list name"])
+    self.lookup_variables_table.setHorizontalHeaderLabels(["Name", "Argument", "Lookup list name"])
     self.lookup_variables_table.verticalHeader().setVisible(False)
     self.lookup_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.lookup_variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.lookup_variables_table.setFont(QFont('Arial', self.scale_font(12)))
     self.lookup_variables_table.setColumnWidth(0,int(self.SCALE_W*(180)))
     self.lookup_variables_table.setColumnWidth(1,int(self.SCALE_W*(150)))
-    self.lookup_variables_table.setColumnWidth(2,int(self.SCALE_W*(413)))
+    # self.lookup_variables_table.setColumnWidth(2,int(self.SCALE_W*(413)))
+    self.lookup_variables_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
     self.lookup_variables_table.setRowCount(1)
     prototypeItem = QTableWidgetItem()
     prototypeItem.setTextAlignment(Qt.AlignCenter)
@@ -984,21 +997,21 @@ def variables_tab_build(self):
     #button to create new lookup variable
     self.create_lookup_variable = QPushButton(self.variables_tab_widget)
     self.create_lookup_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.create_lookup_variable.setGeometry(*self.scale_geom(960, 1050, 200, 30))
-    self.create_lookup_variable.setText("Create lookup variable")
+    self.create_lookup_variable.setGeometry(*self.scale_geom(2*self.sep + derived_variables_table_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
+    self.create_lookup_variable.setText("Create lookup var")
     self.create_lookup_variable.setToolTip("Button that is used to create a new lookup variable. Please input the arguments before using the variable")
     self.create_lookup_variable.clicked.connect(self.create_lookup_variable_button_clicked)
     #button to delete a variable
     self.delete_lookup_variable = QPushButton(self.variables_tab_widget)
     self.delete_lookup_variable.setFont(QFont('Arial', self.scale_font(14)))
-    self.delete_lookup_variable.setGeometry(*self.scale_geom(1170, 1050, 200, 30))
-    self.delete_lookup_variable.setText("Delete lookup variable")
+    self.delete_lookup_variable.setGeometry(*self.scale_geom(3*self.sep + derived_variables_table_w + self.button_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
+    self.delete_lookup_variable.setText("Delete lookup var")
     self.delete_lookup_variable.setToolTip("Button that is used to delete a lookup variable. First choose the lookup variable by right clikcing it in the lookup variables table.")
     self.delete_lookup_variable.clicked.connect(self.delete_lookup_variable_button_clicked)
     #button to load the lookup table
     self.load_lookup_list = QPushButton(self.variables_tab_widget)
     self.load_lookup_list.setFont(QFont('Arial', self.scale_font(14)))
-    self.load_lookup_list.setGeometry(*self.scale_geom(1380, 1050, 200, 30))
+    self.load_lookup_list.setGeometry(*self.scale_geom(4*self.sep + derived_variables_table_w + 2*self.button_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
     self.load_lookup_list.setText("Load lookup list")
     self.load_lookup_list.setToolTip("Button is used to load the lookup list for the variable. First choose the lookup variable by right clicking it in the lookup variables table. After that navigate and open the lookup variable list. It should be of the .mat format.")
     self.load_lookup_list.clicked.connect(self.load_lookup_list_button_clicked)
