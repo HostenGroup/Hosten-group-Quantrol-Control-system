@@ -11,6 +11,11 @@ dataset_db*
 /device_db.py
 config.py
 led.py
+metadata*
+go_to_edge_out.txt
+run_experiment_out.txt
+cont_run_out.txt
+init_hardware_out.txt
 metadata.json
 
 
