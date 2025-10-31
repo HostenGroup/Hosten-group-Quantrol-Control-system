@@ -445,7 +445,17 @@ class MainWindow(QMainWindow):
         self.text_font = 12
 
 
+        
+        
+
+        
         self.repo_path = Path(__file__).resolve().parent.parent
+
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json") as f:
+            self.experiment_names_dict = json.load(f)
+        
+
+
         self.experiment = self.Experiment()
         self.sequence_num_rows = 1
         self.setting_dict = {0:"frequency", 1:"amplitude", 2:"attenuation", 3:"phase", 4:"state"}
@@ -539,6 +549,19 @@ class MainWindow(QMainWindow):
     ||      ||    ||  ||   |||  ||  ||    ||      ||    ||   ||  ||   |||  ||    ||
     ||       ||||||   ||    ||  ||||||    ||    ||||||   |||||   ||    ||  ||||||||  ||  ||  ||
     '''
+
+    def update_chosen_experiment(self):
+        items = self.experiment_list_list_widget.selectedItems()
+        self.experiment_list_chosen_line.setText(items[0].text() if items else "")
+
+
+
+
+
+
+
+
+
     def _fit_to_work_area(self):
         '''
         The function sets the geometry of the main window to the size of the working area of the screen
@@ -3340,6 +3363,7 @@ def to_dict(obj):
             if condition:
                 result[attr] = to_dict(value)
         return result
+
 
 
 

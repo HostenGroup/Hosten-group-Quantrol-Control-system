@@ -1361,56 +1361,79 @@ def acquisition_tab_build(self):
     #path to save
     #experiment list
     #main camera
+    self.experiment_list_box = QWidget(self.acquisition_tab_widget)
+    self.experiment_list_box.setGeometry(*self.scale_geom(self.sep,
+                                                      self.top_margin,
+                                                    #   1.5*self.button_w + self.sep,
+                                                      self.button_w,
+                                                      self.bottom_buttons_y_val - self.top_margin - self.sep))
+    self.experiment_list_box_layout = QVBoxLayout(self.experiment_list_box)
+    self.experiment_list_box_layout.setContentsMargins(0, 0, 0, 0)
 
 
     # Top: chosen element line
-    self.chosen_label = QLabel(parent = self.acquisition_tab_widget, text = "Chosen element")
-    self.chosen_label.setGeometry(*self.scale_geom(self.sep,
-                                                   self.top_margin,
-                                                   self.button_w,
-                                                   self.button_h))
-    self.chosen_line = QLineEdit(self.acquisition_tab_widget)
-    self.chosen_line.setReadOnly(True)
-    self.chosen_line.setGeometry(*self.scale_geom(self.sep,
-                                                  self.top_margin + self.button_h,
-                                                  2*self.button_w + self.sep,
-                                                  self.button_h))
+    self.experiment_list_chosen_label = QLabel(parent = self.acquisition_tab_widget, text = "Choose experiment")
+    self.experiment_list_chosen_label.setFont(QFont('Arial', self.scale_font(14)))
+    self.experiment_list_chosen_label.setAlignment(Qt.AlignCenter)
+    self.experiment_list_chosen_label.setGeometry(*self.scale_geom(self.sep,
+                                                                0,
+                                                                #   1.5*self.button_w + self.sep,
+                                                                self.button_w,
+                                                                self.top_margin))
 
-    # top_box = QVBoxLayout(self.acquisition_tab_widget)
-    # top_box.addWidget(self.chosen_label)
-    # top_box.addWidget(self.chosen_line)
+
+    self.experiment_list_chosen_line = QLineEdit(self.experiment_list_box)
+    self.experiment_list_chosen_line.setReadOnly(True)
+    self.experiment_list_chosen_line.setFont(QFont('Arial', self.scale_font(12)))
 
     # Center: list of items
-    self.list_widget = QListWidget(self.acquisition_tab_widget)
-    self.list_widget.setSelectionMode(QListWidget.SingleSelection)
-    self.list_widget.setGeometry(*self.scale_geom(self.sep,
-                                                  self.top_margin + 2*self.button_h + self.sep,
-                                                  2*self.button_w + self.sep,
-                                                  2*self.button_w))
-    # self.list_widget.itemSelectionChanged.connect(self.update_chosen)
+    self.experiment_list_list_widget = QListWidget(self.experiment_list_box)
+    self.experiment_list_list_widget.setSelectionMode(QListWidget.SingleSelection)
+    self.experiment_list_list_widget.setFont(QFont('Arial', self.scale_font(12)))
+    self.experiment_list_list_widget.itemSelectionChanged.connect(self.update_chosen_experiment)
+
+    for name in self.experiment_names_dict.values():
+        self.experiment_list_list_widget.addItem(name)
 
     # Bottom: add-new line and buttons
-    self.new_label = QLabel(parent = self.acquisition_tab_widget, text = "Add new element")
-    self.new_label.setGeometry(*self.scale_geom(self.sep,
-                                                self.top_margin + 2*self.button_h + self.sep,
-                                                2*self.button_w + self.sep,
-                                                2*self.button_w))
-    # self.new_label.setText()
-    self.new_line = QLineEdit(self.acquisition_tab_widget)
-    self.new_line.setPlaceholderText("Type new element and press Enter or click Add")
+    # self.experiment_list_new_label = QLabel(parent = self.experiment_list_box, text = "Add new element")
+
+    # self.experiment_list_new_line = QLineEdit(self.experiment_list_box)
+    # self.experiment_list_new_line.setPlaceholderText("Type new element and press Enter or click Add")
+
+
     # self.new_line.returnPressed.connect(self.add_element)
 
-    self.btn_add = QPushButton(parent = self.acquisition_tab_widget, text = "Add new element")
-    # self.btn_add.clicked.connect(self.add_element)
+    self.experiment_list_btn_add = QPushButton(parent = self.experiment_list_box, text = "Add experiment name")
+    self.experiment_list_btn_add.setFixedHeight(int(self.SCALE_H*self.button_h))
+    self.experiment_list_btn_add.setFont(QFont('Arial', self.scale_font(14)))
+    # self.experiment_list_btn_add.clicked.connect(self.add_element)
 
-    self.btn_delete = QPushButton(parent = self.acquisition_tab_widget, text = "Delete element")
-    # self.btn_delete.clicked.connect(self.delete_selected)
-    self.btn_delete.setEnabled(False)
+    self.experiment_list_btn_delete = QPushButton(parent = self.experiment_list_box, text = "Delete experiment name")
+    self.experiment_list_btn_delete.setFixedHeight(int(self.SCALE_H*self.button_h))
+    self.experiment_list_btn_delete.setFont(QFont('Arial', self.scale_font(14)))
+    self.experiment_list_btn_delete.setEnabled(False)
 
-    # bottom_row = QHBoxLayout()
-    # bottom_row.addWidget(self.new_line, 1)
-    # bottom_row.addWidget(self.btn_add)
-    # bottom_row.addWidget(self.btn_delete)
+    # self.experiment_list_btn_delete.clicked.connect(self.delete_selected)
+
+    # self.experiment_list_bottom_row = QHBoxLayout()
+    # self.bottom_row.addWidget(self.new_line)
+    # self.experiment_list_bottom_row.addWidget(self.experiment_list_btn_add)
+    # self.experiment_list_bottom_row.addWidget(self.experiment_list_btn_delete)
+
+    # self.experiment_list_box_layout.addWidget(self.experiment_list_chosen_label)
+    self.experiment_list_box_layout.addWidget(self.experiment_list_chosen_line)
+    self.experiment_list_box_layout.addWidget(self.experiment_list_list_widget)
+    self.experiment_list_box_layout.addWidget(self.experiment_list_btn_add)
+    self.experiment_list_box_layout.addWidget(self.experiment_list_btn_delete)
+    # self.experiment_list_box_layout.addLayout(self.experiment_list_bottom_row)
+    
+    # self.experiment_list_box_layout.addWidget()
+
+
+
+
+    
 
     # bottom_box = QVBoxLayout()
     # bottom_box.addWidget(self.new_label)
@@ -1427,5 +1450,6 @@ def acquisition_tab_build(self):
 
     self.number_of_runs_input_acquisition = bottom_buttons_build(self,self.acquisition_tab_widget)
     self.variables_table_acquisition, self.delete_variable_acquisition = variables_sidebar_build(self,self.acquisition_tab_widget)
+
 
 
