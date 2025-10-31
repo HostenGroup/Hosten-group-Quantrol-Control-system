@@ -2626,7 +2626,6 @@ class MainWindow(QMainWindow):
 
 
         if selected:
-            # row = var_table.selectedIndexes()[0].row()
             name = var_table.item(row,0).text()
             variable = self.experiment.new_variables[row]
             if name not in self.experiment.sampler_variables: # Check if the variable is being sampled 

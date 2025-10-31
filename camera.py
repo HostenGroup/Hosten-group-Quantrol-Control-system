@@ -88,17 +88,16 @@ process = False
 
 par_dict['scan'] = x_captions_dict[experiment_code]
 
-
+from PyQt5.QtCore import * 
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
 import PySpin
 import datetime
 import os
 import gc
 import json
 
-serial_numbers_dict = {
-    'X':'22433340',
-    'Y':'22433344'
-}
+serial_numbers_dict = config.camera_serial_numbers_dict
 
 n_images = None
 
@@ -184,364 +183,8 @@ for cam in cam_list:
 
         nodemap = cam.GetNodeMap()
         nodemap_tldevice = cam.GetTLDeviceNodeMap()
-
-        ####################################################################
-        # Set exposure time in microseconds (us).
-        ####################################################################
-
-        #Disable auto exposure
-        node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
-        if not PySpin.IsAvailable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
-            raise RuntimeError('ExposureAuto node not writable.')
-        node_exposure_auto_off = node_exposure_auto.GetEntryByName('Off')
-        node_exposure_auto.SetIntValue(node_exposure_auto_off.GetValue())
-
-        #Access ExposureTime
-        node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
-        if not PySpin.IsAvailable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
-            raise RuntimeError('ExposureTime node not writable.')
-
-        #Clamp requested value into allowed range
-        min_exposure = node_exposure_time.GetMin()
-        max_exposure = node_exposure_time.GetMax()
-        t_exp = max(min(t_exp, max_exposure), min_exposure)
-
-        node_exposure_time.SetValue(t_exp)
-        print(f'Exposure set to {t_exp:.1f} us (range {min_exposure:.1f} – {max_exposure:.1f} us)')
-
-
-
-
-
-        ####################################################################
-        # Set manual gain in decibels (dB).
-        ####################################################################
-
-        #Disable auto gain
-        node_gain_auto = PySpin.CEnumerationPtr(nodemap.GetNode('GainAuto'))
-        if not PySpin.IsAvailable(node_gain_auto) or not PySpin.IsWritable(node_gain_auto):
-            raise RuntimeError('GainAuto node not writable.')
-        node_gain_auto_off = node_gain_auto.GetEntryByName('Off')
-        node_gain_auto.SetIntValue(node_gain_auto_off.GetValue())
-
-        #Access manual Gain node
-        node_gain = PySpin.CFloatPtr(nodemap.GetNode('Gain'))
-        if not PySpin.IsAvailable(node_gain) or not PySpin.IsWritable(node_gain):
-            raise RuntimeError('Gain node not writable.')
-
-        #Clamp requested value into allowed range
-        min_gain = node_gain.GetMin()
-        max_gain = node_gain.GetMax()
-        gain_db = max(min(gain_db, max_gain), min_gain)
-
-        node_gain.SetValue(gain_db)
-        print(f'Gain set to {gain_db:.2f} dB (range {min_gain:.2f} – {max_gain:.2f} dB)')
-
-
-
-
-
-        ####################################################################
-        # Let the camera run at its maximum possible FPS (automatic).
-        ####################################################################
-
-        # Check if frame rate enable node exists (not all models have it)
-        node_acq_fr_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
-        if PySpin.IsAvailable(node_acq_fr_enable) and PySpin.IsWritable(node_acq_fr_enable):
-            node_acq_fr_enable.SetValue(False)   # disables manual FPS control
-        print('Frame rate is now automatic')
-
-
-
-
-
-        ####################################################################
-        # Disable Gamma.
-        ####################################################################
-
-        node_gamma_enable = PySpin.CBooleanPtr(nodemap.GetNode('GammaEnable'))
-        if PySpin.IsAvailable(node_gamma_enable) and PySpin.IsWritable(node_gamma_enable):
-            node_gamma_enable.SetValue(False)
-            print('Gamma disabled')
-
-
-
-
-
-        ####################################################################
-        # Set EV Compensation to 0.
-        ####################################################################
-
-        ev_value = 0
-        node_ev = PySpin.CFloatPtr(nodemap.GetNode('AutoExposureEVCompensation'))
-        if not PySpin.IsAvailable(node_ev) or not PySpin.IsWritable(node_ev):
-            raise RuntimeError('EV compensation not available on this camera.')
-
-        # Clamp into allowed range
-        ev_value = max(min(ev_value, node_ev.GetMax()), node_ev.GetMin())
-        node_ev.SetValue(ev_value)
-        print(f'EV compensation set to {ev_value:.2f}')
-
-
-
-
-
-        ####################################################################
-        # Set Black Level to 0%.
-        ####################################################################
-
-        black_level_value = 0
-        # Access BlackLevel node
-        node_bl = PySpin.CFloatPtr(nodemap.GetNode('BlackLevel'))
-        if not PySpin.IsAvailable(node_bl) or not PySpin.IsWritable(node_bl):
-            raise RuntimeError('BlackLevel not available or not writable on this camera.')
-
-        # Clamp to allowed range
-        black_level_value = max(min(black_level_value, node_bl.GetMax()), node_bl.GetMin())
-
-        node_bl.SetValue(black_level_value)
-        print(f'Black level set to {black_level_value:.2f} %')
-
-
-
-
-
-        ####################################################################
-        # Setting pixel format to Mono8
-        ####################################################################
-
-        pf_node = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
-        if not PySpin.IsAvailable(pf_node) or not PySpin.IsWritable(pf_node):
-            raise RuntimeError('PixelFormat node not writable (camera acquiring or node locked).')
-
-        entry = pf_node.GetEntryByName(format_name)
-        if not PySpin.IsAvailable(entry) or not PySpin.IsReadable(entry):
-            raise RuntimeError(f'Pixel format {format_name} not supported by this camera.')
-
-        pf_node.SetIntValue(entry.GetValue())
-        print(f'Pixel format set to {format_name}')
-
-
-
-
-
-        ####################################################################
-        # Set the sensor ADC bit depth (e.g., 8, 10, 12, 14, 16) if supported.
-        ####################################################################
-
-        adc_depth = 10
-        adc_node = PySpin.CEnumerationPtr(nodemap.GetNode('AdcBitDepth'))
-        if not PySpin.IsAvailable(adc_node) or not PySpin.IsWritable(adc_node):
-            raise RuntimeError('AdcBitDepth not available or not writable on this camera.')
-
-        # Enum entries are typically named 'Bit8', 'Bit10', 'Bit12', 'Bit14', 'Bit16'
-        entry = adc_node.GetEntryByName(f'Bit{int(adc_depth)}')
-        if not PySpin.IsAvailable(entry) or not PySpin.IsReadable(entry):
-            raise RuntimeError(f'ADC depth {adc_depth}-bit not supported on this camera.')
-
-        adc_node.SetIntValue(entry.GetValue())
-        print(f'ADC depth set to {adc_depth} bit')
-
-
-
-
-
-        ####################################################################
-        # Set horizontal and vertical binning. h,v = 1 disables binning (full resolution).
-        ####################################################################
-
-        h = 1
-        v = 1
-        # Horizontal binning
-        node_bin_h = PySpin.CIntegerPtr(nodemap.GetNode('BinningHorizontal'))
-        if PySpin.IsAvailable(node_bin_h) and PySpin.IsWritable(node_bin_h):
-            h = max(min(h, node_bin_h.GetMax()), node_bin_h.GetMin())
-            node_bin_h.SetValue(h)
-            print(f'Horizontal binning set to {h}')
-        else:
-            print('Horizontal binning not available on this camera.')
-
-        # Vertical binning
-        node_bin_v = PySpin.CIntegerPtr(nodemap.GetNode('BinningVertical'))
-        if PySpin.IsAvailable(node_bin_v) and PySpin.IsWritable(node_bin_v):
-            v = max(min(v, node_bin_v.GetMax()), node_bin_v.GetMin())
-            node_bin_v.SetValue(v)
-            print(f'Vertical binning set to {v}')
-        else:
-            print('Vertical binning not available on this camera.')
-
-
-
-
-
-        ####################################################################
-        # Reset ROI: set width & height to max, offsets to 0.
-        ####################################################################
-
-        # Width
-        node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
-        if PySpin.IsAvailable(node_width) and PySpin.IsWritable(node_width):
-            max_width = node_width.GetMax()
-            node_width.SetValue(max_width)
-            info['width'] = max_width
-            print(f'Width set to maximum: {max_width}')
-        else:
-            print('Width not available or not writable.')
-
-        # Height
-        node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
-        if PySpin.IsAvailable(node_height) and PySpin.IsWritable(node_height):
-            max_height = node_height.GetMax()
-            node_height.SetValue(max_height)
-            info['height'] = max_height
-            print(f'Height set to maximum: {max_height}')
-        else:
-            print('Height not available or not writable.')
-
-        # Reset offsets to 0 so ROI is aligned at the origin
-        node_offset_x = PySpin.CIntegerPtr(nodemap.GetNode('OffsetX'))
-        node_offset_y = PySpin.CIntegerPtr(nodemap.GetNode('OffsetY'))
-
-        if PySpin.IsAvailable(node_offset_x) and PySpin.IsWritable(node_offset_x):
-            node_offset_x.SetValue(node_offset_x.GetMin())  # usually 0
-            print(f'OffsetX set to {node_offset_x.GetValue()}')
-
-        if PySpin.IsAvailable(node_offset_y) and PySpin.IsWritable(node_offset_y):
-            node_offset_y.SetValue(node_offset_y.GetMin())  # usually 0
-            print(f'OffsetY set to {node_offset_y.GetValue()}')
-
-
-
-
-
-        ####################################################################
-        # Set horizontal and vertical decimation. h_d, v_d = 1 means no decimation.
-        ####################################################################
-
-        h_d = 1
-        v_d = 1
-        # Horizontal decimation
-        node_dec_h = PySpin.CIntegerPtr(nodemap.GetNode('DecimationHorizontal'))
-        if PySpin.IsAvailable(node_dec_h) and PySpin.IsWritable(node_dec_h):
-            h_d = max(min(h_d, node_dec_h.GetMax()), node_dec_h.GetMin())
-            node_dec_h.SetValue(h_d)
-            print(f'Horizontal decimation set to {h_d}')
-        else:
-            print('Horizontal decimation not available on this camera.')
-
-        # Vertical decimation
-        node_dec_v = PySpin.CIntegerPtr(nodemap.GetNode('DecimationVertical'))
-        if PySpin.IsAvailable(node_dec_v) and PySpin.IsWritable(node_dec_v):
-            v_d = max(min(v_d, node_dec_v.GetMax()), node_dec_v.GetMin())
-            node_dec_v.SetValue(v_d)
-            print(f'Vertical decimation set to {v_d}')
-        else:
-            print('Vertical decimation not available on this camera.')
-
-
-
-
-        ####################################################################
-        # Set acquisition mode to continuous
-        ####################################################################
-
-        # In order to access the node entries, they have to be casted to a pointer type (CEnumerationPtr here)
-        node_acquisition_mode = PySpin.CEnumerationPtr(nodemap.GetNode('AcquisitionMode'))
-        if not PySpin.IsAvailable(node_acquisition_mode) or not PySpin.IsWritable(node_acquisition_mode):
-            print(f'Unable to set acquisition mode to continuous (enum retrieval)')
-
-        # Retrieve entry node from enumeration node
-        node_acquisition_mode_continuous = node_acquisition_mode.GetEntryByName('Continuous')
-        if not PySpin.IsAvailable(node_acquisition_mode_continuous) or not PySpin.IsReadable(
-                node_acquisition_mode_continuous):
-            print(f'Unable to set acquisition mode to continuous (entry retrieval)')
-
-        acquisition_mode_continuous = node_acquisition_mode_continuous.GetValue()
-        node_acquisition_mode.SetIntValue(acquisition_mode_continuous)
-        print(f'Acquisition mode set to continuous')
-
-
-
-
-
-        ####################################################################
-        # Configure hardware trigger:
-        # - TriggerSelector = FrameStart
-        # - TriggerSource   = Line0
-        # - TriggerActivation = RisingEdge
-        # - TriggerMode     = On
-        # - TriggerOverlap    = Off
-        # - LineInverter(Line0)= False
-        # - TriggerDelay    = delay_us (microseconds)
-        ####################################################################
-
-        # TriggerMode OFF to edit
-        trig_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
-        trig_mode_off = trig_mode.GetEntryByName('Off')
-        trig_mode.SetIntValue(trig_mode_off.GetValue())
-
-        # TriggerSelector = FrameStart
-        trig_sel = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
-        trig_sel.SetIntValue(trig_sel.GetEntryByName('FrameStart').GetValue())
-
-        # TriggerSource = Line0
-        trig_src = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
-        trig_src.SetIntValue(trig_src.GetEntryByName('Line0').GetValue())
-
-        # TriggerActivation = RisingEdge
-        trig_act = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
-        if PySpin.IsAvailable(trig_act) and PySpin.IsWritable(trig_act):
-            trig_act.SetIntValue(trig_act.GetEntryByName('RisingEdge').GetValue())
-
-        # TriggerOverlap = Off
-        trig_ovl = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
-        if PySpin.IsAvailable(trig_ovl) and PySpin.IsWritable(trig_ovl):
-            ent_off = trig_ovl.GetEntryByName('Off')
-            if PySpin.IsAvailable(ent_off) and PySpin.IsReadable(ent_off):
-                trig_ovl.SetIntValue(ent_off.GetValue())
-
-        # Ensure Line0 is Input and LineInverter = False
-        line_sel = PySpin.CEnumerationPtr(nodemap.GetNode('LineSelector'))
-        line_mode = PySpin.CEnumerationPtr(nodemap.GetNode('LineMode'))
-        line_inv  = PySpin.CBooleanPtr(nodemap.GetNode('LineInverter'))
-        if PySpin.IsAvailable(line_sel) and PySpin.IsWritable(line_sel):
-            ent_line0 = line_sel.GetEntryByName('Line0')
-            if PySpin.IsAvailable(ent_line0) and PySpin.IsReadable(ent_line0):
-                line_sel.SetIntValue(ent_line0.GetValue())
-                if PySpin.IsAvailable(line_mode) and PySpin.IsWritable(line_mode):
-                    mode_in = line_mode.GetEntryByName('Input')
-                    if PySpin.IsAvailable(mode_in) and PySpin.IsReadable(mode_in):
-                        line_mode.SetIntValue(mode_in.GetValue())
-                if PySpin.IsAvailable(line_inv) and PySpin.IsWritable(line_inv):
-                    line_inv.SetValue(False)  # no inversion
-
-        # Exposure mode timed (avoids overlap issues)
-        exp_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
-        if PySpin.IsAvailable(exp_mode) and PySpin.IsWritable(exp_mode):
-            timed = exp_mode.GetEntryByName('Timed')
-            if PySpin.IsAvailable(timed) and PySpin.IsReadable(timed):
-                exp_mode.SetIntValue(timed.GetValue())
-
-        # Trigger delay (µs)
-
-        trigger_delay = 12
-
-        trig_delay = PySpin.CFloatPtr(nodemap.GetNode('TriggerDelay'))
-        if PySpin.IsAvailable(trig_delay) and PySpin.IsWritable(trig_delay):
-            # Clamp to allowed range
-            dmin, dmax = trig_delay.GetMin(), trig_delay.GetMax()
-            trigger_delay = max(min(trigger_delay, dmax), dmin)
-            trig_delay.SetValue(trigger_delay)
-        else:
-            if trigger_delay not in (0, 0.0):
-                raise RuntimeError('TriggerDelay not available on this camera.')
-
-        # Turn trigger mode ON (arm for hardware trigger)
-        trig_mode_on = trig_mode.GetEntryByName('On')
-        trig_mode.SetIntValue(trig_mode_on.GetValue())
-
-        print(f'Hardware trigger configured: FrameStart, Line0, RisingEdge, Overlap = Off, Inverter = False, delay = {trigger_delay:.1f} us') 
-print()
+        self.set_cam_parameters(t_exp,gain_db,format_name)
+        print()
 
 
 
@@ -648,3 +291,365 @@ finally:
         if process == True:
             with open('G:\Experimental Data\Hybrid\image_processing.py') as file:
                 exec(file.read())
+
+
+
+def set_cam_parameters(self,t_exp_,gain_,format_):
+    '''Set parameters of the camera'''
+
+    ####################################################################
+    # Set exposure time in microseconds (us).
+    ####################################################################
+
+    #Disable auto exposure
+    node_exposure_auto = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
+    if not PySpin.IsAvailable(node_exposure_auto) or not PySpin.IsWritable(node_exposure_auto):
+        raise RuntimeError('ExposureAuto node not writable.')
+    node_exposure_auto_off = node_exposure_auto.GetEntryByName('Off')
+    node_exposure_auto.SetIntValue(node_exposure_auto_off.GetValue())
+
+    #Access ExposureTime
+    node_exposure_time = PySpin.CFloatPtr(nodemap.GetNode('ExposureTime'))
+    if not PySpin.IsAvailable(node_exposure_time) or not PySpin.IsWritable(node_exposure_time):
+        raise RuntimeError('ExposureTime node not writable.')
+
+    #Clamp requested value into allowed range
+    min_exposure = node_exposure_time.GetMin()
+    max_exposure = node_exposure_time.GetMax()
+    t_exp_ = max(min(t_exp_, max_exposure), min_exposure)
+
+    node_exposure_time.SetValue(t_exp_)
+    print(f'Exposure set to {t_exp_:.1f} us (range {min_exposure:.1f} – {max_exposure:.1f} us)')
+
+
+
+
+
+    ####################################################################
+    # Set manual gain in decibels (dB).
+    ####################################################################
+
+    #Disable auto gain
+    node_gain_auto = PySpin.CEnumerationPtr(nodemap.GetNode('GainAuto'))
+    if not PySpin.IsAvailable(node_gain_auto) or not PySpin.IsWritable(node_gain_auto):
+        raise RuntimeError('GainAuto node not writable.')
+    node_gain_auto_off = node_gain_auto.GetEntryByName('Off')
+    node_gain_auto.SetIntValue(node_gain_auto_off.GetValue())
+
+    #Access manual Gain node
+    node_gain = PySpin.CFloatPtr(nodemap.GetNode('Gain'))
+    if not PySpin.IsAvailable(node_gain) or not PySpin.IsWritable(node_gain):
+        raise RuntimeError('Gain node not writable.')
+
+    #Clamp requested value into allowed range
+    min_gain = node_gain.GetMin()
+    max_gain = node_gain.GetMax()
+    gain_db = max(min(gain_, max_gain), min_gain)
+
+    node_gain.SetValue(gain_)
+    print(f'Gain set to {gain_:.2f} dB (range {min_gain:.2f} – {max_gain:.2f} dB)')
+
+
+
+
+
+    ####################################################################
+    # Let the camera run at its maximum possible FPS (automatic).
+    ####################################################################
+
+    # Check if frame rate enable node exists (not all models have it)
+    node_acq_fr_enable = PySpin.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
+    if PySpin.IsAvailable(node_acq_fr_enable) and PySpin.IsWritable(node_acq_fr_enable):
+        node_acq_fr_enable.SetValue(False)   # disables manual FPS control
+    print('Frame rate is now automatic')
+
+
+
+
+
+    ####################################################################
+    # Disable Gamma.
+    ####################################################################
+
+    node_gamma_enable = PySpin.CBooleanPtr(nodemap.GetNode('GammaEnable'))
+    if PySpin.IsAvailable(node_gamma_enable) and PySpin.IsWritable(node_gamma_enable):
+        node_gamma_enable.SetValue(False)
+        print('Gamma disabled')
+
+
+
+
+
+    ####################################################################
+    # Set EV Compensation to 0.
+    ####################################################################
+
+    ev_value = 0
+    node_ev = PySpin.CFloatPtr(nodemap.GetNode('AutoExposureEVCompensation'))
+    if not PySpin.IsAvailable(node_ev) or not PySpin.IsWritable(node_ev):
+        raise RuntimeError('EV compensation not available on this camera.')
+
+    # Clamp into allowed range
+    ev_value = max(min(ev_value, node_ev.GetMax()), node_ev.GetMin())
+    node_ev.SetValue(ev_value)
+    print(f'EV compensation set to {ev_value:.2f}')
+
+
+
+
+
+    ####################################################################
+    # Set Black Level to 0%.
+    ####################################################################
+
+    black_level_value = 0
+    # Access BlackLevel node
+    node_bl = PySpin.CFloatPtr(nodemap.GetNode('BlackLevel'))
+    if not PySpin.IsAvailable(node_bl) or not PySpin.IsWritable(node_bl):
+        raise RuntimeError('BlackLevel not available or not writable on this camera.')
+
+    # Clamp to allowed range
+    black_level_value = max(min(black_level_value, node_bl.GetMax()), node_bl.GetMin())
+
+    node_bl.SetValue(black_level_value)
+    print(f'Black level set to {black_level_value:.2f} %')
+
+
+
+
+
+    ####################################################################
+    # Setting pixel format to Mono8
+    ####################################################################
+
+    pf_node = PySpin.CEnumerationPtr(nodemap.GetNode('PixelFormat'))
+    if not PySpin.IsAvailable(pf_node) or not PySpin.IsWritable(pf_node):
+        raise RuntimeError('PixelFormat node not writable (camera acquiring or node locked).')
+
+    entry = pf_node.GetEntryByName(format_)
+    if not PySpin.IsAvailable(entry) or not PySpin.IsReadable(entry):
+        raise RuntimeError(f'Pixel format {format_} not supported by this camera.')
+
+    pf_node.SetIntValue(entry.GetValue())
+    print(f'Pixel format set to {format_}')
+
+
+
+
+
+    ####################################################################
+    # Set the sensor ADC bit depth (e.g., 8, 10, 12, 14, 16) if supported.
+    ####################################################################
+
+    adc_depth = 10
+    adc_node = PySpin.CEnumerationPtr(nodemap.GetNode('AdcBitDepth'))
+    if not PySpin.IsAvailable(adc_node) or not PySpin.IsWritable(adc_node):
+        raise RuntimeError('AdcBitDepth not available or not writable on this camera.')
+
+    # Enum entries are typically named 'Bit8', 'Bit10', 'Bit12', 'Bit14', 'Bit16'
+    entry = adc_node.GetEntryByName(f'Bit{int(adc_depth)}')
+    if not PySpin.IsAvailable(entry) or not PySpin.IsReadable(entry):
+        raise RuntimeError(f'ADC depth {adc_depth}-bit not supported on this camera.')
+
+    adc_node.SetIntValue(entry.GetValue())
+    print(f'ADC depth set to {adc_depth} bit')
+
+
+
+
+
+    ####################################################################
+    # Set horizontal and vertical binning. h,v = 1 disables binning (full resolution).
+    ####################################################################
+
+    h = 1
+    v = 1
+    # Horizontal binning
+    node_bin_h = PySpin.CIntegerPtr(nodemap.GetNode('BinningHorizontal'))
+    if PySpin.IsAvailable(node_bin_h) and PySpin.IsWritable(node_bin_h):
+        h = max(min(h, node_bin_h.GetMax()), node_bin_h.GetMin())
+        node_bin_h.SetValue(h)
+        print(f'Horizontal binning set to {h}')
+    else:
+        print('Horizontal binning not available on this camera.')
+
+    # Vertical binning
+    node_bin_v = PySpin.CIntegerPtr(nodemap.GetNode('BinningVertical'))
+    if PySpin.IsAvailable(node_bin_v) and PySpin.IsWritable(node_bin_v):
+        v = max(min(v, node_bin_v.GetMax()), node_bin_v.GetMin())
+        node_bin_v.SetValue(v)
+        print(f'Vertical binning set to {v}')
+    else:
+        print('Vertical binning not available on this camera.')
+
+
+
+
+
+    ####################################################################
+    # Reset ROI: set width & height to max, offsets to 0.
+    ####################################################################
+
+    # Width
+    node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
+    if PySpin.IsAvailable(node_width) and PySpin.IsWritable(node_width):
+        max_width = node_width.GetMax()
+        node_width.SetValue(max_width)
+        info['width'] = max_width
+        print(f'Width set to maximum: {max_width}')
+    else:
+        print('Width not available or not writable.')
+
+    # Height
+    node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
+    if PySpin.IsAvailable(node_height) and PySpin.IsWritable(node_height):
+        max_height = node_height.GetMax()
+        node_height.SetValue(max_height)
+        info['height'] = max_height
+        print(f'Height set to maximum: {max_height}')
+    else:
+        print('Height not available or not writable.')
+
+    # Reset offsets to 0 so ROI is aligned at the origin
+    node_offset_x = PySpin.CIntegerPtr(nodemap.GetNode('OffsetX'))
+    node_offset_y = PySpin.CIntegerPtr(nodemap.GetNode('OffsetY'))
+
+    if PySpin.IsAvailable(node_offset_x) and PySpin.IsWritable(node_offset_x):
+        node_offset_x.SetValue(node_offset_x.GetMin())  # usually 0
+        print(f'OffsetX set to {node_offset_x.GetValue()}')
+
+    if PySpin.IsAvailable(node_offset_y) and PySpin.IsWritable(node_offset_y):
+        node_offset_y.SetValue(node_offset_y.GetMin())  # usually 0
+        print(f'OffsetY set to {node_offset_y.GetValue()}')
+
+
+
+
+
+    ####################################################################
+    # Set horizontal and vertical decimation. h_d, v_d = 1 means no decimation.
+    ####################################################################
+
+    h_d = 1
+    v_d = 1
+    # Horizontal decimation
+    node_dec_h = PySpin.CIntegerPtr(nodemap.GetNode('DecimationHorizontal'))
+    if PySpin.IsAvailable(node_dec_h) and PySpin.IsWritable(node_dec_h):
+        h_d = max(min(h_d, node_dec_h.GetMax()), node_dec_h.GetMin())
+        node_dec_h.SetValue(h_d)
+        print(f'Horizontal decimation set to {h_d}')
+    else:
+        print('Horizontal decimation not available on this camera.')
+
+    # Vertical decimation
+    node_dec_v = PySpin.CIntegerPtr(nodemap.GetNode('DecimationVertical'))
+    if PySpin.IsAvailable(node_dec_v) and PySpin.IsWritable(node_dec_v):
+        v_d = max(min(v_d, node_dec_v.GetMax()), node_dec_v.GetMin())
+        node_dec_v.SetValue(v_d)
+        print(f'Vertical decimation set to {v_d}')
+    else:
+        print('Vertical decimation not available on this camera.')
+
+
+
+
+    ####################################################################
+    # Set acquisition mode to continuous
+    ####################################################################
+
+    # In order to access the node entries, they have to be casted to a pointer type (CEnumerationPtr here)
+    node_acquisition_mode = PySpin.CEnumerationPtr(nodemap.GetNode('AcquisitionMode'))
+    if not PySpin.IsAvailable(node_acquisition_mode) or not PySpin.IsWritable(node_acquisition_mode):
+        print(f'Unable to set acquisition mode to continuous (enum retrieval)')
+
+    # Retrieve entry node from enumeration node
+    node_acquisition_mode_continuous = node_acquisition_mode.GetEntryByName('Continuous')
+    if not PySpin.IsAvailable(node_acquisition_mode_continuous) or not PySpin.IsReadable(
+            node_acquisition_mode_continuous):
+        print(f'Unable to set acquisition mode to continuous (entry retrieval)')
+
+    acquisition_mode_continuous = node_acquisition_mode_continuous.GetValue()
+    node_acquisition_mode.SetIntValue(acquisition_mode_continuous)
+    print(f'Acquisition mode set to continuous')
+
+
+
+
+
+    ####################################################################
+    # Configure hardware trigger:
+    # - TriggerSelector = FrameStart
+    # - TriggerSource   = Line0
+    # - TriggerActivation = RisingEdge
+    # - TriggerMode     = On
+    # - TriggerOverlap    = Off
+    # - LineInverter(Line0)= False
+    # - TriggerDelay    = delay_us (microseconds)
+    ####################################################################
+
+    # TriggerMode OFF to edit
+    trig_mode = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
+    trig_mode_off = trig_mode.GetEntryByName('Off')
+    trig_mode.SetIntValue(trig_mode_off.GetValue())
+
+    # TriggerSelector = FrameStart
+    trig_sel = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
+    trig_sel.SetIntValue(trig_sel.GetEntryByName('FrameStart').GetValue())
+
+    # TriggerSource = Line0
+    trig_src = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerSource'))
+    trig_src.SetIntValue(trig_src.GetEntryByName('Line0').GetValue())
+
+    # TriggerActivation = RisingEdge
+    trig_act = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
+    if PySpin.IsAvailable(trig_act) and PySpin.IsWritable(trig_act):
+        trig_act.SetIntValue(trig_act.GetEntryByName('RisingEdge').GetValue())
+
+    # TriggerOverlap = Off
+    trig_ovl = PySpin.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
+    if PySpin.IsAvailable(trig_ovl) and PySpin.IsWritable(trig_ovl):
+        ent_off = trig_ovl.GetEntryByName('Off')
+        if PySpin.IsAvailable(ent_off) and PySpin.IsReadable(ent_off):
+            trig_ovl.SetIntValue(ent_off.GetValue())
+
+    # Ensure Line0 is Input and LineInverter = False
+    line_sel = PySpin.CEnumerationPtr(nodemap.GetNode('LineSelector'))
+    line_mode = PySpin.CEnumerationPtr(nodemap.GetNode('LineMode'))
+    line_inv  = PySpin.CBooleanPtr(nodemap.GetNode('LineInverter'))
+    if PySpin.IsAvailable(line_sel) and PySpin.IsWritable(line_sel):
+        ent_line0 = line_sel.GetEntryByName('Line0')
+        if PySpin.IsAvailable(ent_line0) and PySpin.IsReadable(ent_line0):
+            line_sel.SetIntValue(ent_line0.GetValue())
+            if PySpin.IsAvailable(line_mode) and PySpin.IsWritable(line_mode):
+                mode_in = line_mode.GetEntryByName('Input')
+                if PySpin.IsAvailable(mode_in) and PySpin.IsReadable(mode_in):
+                    line_mode.SetIntValue(mode_in.GetValue())
+            if PySpin.IsAvailable(line_inv) and PySpin.IsWritable(line_inv):
+                line_inv.SetValue(False)  # no inversion
+
+    # Exposure mode timed (avoids overlap issues)
+    exp_mode = PySpin.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
+    if PySpin.IsAvailable(exp_mode) and PySpin.IsWritable(exp_mode):
+        timed = exp_mode.GetEntryByName('Timed')
+        if PySpin.IsAvailable(timed) and PySpin.IsReadable(timed):
+            exp_mode.SetIntValue(timed.GetValue())
+
+    # Trigger delay (µs)
+
+    trigger_delay = 12
+
+    trig_delay = PySpin.CFloatPtr(nodemap.GetNode('TriggerDelay'))
+    if PySpin.IsAvailable(trig_delay) and PySpin.IsWritable(trig_delay):
+        # Clamp to allowed range
+        dmin, dmax = trig_delay.GetMin(), trig_delay.GetMax()
+        trigger_delay = max(min(trigger_delay, dmax), dmin)
+        trig_delay.SetValue(trigger_delay)
+    else:
+        if trigger_delay not in (0, 0.0):
+            raise RuntimeError('TriggerDelay not available on this camera.')
+
+    # Turn trigger mode ON (arm for hardware trigger)
+    trig_mode_on = trig_mode.GetEntryByName('On')
+    trig_mode.SetIntValue(trig_mode_on.GetValue())
+
+    print(f'Hardware trigger configured: FrameStart, Line0, RisingEdge, Overlap = Off, Inverter = False, delay = {trigger_delay:.1f} us') 

@@ -14,7 +14,7 @@ class ReadOnlyDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         return
     
-# def making_separator(self):
+def making_separator(self):
 #         '''
 #         The function does include a separator in the table that is coloured in dark grey for better visual separation across all tabs
 #         Fucntion is called each time the new edge is being incerted
@@ -60,6 +60,7 @@ class ReadOnlyDelegate(QStyledItemDelegate):
 #         if config.sampler_channels_number > 0:
 #             self.sampler_table.setItem(0,3, QTableWidgetItem())
 #             self.sampler_table.item(0,3).setBackground(self.grey)
+    return
 
 def variables_sidebar_build(self,tab):
     width_of_table_variables = self.variables_table_width
@@ -1354,7 +1355,72 @@ def slow_dds_tab_build(self):
 def acquisition_tab_build(self):
     self.acquisition_tab_widget = QWidget()
 
+    #exposure time
+    #gain
+    #format
+    #path to save
+    #experiment list
+    #main camera
 
+
+    # Top: chosen element line
+    self.chosen_label = QLabel(parent = self.acquisition_tab_widget, text = "Chosen element")
+    self.chosen_label.setGeometry(*self.scale_geom(self.sep,
+                                                   self.top_margin,
+                                                   self.button_w,
+                                                   self.button_h))
+    self.chosen_line = QLineEdit(self.acquisition_tab_widget)
+    self.chosen_line.setReadOnly(True)
+    self.chosen_line.setGeometry(*self.scale_geom(self.sep,
+                                                  self.top_margin + self.button_h,
+                                                  2*self.button_w + self.sep,
+                                                  self.button_h))
+
+    # top_box = QVBoxLayout(self.acquisition_tab_widget)
+    # top_box.addWidget(self.chosen_label)
+    # top_box.addWidget(self.chosen_line)
+
+    # Center: list of items
+    self.list_widget = QListWidget(self.acquisition_tab_widget)
+    self.list_widget.setSelectionMode(QListWidget.SingleSelection)
+    self.list_widget.setGeometry(*self.scale_geom(self.sep,
+                                                  self.top_margin + 2*self.button_h + self.sep,
+                                                  2*self.button_w + self.sep,
+                                                  2*self.button_w))
+    # self.list_widget.itemSelectionChanged.connect(self.update_chosen)
+
+    # Bottom: add-new line and buttons
+    self.new_label = QLabel(parent = self.acquisition_tab_widget, text = "Add new element")
+    self.new_label.setGeometry(*self.scale_geom(self.sep,
+                                                self.top_margin + 2*self.button_h + self.sep,
+                                                2*self.button_w + self.sep,
+                                                2*self.button_w))
+    # self.new_label.setText()
+    self.new_line = QLineEdit(self.acquisition_tab_widget)
+    self.new_line.setPlaceholderText("Type new element and press Enter or click Add")
+    # self.new_line.returnPressed.connect(self.add_element)
+
+    self.btn_add = QPushButton(parent = self.acquisition_tab_widget, text = "Add new element")
+    # self.btn_add.clicked.connect(self.add_element)
+
+    self.btn_delete = QPushButton(parent = self.acquisition_tab_widget, text = "Delete element")
+    # self.btn_delete.clicked.connect(self.delete_selected)
+    self.btn_delete.setEnabled(False)
+
+    # bottom_row = QHBoxLayout()
+    # bottom_row.addWidget(self.new_line, 1)
+    # bottom_row.addWidget(self.btn_add)
+    # bottom_row.addWidget(self.btn_delete)
+
+    # bottom_box = QVBoxLayout()
+    # bottom_box.addWidget(self.new_label)
+    # bottom_box.addLayout(bottom_row)
+
+    # # Main layout
+    # layout = QVBoxLayout(self)
+    # layout.addLayout(top_box)
+    # layout.addWidget(self.list_widget, 1)
+    # layout.addLayout(bottom_box)
 
 
 
