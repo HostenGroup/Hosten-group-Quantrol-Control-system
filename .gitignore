@@ -3,20 +3,10 @@ default/
 repository/
 results/
 sequences/
-go_to_edge.py
-init_hardware.py
-run_experiment.py
-set_slow_dds_states.py
-dataset_db*
+ARTIQ_scripts/
 /device_db.py
-config.py
-led.py
-metadata*
-go_to_edge_out.txt
-run_experiment_out.txt
-cont_run_out.txt
-init_hardware_out.txt
-metadata.json
+/logs
+
 
 
 
