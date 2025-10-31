@@ -5,6 +5,7 @@ from scipy.io import savemat
 from datetime import datetime
 from update import closest_key
 
+
 def create_experiment(self, run_continuous = False, multiple_runs = False): # owl
     '''
     Function is used to create the description of the experimental sequence.   
@@ -13,11 +14,11 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
     '''
     #CREATING A FILE
     file_name = "run_experiment.py"
-    if not os.path.exists(file_name):
-        with open(file_name, 'w'): pass
-
+    file_path = self.repo_path / "ARTIQ_scripts" / file_name
+    if not os.path.exists(file_path):
+        with open(file_path, 'w'): pass
     #IMPORT AND BUILD FUNCTIONS
-    file = open(file_name,'w')
+    file = open(file_path,'w')
     indentation = ""
     file.write(indentation + "from artiq.experiment import *\n")
     file.write(indentation + "import numpy as np\n")
@@ -473,10 +474,11 @@ def create_go_to_edge(self, edge_num, to_default = False):
         edge = edge_num
         file_name = "go_to_edge.py"
     self.experiment.go_to_edge = edge
+    file_path = self.repo_path / "ARTIQ_scripts" / file_name
     # Create a file if it is missing
-    if not os.path.exists(file_name):
-        with open(file_name, 'w'): pass
-    file = open(file_name,'w')
+    if not os.path.exists(file_path):
+        with open(file_path, 'w'): pass
+    file = open(file_path,'w')
     
     # Importing libraries and overwriting the build method
     indentation = ""
@@ -564,10 +566,11 @@ def set_slow_dds_states(self):
     The description is saved as set_slow_dds.py   
     '''
     file_name = "set_slow_dds_states.py"
+    file_path = self.repo_path / "ARTIQ_scripts" / file_name
     # Create a file if it is missing
-    if not os.path.exists(file_name):
-        with open(file_name, 'w'): pass
-    file = open(file_name,'w')
+    if not os.path.exists(file_path):
+        with open(file_path, 'w'): pass
+    file = open(file_path,'w')
     
     # Importing libraries and overwriting the build method
     indentation = ""

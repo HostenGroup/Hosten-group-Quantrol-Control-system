@@ -37,6 +37,7 @@ import config
 from scipy.io import savemat, loadmat
 # import pandas as pd
 import json
+from pathlib import Path
 
 
 # Subclass QMainWindow to customize your application's main window
@@ -444,6 +445,7 @@ class MainWindow(QMainWindow):
         self.text_font = 12
 
 
+        self.repo_path = Path(__file__).resolve().parent.parent
         self.experiment = self.Experiment()
         self.sequence_num_rows = 1
         self.setting_dict = {0:"frequency", 1:"amplitude", 2:"attenuation", 3:"phase", 4:"state"}
@@ -1082,10 +1084,10 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Go to edge file generated")
             try:
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run go_to_edge.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/go_to_edge.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
                     #coprint("Current directory:", os.getcwd()) #env_test
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["go_to_edge.bat"])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'go_to_edge.bat')])
                 submit_experiment_thread.start()
                 self.message_to_logger("Went to edge")
                 print("edge_num", edge_num)
@@ -1137,38 +1139,6 @@ class MainWindow(QMainWindow):
     # owl end
 
 
-    # def export_metadata(self):
-    #     # edge_dict = {
-    #     #         'name':[],
-    #     #         'id':[],
-    #     #         'value': [],
-    #     #         'expression':[],
-    #     #         'digital':[],
-    #     #         'analog':[],
-    #     #         'dds':[],
-    #     #         'mirny':[],
-    #     #         'sampler':[],
-    #     #         'slow_dds':[],
-    #     #         }
-        
-    #     # metadata = {'edges':[],
-    #     #             'variables':[],
-    #     #             'global_parameters':{}
-    #     #             }
-        
-    #     edge_dict = {}
-    #     seq_arr = self.experiment.sequence
-    #     for edge in seq_arr:
-    #         edge_dict['name'] = edge.name
-    #         edge_dict['value'] = edge.value
-    #         edge_dict['expression'] = edge.expression
-    #         digital_dict = {}
-    #         for ch in edge.digital:
-    #             digital_dict[]
-            
-    
-
-
     def run_experiment_button_clicked(self): 
         '''
         Function is used when the user wants to run the experiment. By calling update.digital_analog_dds_mirny_tabs(self) it updates every expression
@@ -1187,12 +1157,13 @@ class MainWindow(QMainWindow):
             try:
                 #initialize environment and submit the experiment to the scheduler
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
                     # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'run_experiment.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    print(str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat'))
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 
-                with open('metadata.json', "w") as outfile:
+                with open(self.repo_path / 'logs' / 'metadata.json', "w") as outfile:
                     json.dump(to_dict(self.experiment),outfile,indent=4)
                 
                 submit_experiment_thread.start()
@@ -1223,14 +1194,14 @@ class MainWindow(QMainWindow):
         '''
         try:
             write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
-            self.message_to_logger("Init_hardware.py file generated")
+            self.message_to_logger("init_hardware.py file generated")
             try:
                 #initialize environment and submit the experiment to the scheduler
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run init_hardware.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/init_hardware.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
                     # submit_experiment_thread = threading.Thread(target=os.system, args=["init_hardware.bat"])
-                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'init_hardware.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1281,15 +1252,15 @@ class MainWindow(QMainWindow):
                 self.ttl0(self.a[index_a])
                 self.ttl1(self.b[index_b])
         '''
-        file_name = "run_experiment.py"
+        file_name = "../ARTIQ_scripts/run_experiment.py"
         if os.path.exists(file_name):
             try:
                 #initialize environment and submit the experiment to the scheduler
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
                     # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'run_experiment.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1429,10 +1400,10 @@ class MainWindow(QMainWindow):
             try:
                 #initialize environment and submit the experiment to run continuously unless it is stopped
                 if config.package_manager == "conda":
-                    submit_run_continuously_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
+                    submit_run_continuously_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
                     # submit_run_continuously_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                    submit_run_continuously_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'cont_run.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_run_continuously_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'cont_run.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_run_continuously_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1469,9 +1440,9 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Python file generated")
             try:
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run run_experiment.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')])
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -1527,12 +1498,12 @@ class MainWindow(QMainWindow):
         '''
         try:
             write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
-            self.message_to_logger("Init_hardware.py file generated")
+            self.message_to_logger("init_hardware.py file generated")
             try:
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run init_hardware.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/init_hardware.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', 'init_hardware.bat'],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 self.message_to_logger("Experiment was stopped. Hardware is set to the default values")
                 #unhighlighting the previously highlighted edge
@@ -2576,9 +2547,10 @@ class MainWindow(QMainWindow):
             try:
                 #initialize environment and submit the experiment to the scheduler
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run set_slow_dds_states.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/set_slow_dds_states.py"%config.artiq_environment_name])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["set_slow_dds_states.bat"])
+                    print(str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'set_slow_dds_states.bat'))
+                    submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'set_slow_dds_states.bat')])
                 submit_experiment_thread.start()
                 self.message_to_logger("Slow DDS states are set")
             except:

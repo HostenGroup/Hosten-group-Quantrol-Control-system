@@ -21,7 +21,7 @@ slow_dds_channels = [
     "urukul3_ch3"
 ] # The sequence of the channels should be corresponding to the sequence in the slow DDS tab. The first one in the slow_dds_channels list will be the slow_DDS0 and so on
 sampler_channels_number = 8
-package_manager = "conda" #it can be either conda or clang64
+package_manager = "clang64" #it can be either conda or clang64
 artiq_environment_name = "artiq" # it can be either artiq or artiq_5 for Hosten lab systems
 analog_card = "fastino" # it can be either fastino or zotino for Hosten lab systems
 research_group_name = "Hosten"
