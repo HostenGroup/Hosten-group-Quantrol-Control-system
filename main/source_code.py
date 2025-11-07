@@ -415,6 +415,8 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        
         #MAIN PAGE LAYOUT
         self.setWindowTitle("Quantrol. %s Group" %config.research_group_name)
         self.main_window = QTabWidget()
@@ -542,21 +544,13 @@ class MainWindow(QMainWindow):
 
 
     '''
-    ||||||  ||    ||  ||    ||  |||||| |||||||| ||||||   |||||   ||    ||  ||||||||  ||  ||  ||
-    ||      ||    ||  |||   ||  ||  ||    ||      ||    ||   ||  |||   ||  ||    ||  ||  ||  ||
-    ||      ||    ||  || || ||  ||        ||      ||    ||   ||  || || ||    ||      ||  ||  ||
-    ||||||  ||    ||  ||  | ||  ||        ||      ||    ||   ||  ||  | ||      ||    ||  ||  ||
+    ||||||  ||    ||  ||    ||  |||||| |||||||| ||||||   |||||   ||    ||  ||||||||
+    ||      ||    ||  |||   ||  ||  ||    ||      ||    ||   ||  |||   ||  ||    ||
+    ||      ||    ||  || || ||  ||        ||      ||    ||   ||  || || ||    ||    
+    ||||||  ||    ||  ||  | ||  ||        ||      ||    ||   ||  ||  | ||      ||  
     ||      ||    ||  ||   |||  ||  ||    ||      ||    ||   ||  ||   |||  ||    ||
-    ||       ||||||   ||    ||  ||||||    ||    ||||||   |||||   ||    ||  ||||||||  ||  ||  ||
+    ||       ||||||   ||    ||  ||||||    ||    ||||||   |||||   ||    ||  ||||||||
     '''
-
-    def update_chosen_experiment(self):
-        items = self.experiment_list_list_widget.selectedItems()
-        self.experiment_list_chosen_line.setText(items[0].text() if items else "")
-
-
-
-
 
 
 
@@ -595,8 +589,10 @@ class MainWindow(QMainWindow):
         '''
         The function is used to scale the font
         '''
-        # return int(s*min(self.SCALE_W, self.SCALE_H))
-        return int(s*(self.SCALE_W * self.SCALE_H)**(0.5))
+        
+        return int(s*min(self.SCALE_W, self.SCALE_H))
+        # return int(s*(self.SCALE_W * self.SCALE_H)**(0.5))
+        # return int(s*(self.SCALE_W + self.SCALE_H)/2)
 
     def init_default_values(self):
         '''
@@ -3343,7 +3339,7 @@ class MainWindow(QMainWindow):
                 table_item.setText(channel)
                 self.update_on()
 
-def to_dict(obj):
+    def to_dict(obj):
         """Recursively convert an object and its attributes to a dictionary."""
         if isinstance(obj, (int, float, str, bool, type(None))):
             return obj
@@ -3364,6 +3360,70 @@ def to_dict(obj):
                 result[attr] = to_dict(value)
         return result
 
+    def update_chosen_experiment(self):
+
+        self.experiment_list_btn_delete.setEnabled(len(self.experiment_list_list_widget.selectedItems()) > 0)
+        items = self.experiment_list_list_widget.selectedItems()
+        self.experiment_list_chosen_line.setText(items[0].text() if items else "")
+
+
+    def update_experiment_names_list(self,name):
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
+            data = json.load(f)
+
+            last_key = list(data.keys())[-1]
+
+            data[f"{int(last_key) + 1}"] = name
+        
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w') as f:
+            json.dump(data,f,indent = 4)
+
+        self.experiment_list_list_widget.addItem(name)
+        # update.acquisition_tab(self)
+        self.dialog.accept()
+
+
+
+
+    def add_element_experiment_list_button_clicked(self):
+        #Pop up window to allow user to enter the name of the digital title
+        self.dialog = QDialog()
+        self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+        self.dialog.setFont(QFont('Arial', self.scale_font(14)))
+        value_input = QLineEdit()
+        dialog_layout = QVBoxLayout()
+        button_update = QPushButton("update")
+        button_cancel = QPushButton("cancel")
+        dialog_layout.addWidget(value_input)
+        dialog_buttons_layout = QHBoxLayout()
+        dialog_buttons_layout.addWidget(button_update)
+        dialog_buttons_layout.addWidget(button_cancel)
+        dialog_layout.addLayout(dialog_buttons_layout)
+        self.dialog.setLayout(dialog_layout)
+
+        button_update.clicked.connect(lambda:self.update_experiment_names_list(value_input.text()))
+        button_cancel.clicked.connect(lambda:self.dialog.reject())
+        self.dialog.setWindowTitle("New experiment to add") 
+        self.dialog.exec_()
+        return
+
+    def delete_element_experiment_list_button_clicked(self):
+        # sender = self.sender()
+
+        row = self.experiment_list_list_widget.currentRow()
+
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
+            data = json.load(f)
+
+            del data[f"{int(row)}"]
+
+        
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w') as f:
+            json.dump(data,f,indent = 4)
+
+        self.experiment_list_list_widget.takeItem(row)
+        # update.acquisition_tab(self)
+        return
 
 
 

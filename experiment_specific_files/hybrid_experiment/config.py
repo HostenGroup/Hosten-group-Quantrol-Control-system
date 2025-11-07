@@ -14,18 +14,27 @@ analog_channels_number = 16
 dds_channels_number = 12
 mirny_channels_number = 4
 slow_dds_channels_number = 4
+sampler_channels_number = 8
+
+which_project = 'hybrid_experiment'
+# which_project = 'cold_atoms'
+
+package_manager = "clang64" #it can be either conda or clang64
+artiq_environment_name = "artiq" # it can be either artiq or artiq_5 for Hosten lab systems
+analog_card = "fastino" # it can be either fastino or zotino for Hosten lab systems
+research_group_name = "Hosten"
+camera_trigger_ttl = [0,1]
+camera_serial_numbers_dict = {
+    'X':'22433340',
+    'Y':'22433344'
+}
+allow_skipping_images = True
 slow_dds_channels = [
     "urukul3_ch0",
     "urukul3_ch1",
     "urukul3_ch2",
     "urukul3_ch3"
 ] # The sequence of the channels should be corresponding to the sequence in the slow DDS tab. The first one in the slow_dds_channels list will be the slow_DDS0 and so on
-sampler_channels_number = 8
-package_manager = "clang64" #it can be either conda or clang64
-artiq_environment_name = "artiq" # it can be either artiq or artiq_5 for Hosten lab systems
-analog_card = "fastino" # it can be either fastino or zotino for Hosten lab systems
-research_group_name = "Hosten"
-allow_skipping_images = True
 list_of_devices_for_initialization = [
     "urukul0_cpld",
     "urukul0_ch0",

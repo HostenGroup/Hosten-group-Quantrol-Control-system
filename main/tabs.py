@@ -1391,6 +1391,7 @@ def acquisition_tab_build(self):
     self.experiment_list_list_widget.setSelectionMode(QListWidget.SingleSelection)
     self.experiment_list_list_widget.setFont(QFont('Arial', self.scale_font(12)))
     self.experiment_list_list_widget.itemSelectionChanged.connect(self.update_chosen_experiment)
+    
 
     for name in self.experiment_names_dict.values():
         self.experiment_list_list_widget.addItem(name)
@@ -1407,14 +1408,14 @@ def acquisition_tab_build(self):
     self.experiment_list_btn_add = QPushButton(parent = self.experiment_list_box, text = "Add experiment name")
     self.experiment_list_btn_add.setFixedHeight(int(self.SCALE_H*self.button_h))
     self.experiment_list_btn_add.setFont(QFont('Arial', self.scale_font(14)))
-    # self.experiment_list_btn_add.clicked.connect(self.add_element)
+    self.experiment_list_btn_add.clicked.connect(self.add_element_experiment_list_button_clicked)
 
     self.experiment_list_btn_delete = QPushButton(parent = self.experiment_list_box, text = "Delete experiment name")
     self.experiment_list_btn_delete.setFixedHeight(int(self.SCALE_H*self.button_h))
     self.experiment_list_btn_delete.setFont(QFont('Arial', self.scale_font(14)))
     self.experiment_list_btn_delete.setEnabled(False)
 
-    # self.experiment_list_btn_delete.clicked.connect(self.delete_selected)
+    self.experiment_list_btn_delete.clicked.connect(self.delete_element_experiment_list_button_clicked)
 
     # self.experiment_list_bottom_row = QHBoxLayout()
     # self.bottom_row.addWidget(self.new_line)
