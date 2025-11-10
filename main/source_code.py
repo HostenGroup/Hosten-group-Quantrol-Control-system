@@ -283,6 +283,7 @@ class MainWindow(QMainWindow):
             self.slow_dds = [self.SLOW_DDS() for i in range(config.slow_dds_channels_number)]
             self.lookup_variables = []
             self.names_of_lookup_variables = set()
+            self.experimantal_data = self.ExperimentalData()
 
 
         class SLOW_DDS:
@@ -301,6 +302,26 @@ class MainWindow(QMainWindow):
                 self.attenuation = attenuation
                 self.phase = phase
                 self.state = state
+
+        class ExperimentalData:
+            '''
+            An object that is used to describe the data acquired during experiment
+            Attributes description:
+                path            :   An object that is used to describe the path of the data
+                device          :   An object that is used to describe the kind of device used for acquisition
+                experiment_name :   An object that is used to describe the kind of experiment
+                comment         :   An object that is used to describe the comment on the experiment
+                experiment_id   :   An object that is used to describe the unique id of the experiment
+            '''
+
+            def __init__(self,path = '', device = '', experiment_name = '', comment = '', experiment_id = ''):
+                self.path = path
+                self.device = device
+                self.experiment_name = experiment_name
+                self.comment = comment
+                self.experiment_id = experiment_id
+
+
 
 
     class Derived_variable:
@@ -1181,10 +1202,8 @@ class MainWindow(QMainWindow):
                     # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
                     print(str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat'))
                     submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
-                
                 with open(self.repo_path / 'logs' / 'metadata.json', "w") as outfile:
-                    json.dump(to_dict(self.experiment),outfile,indent=4)
-                
+                    json.dump(self.to_dict(self.experiment),outfile,indent=4)
                 submit_experiment_thread.start()
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
@@ -3339,14 +3358,14 @@ class MainWindow(QMainWindow):
                 table_item.setText(channel)
                 self.update_on()
 
-    def to_dict(obj):
+    def to_dict(self,obj):
         """Recursively convert an object and its attributes to a dictionary."""
         if isinstance(obj, (int, float, str, bool, type(None))):
             return obj
         if isinstance(obj, (list, tuple, set)):
-            return [to_dict(i) for i in obj]
+            return [self.to_dict(i) for i in obj]
         if isinstance(obj, dict):
-            return {k: to_dict(v) for k, v in obj.items()}
+            return {k: self.to_dict(v) for k, v in obj.items()}
 
         # for class instances
         result = {}
@@ -3357,7 +3376,7 @@ class MainWindow(QMainWindow):
                 and str(attr) != 'for_python' \
                 and str(attr) != 'evaluation'
             if condition:
-                result[attr] = to_dict(value)
+                result[attr] = self.to_dict(value)
         return result
 
     def update_chosen_experiment(self):
