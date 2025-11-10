@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from datetime import datetime
 import config  
+import json
 
 
 class ReadOnlyDelegate(QStyledItemDelegate):
@@ -1384,7 +1385,13 @@ def acquisition_tab_build(self):
 
     self.experiment_list_chosen_line = QLineEdit(self.experiment_list_box)
     self.experiment_list_chosen_line.setReadOnly(True)
+    self.experiment_list_chosen_line.setToolTip("Experiment name")
     self.experiment_list_chosen_line.setFont(QFont('Arial', self.scale_font(12)))
+
+    self.experiment_list_chosen_line_caption = QLineEdit(self.experiment_list_box)
+    self.experiment_list_chosen_line_caption.setToolTip("Experiment caption")
+    self.experiment_list_chosen_line_caption.editingFinished.connect(lambda : self.update_experiment_names_list(caption = self.experiment_list_chosen_line_caption.text(),last = False))
+    self.experiment_list_chosen_line_caption.setFont(QFont('Arial', self.scale_font(12)))
 
     # Center: list of items
     self.experiment_list_list_widget = QListWidget(self.experiment_list_box)
@@ -1392,8 +1399,11 @@ def acquisition_tab_build(self):
     self.experiment_list_list_widget.setFont(QFont('Arial', self.scale_font(12)))
     self.experiment_list_list_widget.itemSelectionChanged.connect(self.update_chosen_experiment)
     
-
-    for name in self.experiment_names_dict.values():
+    with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json") as f:
+        experiment_names_dict = json.load(f)
+        
+    for key in list(experiment_names_dict.keys()):
+        name = experiment_names_dict[key]["name"]
         self.experiment_list_list_widget.addItem(name)
 
     # Bottom: add-new line and buttons
@@ -1424,6 +1434,7 @@ def acquisition_tab_build(self):
 
     # self.experiment_list_box_layout.addWidget(self.experiment_list_chosen_label)
     self.experiment_list_box_layout.addWidget(self.experiment_list_chosen_line)
+    self.experiment_list_box_layout.addWidget(self.experiment_list_chosen_line_caption)
     self.experiment_list_box_layout.addWidget(self.experiment_list_list_widget)
     self.experiment_list_box_layout.addWidget(self.experiment_list_btn_add)
     self.experiment_list_box_layout.addWidget(self.experiment_list_btn_delete)

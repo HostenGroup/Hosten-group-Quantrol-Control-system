@@ -1,12 +1,42 @@
 {
-    "0": "TOF",
-    "1": "lifetime",
-    "2": "MW_spectroscopy",
-    "3": "Rabi",
-    "4": "rep_scan",
-    "5": "camera_calibration",
-    "6": "test",
-    "7": "Field minimization",
-    "8": "Spin echo",
-    "9": "MOT_jiggle"
+    "0": {
+        "name": "TOF",
+        "plot_x_caption": "TOF, ms"
+    },
+    "1": {
+        "name": "lifetime",
+        "plot_x_caption": "Storage time, ms"
+    },
+    "2": {
+        "name": "MW_spectroscopy",
+        "plot_x_caption": "MW detuning, kHz"
+    },
+    "3": {
+        "name": "Rabi",
+        "plot_x_caption": "T_pulse, ms"
+    },
+    "4": {
+        "name": "rep_scan",
+        "plot_x_caption": "rep_scan"
+    },
+    "5": {
+        "name": "camera_calibration",
+        "plot_x_caption": "camera_calibration"
+    },
+    "6": {
+        "name": "test",
+        "plot_x_caption": "test"
+    },
+    "7": {
+        "name": "Field minimization",
+        "plot_x_caption": "Magnetic field bias, V"
+    },
+    "8": {
+        "name": "Spin echo",
+        "plot_x_caption": "Echo time, ms"
+    },
+    "9": {
+        "name": "MOT_jiggle",
+        "plot_x_caption": "Phase, deg"
+    }
 }

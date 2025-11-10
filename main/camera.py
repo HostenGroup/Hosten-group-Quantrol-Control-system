@@ -3,91 +3,6 @@
 # Date: 4 September 2025
 ####################################################################
 
-import config
-
-# Pixel format
-format_name = 'Mono8' 
-
-# Analog gain in dB
-gain_db = 20
-
-# Exposure time in us
-t_exp = 350 
-
-# Pick the number of the experiment. To add new experiment add a new entry to the 'experiment_names_dict'
-experiment_code = 9
-
-# Parameters you want to put to the info file (ALL VALUES IN SI)
-par_dict = {      
-    'min': 0,
-    'max': 360,
-    # 'text': '6dB MW att, cleanup, Y bias, pi pulse',
-    'text': 'MOT jiggle',
-    # 't_pulse': 0.09e-3,
-    't_storage': 500e-3,
-    't_loading': 200e-3,
-    'freq': 10,
-    # 't_wait': 10e-3,
-    # 'Bx': -0.96,
-    # 'By': 0.22+0.1,
-    # 'Bz': 0.32,
-    # 'phi(z)': 110,
-    # 'dBx': 0.08,
-    # 'dBy': -0.7,
-    # 'dBz': 0.1,
-    # 'dF_MW':0.015e6,
-}
-
-# Any string you want to pun to the info file
-#experiment_explanation = 'MW spectroscopy with MOT coils OFF after fixing the MOSFET circuit, waiting t_storage, trying to zero the field, fans far away' 
-experiment_explanation = '' 
-
-# Should be capital X or Y
-which_camera_to_use = 'Y' 
-
-# Dictionary of experiments
-experiment_names_dict = {
-    0:'TOF',
-    1:'lifetime',
-    2:'MW_spectroscopy',
-    3:'Rabi',
-    4:'rep_scan',
-    5:'camera_calibration',
-    6:'test',
-    7:'Field minimization',
-    8:'Spin echo',
-    9:'MOT_jiggle',
-}
-
-x_captions_dict = {
-    0:'TOF, ms',
-    1:'Storage time, ms',
-    2:'MW detuning, kHz',
-    3:'T_pulse, ms',
-    4:'rep_scan',
-    5:'camera_calibration',
-    6:'test',
-    7:'Magnetic field bias, V',
-    8:'Echo time, ms',
-    9:'Phase, deg',
-}
-
-
-
-
-process = False
-
-
-
-############################################################################################################################################################################################################
-############################################################################################################################################################################################################
-############################################################################################################################################################################################################
-############################################################################################################################################################################################################
-############################################################################################################################################################################################################
-
-
-par_dict['scan'] = x_captions_dict[experiment_code]
-
 from PyQt5.QtCore import * 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -97,94 +12,153 @@ import os
 import gc
 import json
 
-serial_numbers_dict = config.camera_serial_numbers_dict
+import config
 
-n_images = None
+def camera_init(self):
+    # Pixel format
+    format_name = 'Mono8' 
 
-info = {
-    'format': format_name,
-    'gain': gain_db,
-    'exposure': t_exp,
-    'image_number': n_images,
-    'camera': which_camera_to_use,
-    'camera_serial_number': serial_numbers_dict[which_camera_to_use],
-    'experiment': experiment_names_dict[experiment_code],
-    'comments': experiment_explanation,
-    'parameters': par_dict
-}
+    # Analog gain in dB
+    gain_db = 20
+
+    # Exposure time in us
+    t_exp = 350 
+
+    # Pick the number of the experiment. To add new experiment add a new entry to the 'experiment_names_dict'
+    experiment_code = 9
+
+    # Parameters you want to put to the info file (ALL VALUES IN SI)
+    par_dict = {      
+        'min': 0,
+        'max': 360,
+        # 'text': '6dB MW att, cleanup, Y bias, pi pulse',
+        'text': 'MOT jiggle',
+        # 't_pulse': 0.09e-3,
+        't_storage': 500e-3,
+        't_loading': 200e-3,
+        'freq': 10,
+        # 't_wait': 10e-3,
+        # 'Bx': -0.96,
+        # 'By': 0.22+0.1,
+        # 'Bz': 0.32,
+        # 'phi(z)': 110,
+        # 'dBx': 0.08,
+        # 'dBy': -0.7,
+        # 'dBz': 0.1,
+        # 'dF_MW':0.015e6,
+    }
+
+    # Any string you want to pun to the info file
+    #experiment_explanation = 'MW spectroscopy with MOT coils OFF after fixing the MOSFET circuit, waiting t_storage, trying to zero the field, fans far away' 
+    experiment_explanation = '' 
+
+    # Should be capital X or Y
+    which_camera_to_use = 'Y' 
+
+    # Dictionary of experiments
+
+    with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
+        experiment_dict = json.load(f)
+
+    experiment_names_dict = {int(k): v["name"] for k, v in experiment_dict.items()}
+    x_captions_dict = {int(k): v["plot_x_caption"] for k, v in experiment_dict.items()}
 
 
-directory = rf'G:/Experimental Data/Hybrid/MOT_images/{experiment_names_dict[experiment_code]}'
+    process = False
 
-gc.collect()
 
-interrupted = False
-
-system = PySpin.System.GetInstance()
-
-cam_list = system.GetCameras()
-
-camera_dict = {}
-#camera_dict_inverted = {}
-
-if cam_list.GetSize() == 0:
-    cam_list.Clear()
-    system.ReleaseInstance()
-    raise RuntimeError('No FLIR cameras detected.')
+    par_dict['scan'] = x_captions_dict[experiment_code]
 
 
 
-for cam in cam_list:
+    serial_numbers_dict = config.camera_serial_numbers_dict
 
-    cam.Init()
-    # Stop acquisition if running (ignore error if it wasn't)
-    try:
-        cam.BeginAcquisition()
-        cam.EndAcquisition()
-    except PySpin.SpinnakerException as ex:
-        print('Error: %s' % ex)
+    n_images = None
 
-    
-    nodemap_tldevice = cam.GetTLDeviceNodeMap()
+    info = {
+        'format': format_name,
+        'gain': gain_db,
+        'exposure': t_exp,
+        'image_number': n_images,
+        'camera': which_camera_to_use,
+        'camera_serial_number': serial_numbers_dict[which_camera_to_use],
+        'experiment': experiment_names_dict[experiment_code],
+        'comments': experiment_explanation,
+        'parameters': par_dict
+    }
 
 
-    ####################################################################
-    # Get serial numbers of the cameras to verify which one is which.
-    ####################################################################
+    directory = rf'G:/Experimental Data/Hybrid/MOT_images/{experiment_names_dict[experiment_code]}'
 
-    node_serial = PySpin.CStringPtr(nodemap_tldevice.GetNode('DeviceSerialNumber'))
+    gc.collect()
 
-    if PySpin.IsAvailable(node_serial) and PySpin.IsReadable(node_serial):
-        serial_number = node_serial.GetValue()
-        if serial_number == serial_numbers_dict['X']:
-            camera_dict['X'] = cam
-            #cam_name = 'X'
+    interrupted = False
 
-        elif serial_number == serial_numbers_dict['Y']: #  Y cam
-            camera_dict['Y'] = cam
-            #cam_name = 'Y'
+    system = PySpin.System.GetInstance()
+
+    cam_list = system.GetCameras()
+
+    camera_dict = {}
+    #camera_dict_inverted = {}
+
+    if cam_list.GetSize() == 0:
+        cam_list.Clear()
+        system.ReleaseInstance()
+        raise RuntimeError('No FLIR cameras detected.')
+
+
+
+    for cam in cam_list:
+
+        cam.Init()
+        # Stop acquisition if running (ignore error if it wasn't)
+        try:
+            cam.BeginAcquisition()
+            cam.EndAcquisition()
+        except PySpin.SpinnakerException as ex:
+            print('Error: %s' % ex)
+
         
-        else:
-            raise RuntimeError('Unknown camera number. Aborting.')
-
-        #print(f'CAM {cam_name} Serial Number: {serial_number}')
-    else:
-        raise RuntimeError('Unable to read camera serial number.')
-
-#print()
-
-#del cam
-#del cam_name
-
-for cam in cam_list:
-    if camera_dict[which_camera_to_use] == cam:
-        cam_name = which_camera_to_use
-        print(f'\nCamera to use: CAM {which_camera_to_use}\n')
-
-        nodemap = cam.GetNodeMap()
         nodemap_tldevice = cam.GetTLDeviceNodeMap()
-        self.set_cam_parameters(t_exp,gain_db,format_name)
-        print()
+
+
+        ####################################################################
+        # Get serial numbers of the cameras to verify which one is which.
+        ####################################################################
+
+        node_serial = PySpin.CStringPtr(nodemap_tldevice.GetNode('DeviceSerialNumber'))
+
+        if PySpin.IsAvailable(node_serial) and PySpin.IsReadable(node_serial):
+            serial_number = node_serial.GetValue()
+            if serial_number == serial_numbers_dict['X']:
+                camera_dict['X'] = cam
+                #cam_name = 'X'
+
+            elif serial_number == serial_numbers_dict['Y']: #  Y cam
+                camera_dict['Y'] = cam
+                #cam_name = 'Y'
+            
+            else:
+                raise RuntimeError('Unknown camera number. Aborting.')
+
+            #print(f'CAM {cam_name} Serial Number: {serial_number}')
+        else:
+            raise RuntimeError('Unable to read camera serial number.')
+
+    #print()
+
+    #del cam
+    #del cam_name
+
+    for cam in cam_list:
+        if camera_dict[which_camera_to_use] == cam:
+            cam_name = which_camera_to_use
+            print(f'\nCamera to use: CAM {which_camera_to_use}\n')
+
+            nodemap = cam.GetNodeMap()
+            nodemap_tldevice = cam.GetTLDeviceNodeMap()
+            self.set_cam_parameters(t_exp,gain_db,format_name)
+            print()
 
 
 

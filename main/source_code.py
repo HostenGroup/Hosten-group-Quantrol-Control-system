@@ -453,8 +453,6 @@ class MainWindow(QMainWindow):
         
         self.repo_path = Path(__file__).resolve().parent.parent
 
-        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json") as f:
-            self.experiment_names_dict = json.load(f)
         
 
 
@@ -3361,26 +3359,69 @@ class MainWindow(QMainWindow):
         return result
 
     def update_chosen_experiment(self):
-
-        self.experiment_list_btn_delete.setEnabled(len(self.experiment_list_list_widget.selectedItems()) > 0)
-        items = self.experiment_list_list_widget.selectedItems()
-        self.experiment_list_chosen_line.setText(items[0].text() if items else "")
-
-
-    def update_experiment_names_list(self,name):
         with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
             data = json.load(f)
 
+        row = self.experiment_list_list_widget.currentRow()
+
+        self.experiment_list_btn_delete.setEnabled(len(self.experiment_list_list_widget.selectedItems()) > 0)
+        # items = self.experiment_list_list_widget.selectedItems()
+        name = data[f"{int(row)}"]["name"]
+        caption = data[f"{int(row)}"]["plot_x_caption"]
+
+        self.experiment_list_chosen_line.setText(name)
+        self.experiment_list_chosen_line_caption.setText(caption)
+
+    def experiment_caption_changed(self):
+        self.dialog = QDialog()
+        self.dialog.setGeometry(*self.scale_geom(710, 435, 600, 200))
+        self.dialog.setFont(QFont('Arial', self.scale_font(14)))
+        # value_input = QLineEdit()
+        # value_input.setPlaceholderText("Type the name of new experiment")
+        value_input_cap = QLineEdit()
+        value_input_cap.setPlaceholderText("Type the x-caption for the experiment (Example: 'TOF, ms')")
+        dialog_layout = QVBoxLayout()
+        button_update = QPushButton("Update")
+        button_cancel = QPushButton("Cancel")
+        # dialog_layout.addWidget(value_input)
+        dialog_layout.addWidget(value_input_cap)
+        dialog_buttons_layout = QHBoxLayout()
+        dialog_buttons_layout.addWidget(button_update)
+        dialog_buttons_layout.addWidget(button_cancel)
+        dialog_layout.addLayout(dialog_buttons_layout)
+        self.dialog.setLayout(dialog_layout)
+
+        button_update.clicked.connect(lambda:self.update_experiment_names_list(caption = value_input_cap.text(),last = False))
+        button_cancel.clicked.connect(lambda:self.dialog.reject())
+        self.dialog.setWindowTitle("Change experiment caption") 
+        self.dialog.exec_()
+
+
+    def update_experiment_names_list(self,name = '',caption = '',last = True):
+        
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
+            data = json.load(f)
+
+        if last == True:
+
             last_key = list(data.keys())[-1]
 
-            data[f"{int(last_key) + 1}"] = name
-        
+            
+            data[f"{int(last_key) + 1}"] = {}
+            data[f"{int(last_key) + 1}"]["name"] = name
+            data[f"{int(last_key) + 1}"]["plot_x_caption"] = caption
+
+            self.experiment_list_list_widget.addItem(name)
+            self.dialog.accept()
+        else:
+            row = self.experiment_list_list_widget.currentRow()
+            data[f"{int(row)}"]["plot_x_caption"] = caption
+
+
         with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w') as f:
             json.dump(data,f,indent = 4)
-
-        self.experiment_list_list_widget.addItem(name)
         # update.acquisition_tab(self)
-        self.dialog.accept()
+        
 
 
 
@@ -3388,23 +3429,28 @@ class MainWindow(QMainWindow):
     def add_element_experiment_list_button_clicked(self):
         #Pop up window to allow user to enter the name of the digital title
         self.dialog = QDialog()
-        self.dialog.setGeometry(*self.scale_geom(710, 435, 400, 120))
+        self.dialog.setGeometry(*self.scale_geom(710, 435, 600, 200))
         self.dialog.setFont(QFont('Arial', self.scale_font(14)))
         value_input = QLineEdit()
+        value_input.setPlaceholderText("Type the name of new experiment")
+        value_input_cap = QLineEdit()
+        value_input_cap.setPlaceholderText("Type the x-caption for new experiment (Example: 'TOF, ms')")
         dialog_layout = QVBoxLayout()
-        button_update = QPushButton("update")
-        button_cancel = QPushButton("cancel")
+        button_update = QPushButton("Update")
+        button_cancel = QPushButton("Cancel")
         dialog_layout.addWidget(value_input)
+        dialog_layout.addWidget(value_input_cap)
         dialog_buttons_layout = QHBoxLayout()
         dialog_buttons_layout.addWidget(button_update)
         dialog_buttons_layout.addWidget(button_cancel)
         dialog_layout.addLayout(dialog_buttons_layout)
         self.dialog.setLayout(dialog_layout)
 
-        button_update.clicked.connect(lambda:self.update_experiment_names_list(value_input.text()))
+        button_update.clicked.connect(lambda:self.update_experiment_names_list(name = value_input.text(),caption = value_input_cap.text()))
         button_cancel.clicked.connect(lambda:self.dialog.reject())
         self.dialog.setWindowTitle("New experiment to add") 
         self.dialog.exec_()
+
         return
 
     def delete_element_experiment_list_button_clicked(self):
