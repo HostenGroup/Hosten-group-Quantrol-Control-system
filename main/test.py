@@ -1,97 +1,72 @@
-# PyQt5==5.15.4
-import sys
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QListWidget, QLineEdit, QPushButton,
-    QVBoxLayout, QHBoxLayout, QLabel, QMessageBox
-)
-from PyQt5.QtCore import Qt
+from PyQt5 import QtWidgets, QtCore
 
+class GainExposureGroup(QtWidgets.QGroupBox):
+    gainChanged = QtCore.pyqtSignal(str)
+    exposureChanged = QtCore.pyqtSignal(str)
+    exposureLockChanged = QtCore.pyqtSignal(bool)
+    imageFormatChanged = QtCore.pyqtSignal(str)
 
-class Picker(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("List picker")
+    def __init__(self, title="Acquisition", parent=None):
+        super().__init__(title, parent)
+        self._build_ui()
 
-        # Top: chosen element line
-        self.chosen_label = QLabel("Chosen element")
-        self.chosen_line = QLineEdit()
-        self.chosen_line.setReadOnly(True)
+    def _build_ui(self):
+        form = QtWidgets.QFormLayout(self)
 
-        top_box = QVBoxLayout()
-        top_box.addWidget(self.chosen_label)
-        top_box.addWidget(self.chosen_line)
+        # Gain, dB
+        self.gain_edit = QtWidgets.QLineEdit(self)
+        self.gain_edit.setPlaceholderText("e.g. 6.0")
+        # self.gain_edit.textChanged.connect(self.gainChanged)
+        form.addRow("Gain, dB", self.gain_edit)
 
-        # Center: list of items
-        self.list_widget = QListWidget()
-        self.list_widget.setSelectionMode(QListWidget.SingleSelection)
-        self.list_widget.itemSelectionChanged.connect(self.update_chosen)
+        # Exposure time, ms + Lock
+        exp_row = QtWidgets.QWidget(self)
+        h = QtWidgets.QHBoxLayout(exp_row)
+        h.setContentsMargins(0, 0, 0, 0)
 
-        # Bottom: add-new line and buttons
-        self.new_label = QLabel("Add new element")
-        self.new_line = QLineEdit()
-        self.new_line.setPlaceholderText("Type new element and press Enter or click Add")
-        self.new_line.returnPressed.connect(self.add_element)
+        self.exposure_edit = QtWidgets.QLineEdit(exp_row)
+        self.exposure_edit.setPlaceholderText("e.g. 500")
+        # self.exposure_edit.textChanged.connect(self.exposureChanged)
 
-        self.btn_add = QPushButton("Add new element")
-        self.btn_add.clicked.connect(self.add_element)
+        self.lock_cb = QtWidgets.QCheckBox("Lock", exp_row)
+        self.lock_cb.toggled.connect(self._apply_lock)
+        # self.lock_cb.toggled.connect(self.exposureLockChanged)
 
-        self.btn_delete = QPushButton("Delete element")
-        self.btn_delete.clicked.connect(self.delete_selected)
-        self.btn_delete.setEnabled(False)
+        h.addWidget(self.exposure_edit, 1)
+        h.addWidget(self.lock_cb, 0)
+        form.addRow("Exposure time, us", exp_row)
 
-        bottom_row = QHBoxLayout()
-        bottom_row.addWidget(self.new_line, 1)
-        bottom_row.addWidget(self.btn_add)
-        bottom_row.addWidget(self.btn_delete)
+        # Image format
+        self.format_combo = QtWidgets.QComboBox(self)
+        self.format_combo.addItems(["Mono8", "Mono16"])
+        # self.format_combo.currentTextChanged.connect(self.imageFormatChanged)
+        form.addRow("Image format", self.format_combo)
 
-        bottom_box = QVBoxLayout()
-        bottom_box.addWidget(self.new_label)
-        bottom_box.addLayout(bottom_row)
+    def _apply_lock(self, locked: bool):
+        # Disable the field when locked (gives a clear visual cue in Qt5)
+        self.exposure_edit.setEnabled(not locked)
 
-        # Main layout
-        layout = QVBoxLayout(self)
-        layout.addLayout(top_box)
-        layout.addWidget(self.list_widget, 1)
-        layout.addLayout(bottom_box)
-
-        # Demo data
-        for name in ["Alpha", "Beta", "Gamma"]:
-            self.list_widget.addItem(name)
-
-        self.list_widget.itemSelectionChanged.connect(self._toggle_delete_enabled)
-
-    def update_chosen(self):
-        items = self.list_widget.selectedItems()
-        self.chosen_line.setText(items[0].text() if items else "")
-
-    def _toggle_delete_enabled(self):
-        self.btn_delete.setEnabled(len(self.list_widget.selectedItems()) > 0)
-        self.update_chosen()
-
-    def add_element(self):
-        text = self.new_line.text().strip()
-        if not text:
-            return
-        # Optional: prevent duplicates. Remove this check if duplicates are desired.
-        existing = [self.list_widget.item(i).text() for i in range(self.list_widget.count())]
-        if text in existing:
-            QMessageBox.information(self, "Info", "Element already exists.")
-            return
-        self.list_widget.addItem(text)
-        self.new_line.clear()
-        # Select the newly added item
-        self.list_widget.setCurrentRow(self.list_widget.count() - 1)
-
-    def delete_selected(self):
-        row = self.list_widget.currentRow()
-        if row >= 0:
-            self.list_widget.takeItem(row)
-            self.update_chosen()
-
+    # Convenience
+    def gain(self) -> str: return self.gain_edit.text()
+    def setGain(self, v: str): self.gain_edit.setText(v)
+    def exposureTimeMs(self) -> str: return self.exposure_edit.text()
+    def setExposureTimeMs(self, v: str): self.exposure_edit.setText(v)
+    def isExposureLocked(self) -> bool: return self.lock_cb.isChecked()
+    def setExposureLocked(self, b: bool): self.lock_cb.setChecked(b)
+    def imageFormat(self) -> str: return self.format_combo.currentText()
+    def setImageFormat(self, t: str):
+        i = self.format_combo.findText(t)
+        if i >= 0: self.format_combo.setCurrentIndex(i)
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    w = Picker()
-    w.resize(480, 360)
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    w = QtWidgets.QWidget()
+    layout = QtWidgets.QVBoxLayout(w)
+    grp = GainExposureGroup()
+    layout.addWidget(grp)
+    layout.addStretch(1)
+    w.setWindowTitle("Gain/Exposure Group Demo")
+    w.resize(360, 160)
     w.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec_())  # PyQt5

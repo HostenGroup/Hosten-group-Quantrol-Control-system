@@ -14,18 +14,18 @@ import json
 
 import config
 
-def camera_init(self):
+def camera_init(self, which_camera_to_use = 'Y', format_name = 'Mono8', gain_db = 20, t_exp = 350):
     # Pixel format
-    format_name = 'Mono8' 
+    # format_name = 'Mono8' 
 
     # Analog gain in dB
-    gain_db = 20
+    # gain_db = 20
 
     # Exposure time in us
-    t_exp = 350 
+    # t_exp = 350 
 
     # Pick the number of the experiment. To add new experiment add a new entry to the 'experiment_names_dict'
-    experiment_code = 9
+    # experiment_code = 9
 
     # Parameters you want to put to the info file (ALL VALUES IN SI)
     par_dict = {      
@@ -53,7 +53,7 @@ def camera_init(self):
     experiment_explanation = '' 
 
     # Should be capital X or Y
-    which_camera_to_use = 'Y' 
+    # which_camera_to_use = which 
 
     # Dictionary of experiments
 

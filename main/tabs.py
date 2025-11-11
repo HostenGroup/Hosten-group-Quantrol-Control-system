@@ -1442,20 +1442,59 @@ def acquisition_tab_build(self):
     
     # self.experiment_list_box_layout.addWidget()
 
-
-
-
+    self.camera_box = QGroupBox(self.acquisition_tab_widget)
+    self.camera_box.setTitle("Camera")
+    self.camera_box.setCheckable(True)
+    self.camera_box.setChecked(False)
+    self.camera_box.setFont(QFont('Arial', self.scale_font(14)))
+    self.camera_box.move(int(self.SCALE_W*(self.button_w + 2*self.sep)), int(self.SCALE_H*self.top_margin))
+    self.camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(200)))  # owl
     
+    # self.camera_box.toggled.connect(self.camera_box_checked)
+    form = QFormLayout(self.camera_box)
 
-    # bottom_box = QVBoxLayout()
-    # bottom_box.addWidget(self.new_label)
-    # bottom_box.addLayout(bottom_row)
+    self.which_cam_combo = QComboBox(self.camera_box)
+    self.which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))
+    self.which_cam_combo.setEditable(True)
+    self.which_cam_combo.lineEdit().setReadOnly(True)
+    self.which_cam_combo.lineEdit().setPlaceholderText("Select camera...")  # shown until user picks
+    self.which_cam_combo.setCurrentIndex(-1) 
+    self.which_cam_combo.currentTextChanged.connect(self.camera_which_cam_changed)
+    form.addRow("Which camera", self.which_cam_combo)
 
-    # # Main layout
-    # layout = QVBoxLayout(self)
-    # layout.addLayout(top_box)
-    # layout.addWidget(self.list_widget, 1)
-    # layout.addLayout(bottom_box)
+
+    self.gain_edit = QLineEdit(self.camera_box)
+    self.gain_edit.setPlaceholderText("e.g. 20")
+    self.gain_edit.editingFinished.connect(self.camera_gain_changed)
+    form.addRow("Gain, dB", self.gain_edit)
+
+
+    exp_row = QWidget(self.camera_box)
+    h = QHBoxLayout(exp_row)
+    h.setContentsMargins(0, 0, 0, 0)
+
+    self.exposure_edit = QLineEdit(exp_row)
+    self.exposure_edit.setPlaceholderText("e.g. 0.35")
+    self.exposure_edit.editingFinished.connect(self.camera_exposure_changed)
+
+    self.lock_cb = QCheckBox("Lock", exp_row)
+    self.lock_cb.toggled.connect(lambda locked: self.exposure_edit.setEnabled(not locked))
+    # self.lock_cb.toggled.connect(self.exposureLockChanged)
+
+    h.addWidget(self.exposure_edit, 1)
+    h.addWidget(self.lock_cb, 0)
+    form.addRow("Exposure time, ms", exp_row)
+
+    # Image format
+    self.format_combo = QComboBox(self.camera_box)
+    self.format_combo.setEditable(True)
+    self.format_combo.lineEdit().setReadOnly(True)
+    self.format_combo.lineEdit().setPlaceholderText("Select image format...")  # shown until user picks
+    self.format_combo.addItems(["Mono8", "Mono16"])
+    self.format_combo.setCurrentIndex(-1) 
+    self.format_combo.currentTextChanged.connect(self.camera_image_format_changed)
+    form.addRow("Image format", self.format_combo)
+
 
 
 

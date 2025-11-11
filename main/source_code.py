@@ -221,7 +221,6 @@ class MainWindow(QMainWindow):
                     self.is_derived = is_derived
                     self.is_lookup = is_lookup
 
-        
     class Experiment:
         '''
         An object that is used to describe the entire experimental sequence, title names and state of the GUI
@@ -280,49 +279,42 @@ class MainWindow(QMainWindow):
             self.ramped_variables_count = 0 # owl
             self.run_continuous = False # owl
             self.multiple_runs = False # owl
-            self.slow_dds = [self.SLOW_DDS() for i in range(config.slow_dds_channels_number)]
             self.lookup_variables = []
             self.names_of_lookup_variables = set()
-            self.experimantal_data = self.ExperimentalData()
+            
+    class SLOW_DDS:
+        '''
+        An object that is used to describe the state of the slow dds channel
+        Attributes description:
+            frequency    :   An object that is used to describe the frequency state of the dds channel
+            amplitude    :   An object that is used to describe the amplitude state of the dds channel
+            attenuation  :   An object that is used to describe the attenuation state of the dds channel
+            phase        :   An object that is used to describe the phase state of the dds channel
+            state        :   An object that is used to describe the ON/OFF state of the dds channel
+        '''
+        def __init__(self, frequency = 0.0, amplitude = 0.0, attenuation = 0.0, phase = 0.0, state = 0):
+            self.frequency = frequency
+            self.amplitude = amplitude
+            self.attenuation = attenuation
+            self.phase = phase
+            self.state = state
 
+    class ExperimentalData:
+        '''
+        An object that is used to describe the data acquired during experiment
+        Attributes description:
+            path            :   An object that is used to describe the path of the data
+            device          :   An object that is used to describe the kind of device used for acquisition
+            experiment_name :   An object that is used to describe the kind of experiment
+            comment         :   An object that is used to describe the comment on the experiment
+            experiment_id   :   An object that is used to describe the unique id of the experiment
+        '''
 
-        class SLOW_DDS:
-            '''
-            An object that is used to describe the state of the slow dds channel
-            Attributes description:
-                frequency    :   An object that is used to describe the frequency state of the dds channel
-                amplitude    :   An object that is used to describe the amplitude state of the dds channel
-                attenuation  :   An object that is used to describe the attenuation state of the dds channel
-                phase        :   An object that is used to describe the phase state of the dds channel
-                state        :   An object that is used to describe the ON/OFF state of the dds channel
-            '''
-            def __init__(self, frequency = 0.0, amplitude = 0.0, attenuation = 0.0, phase = 0.0, state = 0):
-                self.frequency = frequency
-                self.amplitude = amplitude
-                self.attenuation = attenuation
-                self.phase = phase
-                self.state = state
-
-        class ExperimentalData:
-            '''
-            An object that is used to describe the data acquired during experiment
-            Attributes description:
-                path            :   An object that is used to describe the path of the data
-                device          :   An object that is used to describe the kind of device used for acquisition
-                experiment_name :   An object that is used to describe the kind of experiment
-                comment         :   An object that is used to describe the comment on the experiment
-                experiment_id   :   An object that is used to describe the unique id of the experiment
-            '''
-
-            def __init__(self,path = '', device = '', experiment_name = '', comment = '', experiment_id = ''):
-                self.path = path
-                self.device = device
-                self.experiment_name = experiment_name
-                self.comment = comment
-                self.experiment_id = experiment_id
-
-
-
+        def __init__(self,path = '', experiment_name = '', comment = '', experiment_id = ''):
+            self.path = path
+            self.experiment_name = experiment_name
+            self.comment = comment
+            self.experiment_id = experiment_id
 
     class Derived_variable:
         '''
@@ -340,7 +332,6 @@ class MainWindow(QMainWindow):
             self.function = function
             self.initial_value = initial_value 
             
-
     class Lookup_variable:
         '''
         An object that is used to describe the lookup variable parameters
@@ -356,7 +347,6 @@ class MainWindow(QMainWindow):
             self.lookup_list = lookup_list
             self.lookup_list_name = lookup_list_name
 
-              
     class Scanned_variable:
         '''
         An object that is used to describe the scanned variable parameters
@@ -414,7 +404,6 @@ class MainWindow(QMainWindow):
             self.is_lookup = is_lookup
             self.argument = ""
             
-          
     class CustomThread(threading.Thread):
         '''
         An object that is used to initialize parallel threads
@@ -433,6 +422,18 @@ class MainWindow(QMainWindow):
                 # an argument that has a member that points to the thread.
                 del self._target, self._args, self._kwargs                
             
+    class Camera:
+        '''
+        
+        '''
+        def __init__(self,device_kind = 'camera', gain_db = 0, format_name = '', exposure_time = 350, serial_number = '', camera_name = ''):
+            self.device_kind = device_kind
+            self.gain_db = gain_db
+            self.format_name = format_name
+            self.exposure_time = exposure_time
+            self.serial_number = serial_number
+            self.camera_name = camera_name
+
 
     def __init__(self):
         super().__init__()
@@ -520,8 +521,14 @@ class MainWindow(QMainWindow):
         self.purple = QColor(200, 150, 255) # owl
         self.right_green = QColor(180, 255, 180) # fish
         self.wrong_red = QColor(255, 0, 1) # fish
+
+
         self.experiment.variables['id0'] = self.Variable(name = "id0", value = 0.0, for_python = 0.0)
         self.experiment.variables[''] = self.Variable(name = '', value = 0.0, for_python = 0.0)   #in order to be able to process expressions like -5 we need to have it as first item in decode will be "" that should be 0    
+        if config.slow_dds_channels_number > 0:
+            self.experiment.slow_dds = [self.SLOW_DDS() for i in range(config.slow_dds_channels_number)]
+        self.experiment.experimental_data = self.ExperimentalData()
+        self.experiment.experimental_data.camera = self.Camera()
         self.experiment.sequence = [self.Edge("Default")]
         
         self.init_default_values() #Reads the default state file and initializes the values
@@ -2721,13 +2728,21 @@ class MainWindow(QMainWindow):
         It also makes sure that if the variable is used the expression when its value is changed the expression evaluation remains in the
         allowed parameters range.       
         '''
-        var_table_sender = self.sender()
+        
+        
 
         if self.to_update:
             row = item.row()
+            print(row)
             col = item.column()
+            # if not explicit_sender:
+            #     var_table_sender = self.sender()
+            #     table_item = var_table_sender.item(row,col)
+            # else:
+            table_item = item
+            
             variable = self.experiment.new_variables[row]
-            table_item = var_table_sender.item(row,col)
+
             
             if col == 0: #Variable name was changed
                 if variable.name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
@@ -2766,12 +2781,14 @@ class MainWindow(QMainWindow):
                                 elif new_name == "None": #Restricting the user from defining the variable name "None" as it is reserved by the Scan table
                                     self.error_message("Variable name None is reserved by the scan table. Please choose another name", "Invalid variable name")
                                     self.update_off()
-                                    table_item.setText(variable.name)       
+                                    table_item.setText(variable.name)  
+                                    update.variable_tables(self)     
                                     self.update_on()             
                                 elif new_name in self.experiment.variables:#Restricting the user from defining the variable name as already defined variable names to avoid having duplicates
                                     self.error_message('Variable name is already used', 'Invalid variable name')
                                     self.update_off()
-                                    table_item.setText(variable.name)       
+                                    table_item.setText(variable.name)  
+                                    update.variable_tables(self)     
                                     self.update_on()                         
                                 else: # The varibable name is almost among allowed, only the integer or float without other caracters should be checked.
                                     only_numbers = False
@@ -2782,7 +2799,8 @@ class MainWindow(QMainWindow):
                                         pass
                                     if only_numbers: #Restricting the user from defining a variable name using only numbers
                                         self.update_off()
-                                        table_item.setText(variable.name)       
+                                        table_item.setText(variable.name)  
+                                        update.variable_tables(self)     
                                         self.update_on()                         
                                         self.error_message('Variable name can not be in a form of a number', 'Invalid variable name')
                                     else:
@@ -2799,31 +2817,37 @@ class MainWindow(QMainWindow):
                                             variable.name = new_name
                                             self.update_off()
                                             table_item.setText(variable.name)
+                                            update.variable_tables(self)
                                             self.update_on()                            
                                         else: #The previous variable was used somewhere. Reverting the name to the previous 
                                             self.error_message('The variable is used in %s.'%return_value, 'Can not delete used variable')
                                             self.experiment.variables[backup.name] = backup
                                             self.update_off()
                                             table_item.setText(backup.name)
+                                            update.variable_tables(self)
                                             self.update_on()
                             else:
                                 self.update_off()
                                 table_item.setText(variable.name)
+                                update.variable_tables(self)
                                 self.update_on()                          
                                 self.error_message("The variable is used as an argument in lookup variables. Remove it from the Lookup variables table before changing its name.", "Lookup variable's argument")
                         else:
                             self.update_off()
                             table_item.setText(variable.name)
+                            update.variable_tables(self)
                             self.update_on()                          
                             self.error_message("The variable is used as an argument in derived variables. Remove it from the Derived variables table before changing its name.", "Derived variable's argument")
                     else:
                         self.update_off()
                         table_item.setText(variable.name)
+                        update.variable_tables(self)
                         self.update_on()                          
                         self.error_message("The variable is scanned or ramped. Remove it from the scan or ramp table before deleting.", "Scanned or Ramped variable")  # owl
                 else:
                     self.update_off()
                     table_item.setText(variable.name)
+                    update.variable_tables(self)
                     self.update_on()                      
                     self.error_message("The variable is sampled. Remove it from the sampler tab before changing its name.", "Sampled variable")
             elif col == 1: #variable value was changed
@@ -3470,8 +3494,6 @@ class MainWindow(QMainWindow):
         self.dialog.setWindowTitle("New experiment to add") 
         self.dialog.exec_()
 
-        return
-
     def delete_element_experiment_list_button_clicked(self):
         # sender = self.sender()
 
@@ -3488,7 +3510,46 @@ class MainWindow(QMainWindow):
 
         self.experiment_list_list_widget.takeItem(row)
         # update.acquisition_tab(self)
-        return
+
+
+    def camera_which_cam_changed(self):
+        text_ = self.which_cam_combo.currentText()
+        self.experiment.experimental_data.camera.camera_name = text_
+        self.experiment.experimental_data.camera.serial_number = config.camera_serial_numbers_dict[text_]
+
+
+    def camera_gain_changed(self):
+        self.experiment.experimental_data.camera.gain_db = float(self.gain_edit.text())
+
+
+    def camera_exposure_changed(self):
+        texp_key = "T_exp_"
+        texp_str = self.exposure_edit.text()
+        try:
+            texp_ = float(texp_str)
+        except:
+            pass
+        self.experiment.experimental_data.camera.exposure_time = texp_
+        if texp_key not in self.experiment.variables:
+            self.experiment.variables[texp_key] = self.Variable(texp_key, texp_, texp_)
+            self.experiment.new_variables.append(self.Variable(texp_key, texp_, texp_))
+            self.texp_new_variables_num = len(self.experiment.new_variables) - 1
+            update.variable_tables(self)
+        else:
+            item = self.variables_table_acquisition.item(self.texp_new_variables_num, 1)
+            
+            item.setText(str(texp_))
+            self.variables_table_changed(item)
+            # self.variables_table_acquisition.itemChanged.emit(item)
+            # item.itemChanged.emit()
+
+        
+        
+
+
+    def camera_image_format_changed(self):
+        self.experiment.experimental_data.camera.format_name = self.format_combo.currentText()
+
 
 
 
