@@ -33,6 +33,7 @@ from copy import deepcopy
 import update
 import threading
 import subprocess
+import time
 import config
 from scipy.io import savemat, loadmat
 # import pandas as pd
@@ -1201,17 +1202,26 @@ class MainWindow(QMainWindow):
                 self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
                 raise ValueError("startID is not next to endID") # fish end
             self.message_to_logger("Python file generated")
+
+            camera_launch_info = None
+            delay_before_artiq = 0.0
+            if hasattr(self, "camera_box") and self.camera_box.isChecked():
+                try:
+                    camera_launch_info = self._prepare_camera_launch()
+                    delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
+                except ValueError as exc:
+                    self.error_message(str(exc), "Camera acquisition")
+                    self.message_to_logger(f"Camera acquisition aborted: {exc}")
+                    return
+
             try:
-                #initialize environment and submit the experiment to the scheduler
-                if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
-                elif config.package_manager == "clang64":
-                    # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                    print(str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat'))
-                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 with open(self.repo_path / 'logs' / 'metadata.json', "w") as outfile:
                     json.dump(self.to_dict(self.experiment),outfile,indent=4)
-                submit_experiment_thread.start()
+                if camera_launch_info:
+                    self._start_camera_subprocess(camera_launch_info)
+                    self.message_to_logger("Camera acquisition started")
+
+                submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
                     self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
@@ -1223,9 +1233,9 @@ class MainWindow(QMainWindow):
                     pass
                 #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
                 self.message_to_logger("Experiment started")
-            except:
-                self.message_to_logger("Was not able to start experiment")
-        except:
+            except Exception as exc:
+                self.message_to_logger(f"Was not able to start experiment: {exc}")
+        except Exception:
             self.message_to_logger("Was not able to generate python file")
 
 
@@ -1483,16 +1493,30 @@ class MainWindow(QMainWindow):
                 self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
                 raise ValueError("startID is not next to endID") # fish end
             self.message_to_logger("Python file generated")
+
+            camera_launch_info = None
+            delay_before_artiq = 0.0
+            if hasattr(self, "camera_box") and self.camera_box.isChecked():
+                try:
+                    camera_launch_info = self._prepare_camera_launch()
+                    delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
+                except ValueError as exc:
+                    self.error_message(str(exc), "Camera acquisition")
+                    self.message_to_logger(f"Camera acquisition aborted: {exc}")
+                    return
+
             try:
-                if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
-                elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')])
-                submit_experiment_thread.start()
+                with open(self.repo_path / 'logs' / 'metadata.json', "w") as outfile:
+                    json.dump(self.to_dict(self.experiment),outfile,indent=4)
+                if camera_launch_info:
+                    self._start_camera_subprocess(camera_launch_info)
+                    self.message_to_logger("Camera acquisition started")
+
+                submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
                 #unhighlighting the previously highlighted edge
                 if self.experiment.go_to_edge_num != -1:
                     self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
-                    self.experiment.go_to_egde_num = 0
+                    self.experiment.go_to_edge_num = -1
                 try:
                     if self.experiment.do_ramp == True:
                         self.update_sequence_edge_colors()
@@ -1500,9 +1524,9 @@ class MainWindow(QMainWindow):
                     pass
                 #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
                 self.message_to_logger("Experiment started")
-            except:
-                self.message_to_logger("Was not able to start experiment")
-        except:
+            except Exception as exc:
+                self.message_to_logger(f"Was not able to start experiment: {exc}")
+        except Exception:
             self.message_to_logger("Was not able to generate python file")
     
 
@@ -3426,13 +3450,30 @@ class MainWindow(QMainWindow):
 
         row = self.experiment_list_list_widget.currentRow()
 
+        if row < 0:
+            self.experiment_list_btn_delete.setEnabled(False)
+            self.experiment_list_chosen_line.clear()
+            self.experiment_list_chosen_line_caption.clear()
+            self.experiment.experimental_data.experiment_name = ''
+            self.experiment.experimental_data.comment = ''
+            self.experiment.experimental_data.experiment_id = ''
+            return
+
         self.experiment_list_btn_delete.setEnabled(len(self.experiment_list_list_widget.selectedItems()) > 0)
         # items = self.experiment_list_list_widget.selectedItems()
-        name = data[f"{int(row)}"]["name"]
-        caption = data[f"{int(row)}"]["plot_x_caption"]
+        key = f"{int(row)}"
+        if key not in data:
+            self.message_to_logger(f"Experiment entry with key {key} was not found in experiment_names.json")
+            return
+
+        name = data[key]["name"]
+        caption = data[key]["plot_x_caption"]
 
         self.experiment_list_chosen_line.setText(name)
         self.experiment_list_chosen_line_caption.setText(caption)
+        self.experiment.experimental_data.experiment_name = name
+        self.experiment.experimental_data.comment = caption
+        self.experiment.experimental_data.experiment_id = int(row)
 
     def experiment_caption_changed(self):
         self.dialog = QDialog()
@@ -3477,7 +3518,14 @@ class MainWindow(QMainWindow):
             self.dialog.accept()
         else:
             row = self.experiment_list_list_widget.currentRow()
-            data[f"{int(row)}"]["plot_x_caption"] = caption
+            if row < 0:
+                return
+            key = f"{int(row)}"
+            if key not in data:
+                self.message_to_logger(f"Experiment entry with key {key} was not found in experiment_names.json")
+                return
+            data[key]["plot_x_caption"] = caption
+            self.experiment.experimental_data.comment = caption
 
 
         with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w') as f:
@@ -3531,10 +3579,149 @@ class MainWindow(QMainWindow):
         # update.acquisition_tab(self)
 
 
+    def _prepare_camera_launch(self):
+        if not hasattr(self, "camera_box") or not self.camera_box.isChecked():
+            return None
+
+        camera_python_raw = getattr(config, "camera_env_python", "")
+        camera_python_raw = camera_python_raw.strip() if isinstance(camera_python_raw, str) else ""
+        if not camera_python_raw:
+            raise ValueError("Camera Python interpreter path is not configured (config.camera_env_python).")
+
+        camera_python = Path(camera_python_raw)
+        if not camera_python.exists():
+            raise ValueError(f"Camera Python interpreter was not found at {camera_python}")
+
+        camera_script = self.repo_path / "main" / "camera.py"
+        if not camera_script.exists():
+            raise ValueError(f"Camera control script not found at {camera_script}")
+
+        camera_name = (self.which_cam_combo.currentText() or "").strip()
+        if not camera_name:
+            raise ValueError("Select a camera before starting acquisition.")
+
+        serial_number = config.camera_serial_numbers_dict.get(camera_name)
+        if serial_number is None:
+            raise ValueError(f"Camera '{camera_name}' is not configured in config.camera_serial_numbers_dict.")
+
+        gain_text = (self.gain_edit.text() or "").strip()
+        if gain_text == "":
+            raise ValueError("Specify camera gain before starting acquisition.")
+        try:
+            gain_value = float(gain_text)
+        except ValueError as exc:
+            raise ValueError("Camera gain must be a numeric value.") from exc
+
+        exposure_text = (self.exposure_edit.text() or "").strip()
+        if exposure_text == "":
+            raise ValueError("Specify camera exposure time before starting acquisition.")
+        try:
+            exposure_value = float(exposure_text)
+        except ValueError as exc:
+            raise ValueError("Camera exposure time must be a numeric value.") from exc
+
+        format_name = (self.format_combo.currentText() or "").strip()
+        if not format_name:
+            raise ValueError("Select an image format before starting acquisition.")
+
+        experiment_row = self.experiment_list_list_widget.currentRow()
+        experiment_code = experiment_row if experiment_row >= 0 else 0
+
+        info_text = (self.experiment.experimental_data.comment or "").strip()
+        output_root = (self.experiment.experimental_data.path or "").strip()
+
+        self.experiment.experimental_data.camera.camera_name = camera_name
+        self.experiment.experimental_data.camera.serial_number = serial_number
+        self.experiment.experimental_data.camera.gain_db = gain_value
+        self.experiment.experimental_data.camera.exposure_time = exposure_value
+        self.experiment.experimental_data.camera.format_name = format_name
+        self.experiment.experimental_data.experiment_id = experiment_code
+        if not self.experiment.experimental_data.experiment_name:
+            self.experiment.experimental_data.experiment_name = self.experiment_list_chosen_line.text()
+
+        argv = [
+            str(camera_python),
+            str(camera_script),
+            "--camera", camera_name,
+            "--format", format_name,
+            "--gain-db", f"{gain_value}",
+            "--exposure-ms", f"{exposure_value}",
+            "--experiment-code", str(experiment_code),
+            "--repo-root", str(self.repo_path),
+        ]
+
+        if output_root:
+            argv.extend(["--output-root", output_root])
+        if info_text:
+            argv.extend(["--info-text", info_text])
+
+        return {"argv": argv, "cwd": str(camera_script.parent)}
+
+
+    def _start_camera_subprocess(self, launch_info):
+        if not launch_info:
+            return None
+
+        argv = launch_info.get("argv", [])
+        cwd = launch_info.get("cwd")
+        creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+
+        def runner():
+            kwargs = {}
+            if cwd:
+                kwargs["cwd"] = cwd
+            if creationflags:
+                kwargs["creationflags"] = creationflags
+            try:
+                subprocess.Popen(argv, **kwargs)
+            except Exception as exc:
+                # Avoid GUI calls from worker threads; log via stdout for troubleshooting.
+                print(f"Failed to start camera acquisition: {exc}")
+
+        thread = threading.Thread(target=runner, daemon=True)
+        thread.start()
+        return thread
+
+
+    def _start_artiq_thread(self, delay_s=0.0, run_continuous=False):
+        delay_seconds = float(delay_s) if delay_s else 0.0
+
+        if config.package_manager == "conda":
+            command = f"conda activate {config.artiq_environment_name} && artiq_run ../ARTIQ_scripts/run_experiment.py"
+
+            def runner():
+                if delay_seconds > 0:
+                    time.sleep(delay_seconds)
+                os.system(command)
+
+        elif config.package_manager == "clang64":
+            bat_name = 'cont_run.bat' if run_continuous else 'run_experiment.bat'
+            bat_path = self.repo_path / "experiment_specific_files" / config.which_project / bat_name
+            if not bat_path.exists():
+                raise FileNotFoundError(f"Required batch file not found: {bat_path}")
+            creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+
+            def runner():
+                if delay_seconds > 0:
+                    time.sleep(delay_seconds)
+                kwargs = {}
+                if creationflags:
+                    kwargs["creationflags"] = creationflags
+                subprocess.Popen(['cmd', '/c', str(bat_path)], **kwargs)
+
+        else:
+            raise RuntimeError(f"Unsupported package manager: {config.package_manager}")
+
+        thread = threading.Thread(target=runner, daemon=True)
+        thread.start()
+        return thread
+
+
     def camera_which_cam_changed(self):
         text_ = self.which_cam_combo.currentText()
         self.experiment.experimental_data.camera.camera_name = text_
-        self.experiment.experimental_data.camera.serial_number = config.camera_serial_numbers_dict[text_]
+        serial_number = config.camera_serial_numbers_dict.get(text_)
+        self.experiment.experimental_data.camera.serial_number = serial_number if serial_number is not None else ''
 
 
     def _get_texp_variable_index(self):
@@ -3616,7 +3803,21 @@ class MainWindow(QMainWindow):
             self._updating_texp_lock = False
 
     def camera_gain_changed(self):
-        self.experiment.experimental_data.camera.gain_db = float(self.gain_edit.text())
+        gain_text = self.gain_edit.text().strip()
+        previous_gain = self.experiment.experimental_data.camera.gain_db
+        if gain_text == "":
+            self.error_message("Gain cannot be empty", "Wrong entry")
+            self.gain_edit.setText(str(previous_gain))
+            return
+        try:
+            gain_value = float(gain_text)
+        except ValueError:
+            self.error_message("Gain must be a number", "Wrong entry")
+            self.gain_edit.setText(str(previous_gain))
+            return
+
+        self.experiment.experimental_data.camera.gain_db = gain_value
+        self.gain_edit.setText(str(gain_value))
 
 
     def camera_exposure_changed(self):
