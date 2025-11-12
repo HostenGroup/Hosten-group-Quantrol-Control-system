@@ -521,6 +521,8 @@ class MainWindow(QMainWindow):
         self.purple = QColor(200, 150, 255) # owl
         self.right_green = QColor(180, 255, 180) # fish
         self.wrong_red = QColor(255, 0, 1) # fish
+        self._texp_locked = False
+        self._updating_texp_lock = False
 
 
         self.experiment.variables['id0'] = self.Variable(name = "id0", value = 0.0, for_python = 0.0)
@@ -2733,7 +2735,6 @@ class MainWindow(QMainWindow):
 
         if self.to_update:
             row = item.row()
-            print(row)
             col = item.column()
             # if not explicit_sender:
             #     var_table_sender = self.sender()
@@ -2743,8 +2744,12 @@ class MainWindow(QMainWindow):
             
             variable = self.experiment.new_variables[row]
 
-            
             if col == 0: #Variable name was changed
+                if variable.name == "T_exp_" and getattr(self, "_texp_locked", False):
+                    self.update_off()
+                    table_item.setText(variable.name)
+                    self.update_on()
+                    return
                 if variable.name not in self.experiment.sampler_variables: # Check if the variable is being sampled 
                     #Checking if the variable is being scanned or ramped 
                     variable_scanned = False
@@ -2851,6 +2856,11 @@ class MainWindow(QMainWindow):
                     self.update_on()                      
                     self.error_message("The variable is sampled. Remove it from the sampler tab before changing its name.", "Sampled variable")
             elif col == 1: #variable value was changed
+                if variable.name == "T_exp_" and getattr(self, "_texp_locked", False):
+                    self.update_off()
+                    table_item.setText(str(variable.value))
+                    self.update_on()
+                    return
                 #variable.value is used as a back up if evaluation is not possible since we do not change self.experiment.new_variables to check if the variable is used or not
                 try:
                     #Checking if the new value resulting in the values allowed for each parameter it is used in
@@ -2861,20 +2871,27 @@ class MainWindow(QMainWindow):
 
                     if return_value == None: #The value can be updated
                         variable.value = self.experiment.variables[variable.name].value
+                        self.experiment.variables[variable.name].for_python = variable.value
+                        variable.for_python = variable.value
                         self.update_off()
                         table_item.setText(str(variable.value))
                         self.update_on()
                         # update.digital_analog_dds_mirny_tabs(self)
                         update.variable_tables(self)
                         update.all_values(self)
+                        if variable.name == "T_exp_":
+                            self._sync_camera_exposure_from_variable()
                     else: #The value can not be updated, reverting every evaluation done before.
                         self.error_message("Evaluation is out of allowed range occured in %s. Variable value can not be assigned" %return_value, "Wrong entry")
                         self.experiment.variables[variable.name].value = variable.value 
+                        self.experiment.variables[variable.name].for_python = variable.value
                         self.update_off()
                         table_item.setText(str(variable.value))
                         self.update_on()
                         update.variable_tables(self)
                         update.all_values(self)
+                        if variable.name == "T_exp_":
+                            self._sync_camera_exposure_from_variable()
                         
 
                 except: #Restricting the user from using anything but the integer values and floating numbers
@@ -2886,6 +2903,8 @@ class MainWindow(QMainWindow):
                       
                     update.all_values(self)              
                     self.error_message("Only integers and floating numbers are allowed.", "Wrong entry")
+                    if variable.name == "T_exp_":
+                        self._sync_camera_exposure_from_variable()
 
             
 
@@ -3518,30 +3537,118 @@ class MainWindow(QMainWindow):
         self.experiment.experimental_data.camera.serial_number = config.camera_serial_numbers_dict[text_]
 
 
+    def _get_texp_variable_index(self):
+        """Return the index of T_exp_ in new_variables, or None if absent."""
+        texp_key = "T_exp_"
+        for idx, variable in enumerate(self.experiment.new_variables):
+            if variable.name == texp_key:
+                return idx
+        return None
+
+    def _set_camera_exposure_line(self, value):
+        """Update the exposure QLineEdit without re-triggering handlers."""
+        if hasattr(self, "exposure_edit"):
+            self.exposure_edit.blockSignals(True)
+            if value in (None, ""):
+                self.exposure_edit.clear()
+            else:
+                self.exposure_edit.setText(str(value))
+            self.exposure_edit.blockSignals(False)
+
+    def _sync_camera_exposure_from_variable(self):
+        """When T_exp_ changes elsewhere, reflect it in the camera UI and model."""
+        texp_var = self.experiment.variables.get("T_exp_")
+        if texp_var is not None:
+            self.experiment.experimental_data.camera.exposure_time = texp_var.value
+            self._set_camera_exposure_line(texp_var.value)
+
+    def _handle_texp_lock_toggled(self, locked):
+        """Handle lock checkbox toggles for the exposure control and variable tables."""
+        self._texp_locked = bool(locked)
+        if hasattr(self, "exposure_edit"):
+            self.exposure_edit.setEnabled(not self._texp_locked)
+        self._update_texp_lock_presentation()
+
+    def _update_texp_lock_presentation(self):
+        """Adjust T_exp_ row editability and styling across variable tables."""
+        if getattr(self, "_updating_texp_lock", False):
+            return
+        row_index = self._get_texp_variable_index()
+        if row_index is None:
+            return
+
+        self._updating_texp_lock = True
+        previous_update_state = self.to_update
+        self.to_update = False
+
+        tables = [
+            getattr(self, "variables_table_variables", None),
+            getattr(self, "variables_table_sequence", None),
+            getattr(self, "variables_table_acquisition", None),
+            getattr(self, "variables_table_digital", None),
+            getattr(self, "variables_table_analog", None),
+            getattr(self, "variables_table_dds", None),
+            getattr(self, "variables_table_mirny", None),
+            getattr(self, "variables_table_slow_dds", None),
+            getattr(self, "variables_table_sampler", None),
+        ]
+
+        try:
+            for table in tables:
+                if table is None or row_index >= table.rowCount():
+                    continue
+                max_col = min(2, table.columnCount())
+                for col in range(max_col):
+                    item = table.item(row_index, col)
+                    if item is None:
+                        continue
+                    current_flags = item.flags()
+                    if self._texp_locked:
+                        if current_flags != Qt.NoItemFlags and current_flags != (Qt.ItemIsSelectable | Qt.ItemIsEnabled):
+                            item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                        item.setBackground(self.light_grey)
+                    else:
+                        if current_flags != Qt.NoItemFlags:
+                            item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
+                        item.setBackground(self.white)
+        finally:
+            self.to_update = previous_update_state
+            self._updating_texp_lock = False
+
     def camera_gain_changed(self):
         self.experiment.experimental_data.camera.gain_db = float(self.gain_edit.text())
 
 
     def camera_exposure_changed(self):
         texp_key = "T_exp_"
-        texp_str = self.exposure_edit.text()
+        texp_str = self.exposure_edit.text().strip()
+        if texp_str == "":
+            self.error_message("Exposure time cannot be empty", "Wrong entry")
+            self._set_camera_exposure_line(self.experiment.experimental_data.camera.exposure_time)
+            return
         try:
             texp_ = float(texp_str)
-        except:
-            pass
+        except ValueError:
+            self.error_message("Exposure time must be a number", "Wrong entry")
+            self._set_camera_exposure_line(self.experiment.experimental_data.camera.exposure_time)
+            return
+
         self.experiment.experimental_data.camera.exposure_time = texp_
-        if texp_key not in self.experiment.variables:
-            self.experiment.variables[texp_key] = self.Variable(texp_key, texp_, texp_)
-            self.experiment.new_variables.append(self.Variable(texp_key, texp_, texp_))
-            self.texp_new_variables_num = len(self.experiment.new_variables) - 1
-            update.variable_tables(self)
+        self._set_camera_exposure_line(texp_)
+
+        index = self._get_texp_variable_index()
+        if index is None:
+            variable = self.Variable(texp_key, texp_, texp_)
+            self.experiment.variables[texp_key] = variable
+            self.experiment.new_variables.append(variable)
         else:
-            item = self.variables_table_acquisition.item(self.texp_new_variables_num, 1)
-            
-            item.setText(str(texp_))
-            self.variables_table_changed(item)
-            # self.variables_table_acquisition.itemChanged.emit(item)
-            # item.itemChanged.emit()
+            variable = self.experiment.new_variables[index]
+            variable.value = texp_
+            variable.for_python = texp_
+            self.experiment.variables[texp_key].value = texp_
+            self.experiment.variables[texp_key].for_python = texp_
+
+        update.variable_tables(self)
 
         
         

@@ -1477,11 +1477,15 @@ def acquisition_tab_build(self):
     self.exposure_edit.setPlaceholderText("e.g. 0.35")
     self.exposure_edit.editingFinished.connect(self.camera_exposure_changed)
 
+    self.exposure_hint_label = QLabel("Var: T_exp_", exp_row)
+    self.exposure_hint_label.setStyleSheet("color: gray; font-style: italic;")
+    self.exposure_hint_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
     self.lock_cb = QCheckBox("Lock", exp_row)
-    self.lock_cb.toggled.connect(lambda locked: self.exposure_edit.setEnabled(not locked))
-    # self.lock_cb.toggled.connect(self.exposureLockChanged)
+    self.lock_cb.toggled.connect(self._handle_texp_lock_toggled)
 
     h.addWidget(self.exposure_edit, 1)
+    h.addWidget(self.exposure_hint_label, 0)
     h.addWidget(self.lock_cb, 0)
     form.addRow("Exposure time, ms", exp_row)
 
@@ -1501,6 +1505,15 @@ def acquisition_tab_build(self):
 
     self.number_of_runs_input_acquisition = bottom_buttons_build(self,self.acquisition_tab_widget)
     self.variables_table_acquisition, self.delete_variable_acquisition = variables_sidebar_build(self,self.acquisition_tab_widget)
+
+    # initialise exposure lock state
+    self._handle_texp_lock_toggled(self.lock_cb.isChecked())
+
+    texp_var = self.experiment.variables.get("T_exp_")
+    if texp_var is not None:
+        self._set_camera_exposure_line(texp_var.value)
+    else:
+        self.exposure_edit.clear()
 
 
 

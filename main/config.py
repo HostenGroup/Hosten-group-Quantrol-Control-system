@@ -28,6 +28,8 @@ camera_serial_numbers_dict = {
     'X':'22433340',
     'Y':'22433344'
 }
+camera_env_python = r"C:\Users\agurchen\Documents\python_envs\camera_env\Scripts\python.exe"
+camera_launch_delay_s = 5
 allow_skipping_images = True
 slow_dds_channels = [
     "urukul3_ch0",

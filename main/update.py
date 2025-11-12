@@ -783,9 +783,9 @@ def variable_tables(self):
                 self.variables_table_sampler.setItem(row, 1, item) 
             else:
                 self.variables_table_sampler.setItem(row, 1, QTableWidgetItem(str(variable.value)))  
+    
 
-
-
+    self._update_texp_lock_presentation()
     self.update_on()
 
 
@@ -1195,7 +1195,9 @@ def from_object(self):
     scan_table(self)
     # building ramped variables table from the self.experiment.ramped_variables array
     ramp_table(self)
-    self.update_on()                  
+    self.update_on()
+    if hasattr(self, "_sync_camera_exposure_from_variable"):
+        self._sync_camera_exposure_from_variable()
 
 
 def all_values(self):
