@@ -9,6 +9,9 @@ camera as we observed that first several images might probabilistically be fault
 For the list_of_devices_for_initialization you can have a look at your device_db.py file to see what options do you have
 '''
 
+import sys
+from pathlib import Path
+
 digital_channels_number = 16
 analog_channels_number = 16
 dds_channels_number = 12
@@ -28,7 +31,10 @@ camera_serial_numbers_dict = {
     'X':'22433340',
     'Y':'22433344'
 }
-camera_env_python = r"C:\Users\agurchen\Documents\python_envs\camera_env\Scripts\python.exe"
+# Construct camera_env_python path based on current Python environment
+_current_python = Path(sys.executable)
+_python_envs_path = Path(str(_current_python).split('python_envs')[0]) / 'python_envs'
+camera_env_python = str(_python_envs_path / 'camera_env' / 'Scripts' / 'python.exe')
 camera_launch_delay_s = 5
 allow_skipping_images = True
 slow_dds_channels = [

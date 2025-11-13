@@ -1191,6 +1191,7 @@ def from_object(self):
 
     #building variables table from the self.experiment.new_variables array
     variables_tab(self)
+    variable_tables(self)
     # building scanned variables table from the self.experiment.scanned_variables array
     scan_table(self)
     # building ramped variables table from the self.experiment.ramped_variables array

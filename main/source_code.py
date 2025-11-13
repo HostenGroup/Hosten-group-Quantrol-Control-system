@@ -282,6 +282,8 @@ class MainWindow(QMainWindow):
             self.multiple_runs = False # owl
             self.lookup_variables = []
             self.names_of_lookup_variables = set()
+            self.camera_enabled = False
+            self.texp_locked = False
             
     class SLOW_DDS:
         '''
@@ -926,6 +928,12 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to save the sequence. In there is no file corresponsing to the sequence displayed the 
         user needs to specify its location and name. Otherwise it will orverwrite the sequence that was opened
         '''
+        # Save camera state before pickling
+        if hasattr(self, "camera_box"):
+            self.experiment.camera_enabled = self.camera_box.isChecked()
+        if hasattr(self, "_texp_locked"):
+            self.experiment.texp_locked = self._texp_locked
+        
         if self.experiment.file_name == "":
             self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0]
             if self.experiment.file_name != "": #happens when no file name was given (canceled)
@@ -973,6 +981,16 @@ class MainWindow(QMainWindow):
                 else:
                     self.experiment.cont_run_after_exp = False
                     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+                #this was only created to avoid crushing when the old versions of experiments are loaded without the camera_enabled attribute
+                if hasattr(self.experiment, 'camera_enabled'):
+                    pass
+                else:
+                    self.experiment.camera_enabled = False
+                #this was only created to avoid crushing when the old versions of experiments are loaded without the texp_locked attribute
+                if hasattr(self.experiment, 'texp_locked'):
+                    pass
+                else:
+                    self.experiment.texp_locked = False
 
                 self.sequence_num_rows = len(self.experiment.sequence)
                 self.update_off()
@@ -985,8 +1003,35 @@ class MainWindow(QMainWindow):
                 self.create_file_name_label()
                 update.from_object(self)
                 self.message_to_logger("Sequence loaded from %s" %self.experiment.file_name)
-            except:
-                self.error_message('Could not load the file.', 'Error')
+                
+                #restore camera box state and parameters after successful load
+                try:
+                    if hasattr(self, "camera_box"):
+                        self.camera_box.setChecked(self.experiment.camera_enabled)
+                        # Restore camera parameters
+                        if hasattr(self.experiment.experimental_data, 'camera'):
+                            cam = self.experiment.experimental_data.camera
+                            if hasattr(cam, 'camera_name') and cam.camera_name:
+                                index = self.which_cam_combo.findText(cam.camera_name)
+                                if index >= 0:
+                                    self.which_cam_combo.setCurrentIndex(index)
+                            if hasattr(cam, 'gain_db'):
+                                self.gain_edit.setText(str(cam.gain_db))
+                            if hasattr(cam, 'exposure_time'):
+                                self.exposure_edit.setText(str(cam.exposure_time))
+                            if hasattr(cam, 'format_name') and cam.format_name:
+                                index = self.format_combo.findText(cam.format_name)
+                                if index >= 0:
+                                    self.format_combo.setCurrentIndex(index)
+                    # Restore T_exp_ lock state
+                    if hasattr(self, "lock_cb"):
+                        self.lock_cb.setChecked(self.experiment.texp_locked)
+                        self._texp_locked = self.experiment.texp_locked
+                        self._update_texp_lock_presentation()
+                except Exception as e:
+                    self.message_to_logger(f"Could not restore camera settings: {e}")
+            except Exception as e:
+                self.error_message(f'Could not load the file: {e}', 'Error')
             self.update_on()
 
 
@@ -1422,6 +1467,12 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to save the sequence as a separate file. It will not reassign the current file name
         but just create an additional copy of the current state of the self.experiment
         '''
+        # Save camera state before pickling
+        if hasattr(self, "camera_box"):
+            self.experiment.camera_enabled = self.camera_box.isChecked()
+        if hasattr(self, "_texp_locked"):
+            self.experiment.texp_locked = self._texp_locked
+        
         self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0] # always ask for filename
         if self.experiment.file_name != "": #self.experiment.file_name = ""happens when no file name was given (canceled)
             try:
@@ -1630,6 +1681,11 @@ class MainWindow(QMainWindow):
         having a flag of self.dialog.accepted in case the window was closed by clicking the close button at the 
         right top corner, the dialog was accepted by default.
         '''
+        # Save camera state before pickling
+        if hasattr(self, "camera_box"):
+            self.experiment.camera_enabled = self.camera_box.isChecked()
+        if hasattr(self, "_texp_locked"):
+            self.experiment.texp_locked = self._texp_locked
         
         try:
             with open("./default/default", 'wb') as file:
