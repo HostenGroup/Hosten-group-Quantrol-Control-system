@@ -630,24 +630,65 @@ class MainWindow(QMainWindow):
         The function downloads the default state and initializes it by assigning the current experimental
         to the default values
         '''
+        default_path = self.repo_path / "default" / "default"
         incompatible = False
+        file_not_found = False
         try:
-            with open("./default/default", 'rb') as file:
+            with open(default_path, 'rb') as file:
                 default_experiment = pickle.load(file)
-            if (len(default_experiment.sequence[0].digital) == config.digital_channels_number) and (len(default_experiment.sequence[0].analog) == config.analog_channels_number) and (len(default_experiment.sequence[0].dds) == config.dds_channels_number) and (len(default_experiment.sequence[0].sampler) == config.sampler_channels_number) and (len(default_experiment.sequence[0].mirny) == config.mirny_channels_number) and (len(default_experiment.slow_dds) == config.slow_dds_channels_number):
-                pass
-            else:
+        except FileNotFoundError:
+            file_not_found = True
+            default_experiment = None
+        except Exception as e:
+            default_experiment = None
+        
+        if default_experiment is not None:
+            try:
+                compatible = True
+                
+                # Check digital channels
+                if len(default_experiment.sequence[0].digital) != config.digital_channels_number:
+                    compatible = False
+                
+                # Check analog channels
+                if len(default_experiment.sequence[0].analog) != config.analog_channels_number:
+                    compatible = False
+                
+                # Check DDS channels
+                if len(default_experiment.sequence[0].dds) != config.dds_channels_number:
+                    compatible = False
+                
+                # Check sampler channels
+                if len(default_experiment.sequence[0].sampler) != config.sampler_channels_number:
+                    compatible = False
+                
+                # Check Mirny channels
+                if len(default_experiment.sequence[0].mirny) != config.mirny_channels_number:
+                    compatible = False
+                
+                # Check slow DDS only if configured
+                if config.slow_dds_channels_number > 0:
+                    if not hasattr(default_experiment, 'slow_dds'):
+                        compatible = False
+                    elif len(default_experiment.slow_dds) != config.slow_dds_channels_number:
+                        compatible = False
+                
+                if compatible:
+                    #reassign the default values to the current self.experiment object
+                    self.experiment.sequence[0] = deepcopy(default_experiment.sequence[0])
+                    self.experiment.title_digital_tab = deepcopy(default_experiment.title_digital_tab)
+                    self.experiment.title_analog_tab = deepcopy(default_experiment.title_analog_tab)
+                    self.experiment.title_dds_tab = deepcopy(default_experiment.title_dds_tab)
+                    self.experiment.title_mirny_tab = deepcopy(default_experiment.title_mirny_tab)
+                    self.experiment.title_sampler_tab = deepcopy(default_experiment.title_sampler_tab)
+                    if config.slow_dds_channels_number > 0 and hasattr(default_experiment, 'title_slow_dds_tab'):
+                        self.experiment.title_slow_dds_tab = deepcopy(default_experiment.title_slow_dds_tab)
+                else:
+                    incompatible = True
+            except Exception as e:
                 incompatible = True
-                default_experiment.sequence[0].digital[1000000000] #Causing an error
-            #reassign the default values to the current self.experiment object
-            self.experiment.sequence[0] = deepcopy(default_experiment.sequence[0])
-            self.experiment.title_digital_tab = deepcopy(default_experiment.title_digital_tab)
-            self.experiment.title_analog_tab = deepcopy(default_experiment.title_analog_tab)
-            self.experiment.title_dds_tab = deepcopy(default_experiment.title_dds_tab)
-            self.experiment.title_mirny_tab = deepcopy(default_experiment.title_mirny_tab)
-            self.experiment.title_sampler_tab = deepcopy(default_experiment.title_sampler_tab)
-            self.experiment.title_slow_dds_tab = deepcopy(default_experiment.title_slow_dds_tab)
-        except:
+        
+        if file_not_found or incompatible:
             self.experiment.sequence[0] = self.Edge(name="Default")
             if config.digital_channels_number > 0:
                 self.experiment.title_digital_tab = ["#", "Name", "Time (ms)", ""] + [f"D{i}" for i in range(config.digital_channels_number)]
@@ -659,14 +700,15 @@ class MainWindow(QMainWindow):
                 self.experiment.title_mirny_tab = ["#", "Name", "Time (ms)", ""] + [f"M{i}" for i in range(config.mirny_channels_number)]            
             if config.sampler_channels_number > 0:
                 self.experiment.title_sampler_tab = ["#", "Name", "Time (ms)", ""] + [f"S{i}" for i in range(config.sampler_channels_number)]            
-            if config.dds_channels_number > 0:
-                self.experiment.title_slow_dds_tab = ["#", "Name", "Time (ms)", ""] + [f"slow DDS{i}" for i in range(config.dds_channels_number)]            
+            if config.slow_dds_channels_number > 0:
+                self.experiment.title_slow_dds_tab = ["#", "Name", "Time (ms)", ""] + [f"slow DDS{i}" for i in range(config.slow_dds_channels_number)]            
             if incompatible:
                 self.error_message('Default file is incompatible. Initializing the DEFAULT default values and updating the default file.', 'Error')
-            else:
+            elif file_not_found:
                 self.error_message('Default file is not found. Initializing the DEFAULT default values and updating the default file.', 'Error')
-            os.makedirs("./default", exist_ok=True)
-            with open("./default/default", 'wb') as file:
+            os.makedirs(self.repo_path / "default", exist_ok=True)
+            save_path = self.repo_path / "default" / "default"
+            with open(save_path, 'wb') as file:
                 pickle.dump(self.experiment, file)
 
     
@@ -1688,7 +1730,7 @@ class MainWindow(QMainWindow):
             self.experiment.texp_locked = self._texp_locked
         
         try:
-            with open("./default/default", 'wb') as file:
+            with open(self.repo_path / "default" / "default", 'wb') as file:
                 pickle.dump(self.experiment, file)
             self.message_to_logger("Default saved at %s" %self.experiment.file_name)
         except:
@@ -1706,7 +1748,7 @@ class MainWindow(QMainWindow):
         '''
         self.update_off()
         try:
-            with open("./default/default", 'rb') as file:
+            with open(self.repo_path / "default" / "default", 'rb') as file:
                 default_experiment = pickle.load(file)
             #Reassign the default values to the current self.experiment object
             self.experiment.sequence[0] = deepcopy(default_experiment.sequence[0])
