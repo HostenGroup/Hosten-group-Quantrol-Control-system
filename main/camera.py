@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--experiment-code", type=int, default=0, help="Index of the experiment in experiment_names.json")
     parser.add_argument("--repo-root", type=str, default=str(Path(__file__).resolve().parents[1]), help="Repository root path")
     parser.add_argument("--output-root", type=str, default=None, help="Root directory for saving captures. Defaults to Hybrid MOT path")
+    parser.add_argument("--target-dir", type=str, default=None, help="Exact directory for this acquisition run")
     parser.add_argument("--info-text", type=str, default="", help="Optional comment stored in info.json")
     parser.add_argument("--process-images", action="store_true", help="Run legacy post-processing once acquisition finishes")
     return parser.parse_args()
@@ -308,10 +309,23 @@ def run_acquisition(args: argparse.Namespace) -> None:
     experiment_name = experiment_entry.get("name", f"experiment_{experiment_entry['code']}")
     scan_caption = experiment_entry.get("plot_x_caption", "")
 
-    output_root = Path(args.output_root) if args.output_root else Path(
-        rf"G:/Experimental Data/Hybrid/MOT_images/{experiment_name}"
-    )
-    output_root = output_root.resolve()
+    if args.target_dir:
+        directory = Path(args.target_dir).resolve()
+        parents = directory.parents
+        if len(parents) >= 3:
+            output_root = parents[2]
+        elif parents:
+            output_root = parents[-1]
+        else:
+            output_root = directory
+        output_root = output_root.resolve()
+    else:
+        output_root = Path(args.output_root) if args.output_root else Path(
+            rf"G:/Experimental Data/Hybrid/MOT_images/{experiment_name}"
+        )
+        output_root = output_root.resolve()
+        timestamp = dt.datetime.now()
+        directory = output_root / timestamp.strftime("%Y_%m_%d") / timestamp.strftime("%H_%M_%S") / args.camera
 
     # Parameters you want to put to the info file (ALL VALUES IN SI)
     # Legacy reference (kept for clarity):
@@ -372,8 +386,6 @@ def run_acquisition(args: argparse.Namespace) -> None:
 
         configure_camera(cam, exposure_us, args.gain_db, args.format, info)
 
-        timestamp = dt.datetime.now()
-        directory = output_root / timestamp.strftime("%Y_%m_%d") / timestamp.strftime("%H_%M_%S") / args.camera
         file_directory = directory
         file_directory.mkdir(parents=True, exist_ok=True)
 

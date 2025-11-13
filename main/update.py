@@ -393,11 +393,20 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.mirny_channels_number):
         for setting in range(4,-1,-1): #start an update from the state of the channel to properly update the color coding
-            for row in range(2, self.sequence_num_rows+2): # plus 2 because of 2 rows used for title
-                channel = self.experiment.sequence[row-2].mirny[channel_index]
-                # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
-                col = channel_index * 6 + 4 + setting
+            for row in range(self.sequence_num_rows):
+                channel = self.experiment.sequence[row].mirny[channel_index]
+                base_col = channel_index * 6
+                col = base_col + 1 + setting
+                separator_item = self.mirny_table.item(row, base_col)
+                if separator_item is None:
+                    separator_item = QTableWidgetItem()
+                    self.mirny_table.setItem(row, base_col, separator_item)
+                separator_item.setFlags(Qt.NoItemFlags)
+                separator_item.setBackground(self.grey)
                 table_item = self.mirny_table.item(row, col)
+                if table_item is None:
+                    table_item = QTableWidgetItem()
+                    self.mirny_table.setItem(row, col, table_item)
                 exec("self.channel_entry = channel.%s" %self.setting_dict[setting])
                 channel_entry = self.channel_entry
                 if channel.changed: #Channel state needs to be updated
@@ -814,8 +823,8 @@ def from_object(self):
         self.dds_table.setRowCount(self.sequence_num_rows) #2 first rows are used for title name 
         self.dds_seq.setRowCount(self.sequence_num_rows) #2 first rows are used for title name 
     if config.mirny_channels_number > 0:
-        self.mirny_table.setRowCount(self.sequence_num_rows+2) #2 first rows are used for title name 
-        self.mirny_dummy.setRowCount(self.sequence_num_rows+2) #2 first rows are used for title name 
+        self.mirny_table.setRowCount(self.sequence_num_rows)
+        self.mirny_dummy.setRowCount(self.sequence_num_rows)
     if config.sampler_channels_number > 0:
         self.sampler_table.setRowCount(self.sequence_num_rows)
     #Separator
@@ -833,8 +842,11 @@ def from_object(self):
 
     #Update DDS titles
     if config.dds_channels_number > 0:
+        dds_titles = getattr(self.experiment, "title_dds_tab", [])
         for i in range(config.dds_channels_number):
-            self.dds_table_header.setItem(0,6*i+1, QTableWidgetItem(str(self.experiment.title_dds_tab[i+4])))
+            title_index = i + 4
+            title_text = str(dds_titles[title_index]) if title_index < len(dds_titles) else f"DDS{i}"
+            self.dds_table_header.setItem(0,6*i+1, QTableWidgetItem(title_text))
             self.dds_table_header.item(0,6*i+1).setTextAlignment(Qt.AlignCenter)
             #headers Channel attributes (f, Amp, att, phase, state)
             self.dds_table_header.setItem(1,6*i+1, QTableWidgetItem('f (MHz)'))
@@ -846,21 +858,55 @@ def from_object(self):
 
     #Update MIRNY titles
     if config.mirny_channels_number > 0:
+        mirny_titles = getattr(self.experiment, "title_mirny_tab", [])
         for i in range(config.mirny_channels_number):
-            self.mirny_dummy_header.setItem(0,6*i+4, QTableWidgetItem(str(self.experiment.title_mirny_tab[i+4])))
-            self.mirny_dummy_header.item(0,6*i+4).setTextAlignment(Qt.AlignCenter)
-            #headers Channel attributes (f, Amp, att, phase, state)
-            self.mirny_dummy_header.setItem(1,6*i+4, QTableWidgetItem('f (MHz)'))
-            self.mirny_dummy_header.setItem(1,6*i+5, QTableWidgetItem('Amp (dBm)'))
-            self.mirny_dummy_header.setItem(1,6*i+6, QTableWidgetItem('Att (dB)'))
-            self.mirny_dummy_header.setItem(1,6*i+7, QTableWidgetItem('phase (deg)'))
-            self.mirny_dummy_header.setItem(1,6*i+8, QTableWidgetItem('state'))
+            base_col = 6 * i
+            self.mirny_dummy_header.setSpan(0, base_col, 2, 1)
+            separator_item = self.mirny_dummy_header.item(0, base_col)
+            if separator_item is None:
+                separator_item = QTableWidgetItem()
+                self.mirny_dummy_header.setItem(0, base_col, separator_item)
+            separator_item.setFlags(Qt.NoItemFlags)
+            separator_item.setBackground(self.grey)
+            self.mirny_dummy_header.setSpan(0, base_col + 1, 1, 5)
+            title_index = i + 4
+            title_text = str(mirny_titles[title_index]) if title_index < len(mirny_titles) else f"M{i}"
+            title_item = QTableWidgetItem(title_text)
+            title_item.setTextAlignment(Qt.AlignCenter)
+            self.mirny_dummy_header.setItem(0, base_col + 1, title_item)
+            headers = ['f (MHz)', 'Amp (dBm)', 'Att (dB)', 'phase (deg)', 'state']
+            for offset, header_text in enumerate(headers):
+                header_item = QTableWidgetItem(header_text)
+                header_item.setTextAlignment(Qt.AlignCenter)
+                self.mirny_dummy_header.setItem(1, base_col + 1 + offset, header_item)
+        # update fixed corner titles (#, Name, Time)
+        if hasattr(self, "mirny_fixed"):
+            for col in range(min(3, self.mirny_fixed.columnCount())):
+                if col < len(mirny_titles):
+                    header_text = str(mirny_titles[col])
+                elif col == 0:
+                    header_text = "#"
+                elif col == 1:
+                    header_text = "Name"
+                elif col == 2:
+                    header_text = "Time (ms)"
+                else:
+                    header_text = ""
+                item = self.mirny_fixed.item(0, col)
+                if item is None:
+                    item = QTableWidgetItem()
+                    self.mirny_fixed.setItem(0, col, item)
+                item.setText(header_text)
+                item.setTextAlignment(Qt.AlignCenter)
     
 
     #Update Slow DDS titles
     if config.slow_dds_channels_number > 0:
+        slow_titles = getattr(self.experiment, "title_slow_dds_tab", [])
         for i in range(config.slow_dds_channels_number):
-            self.slow_dds_table.setItem(0,6*i+4 + 1, QTableWidgetItem(str(self.experiment.title_slow_dds_tab[i+4])))
+            title_index = i + 4
+            title_text = str(slow_titles[title_index]) if title_index < len(slow_titles) else f"slow DDS{i}"
+            self.slow_dds_table.setItem(0,6*i+4 + 1, QTableWidgetItem(title_text))
             self.slow_dds_table.item(0,6*i+4 + 1).setTextAlignment(Qt.AlignCenter)
             #headers Channel attributes (f, Amp, att, phase, state)
             self.slow_dds_table.setItem(1,6*i+1, QTableWidgetItem('f (MHz)'))
@@ -912,9 +958,9 @@ def from_object(self):
             self.dds_seq.setItem(row,2, QTableWidgetItem(str(edge.value)))   
         
         if config.mirny_channels_number > 0:
-            self.mirny_dummy.setItem(row+2,0, QTableWidgetItem(str(row)))
-            self.mirny_dummy.setItem(row+2,1, QTableWidgetItem(edge.name))
-            self.mirny_dummy.setItem(row+2,2, QTableWidgetItem(str(edge.value)))   
+            self.mirny_dummy.setItem(row,0, QTableWidgetItem(str(row)))
+            self.mirny_dummy.setItem(row,1, QTableWidgetItem(edge.name))
+            self.mirny_dummy.setItem(row,2, QTableWidgetItem(str(edge.value)))  
 
         if config.sampler_channels_number > 0:
             self.sampler_table.setItem(row,0, QTableWidgetItem(str(row)))
@@ -1102,10 +1148,16 @@ def from_object(self):
     if config.mirny_channels_number > 0:
         for channel_index in range(config.mirny_channels_number):
             for setting in range(5):
-                for row in range(self.sequence_num_rows+2): # plus 2 because of 2 rows used for title
-                    channel = self.experiment.sequence[row-2].mirny[channel_index]
-                    # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
-                    col = channel_index * 6 + 4 + setting
+                for row in range(self.sequence_num_rows):
+                    channel = self.experiment.sequence[row].mirny[channel_index]
+                    base_col = channel_index * 6
+                    sep_item = self.mirny_table.item(row, base_col)
+                    if sep_item is None:
+                        sep_item = QTableWidgetItem()
+                        self.mirny_table.setItem(row, base_col, sep_item)
+                    sep_item.setFlags(Qt.NoItemFlags)
+                    sep_item.setBackground(self.grey)
+                    col = base_col + 1 + setting
                     exec("self.channel_entry = channel.%s" %self.setting_dict[setting])
                     channel_entry = self.channel_entry
                     if channel.changed: 
@@ -1227,9 +1279,9 @@ def all_values(self):
             self.dds_seq.setItem(row,2, QTableWidgetItem(str(edge.value)))   
         
         if config.mirny_channels_number > 0:
-            self.mirny_dummy.setItem(row+2,0, QTableWidgetItem(str(row)))
-            self.mirny_dummy.setItem(row+2,1, QTableWidgetItem(edge.name))
-            self.mirny_dummy.setItem(row+2,2, QTableWidgetItem(str(edge.value)))   
+            self.mirny_dummy.setItem(row,0, QTableWidgetItem(str(row)))
+            self.mirny_dummy.setItem(row,1, QTableWidgetItem(edge.name))
+            self.mirny_dummy.setItem(row,2, QTableWidgetItem(str(edge.value)))  
 
         if config.sampler_channels_number > 0:
             self.sampler_table.setItem(row,0, QTableWidgetItem(str(row)))
@@ -1417,10 +1469,16 @@ def all_values(self):
     if config.mirny_channels_number > 0:
         for channel_index in range(config.mirny_channels_number):
             for setting in range(5):
-                for row in range(self.sequence_num_rows+2): # plus 2 because of 2 rows used for title
-                    channel = self.experiment.sequence[row-2].mirny[channel_index]
-                    # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
-                    col = channel_index * 6 + 4 + setting
+                for row in range(self.sequence_num_rows):
+                    channel = self.experiment.sequence[row].mirny[channel_index]
+                    base_col = channel_index * 6
+                    sep_item = self.mirny_table.item(row, base_col)
+                    if sep_item is None:
+                        sep_item = QTableWidgetItem()
+                        self.mirny_table.setItem(row, base_col, sep_item)
+                    sep_item.setFlags(Qt.NoItemFlags)
+                    sep_item.setBackground(self.grey)
+                    col = base_col + 1 + setting
                     exec("self.channel_entry = channel.%s" %self.setting_dict[setting])
                     channel_entry = self.channel_entry
                     if channel.changed: 

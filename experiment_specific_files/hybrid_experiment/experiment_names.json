@@ -38,5 +38,9 @@
     "9": {
         "name": "MOT_jiggle",
         "plot_x_caption": "Phase, deg"
+    },
+    "10": {
+        "name": "dummy_bruh",
+        "plot_x_caption": "bruh"
     }
 }

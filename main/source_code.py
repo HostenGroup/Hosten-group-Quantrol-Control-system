@@ -38,6 +38,7 @@ import config
 from scipy.io import savemat, loadmat
 # import pandas as pd
 import json
+import importlib
 from pathlib import Path
 
 
@@ -526,6 +527,7 @@ class MainWindow(QMainWindow):
         self.wrong_red = QColor(255, 0, 1) # fish
         self._texp_locked = False
         self._updating_texp_lock = False
+        self._openpyxl_missing_warned = False
 
 
         self.experiment.variables['id0'] = self.Variable(name = "id0", value = 0.0, for_python = 0.0)
@@ -537,6 +539,8 @@ class MainWindow(QMainWindow):
         self.experiment.sequence = [self.Edge("Default")]
         
         self.init_default_values() #Reads the default state file and initializes the values
+        self._ensure_title_lengths()
+        self._ensure_variable_structures()
         tabs.sequence_tab_build(self)
         tabs.variables_tab_build(self)
         tabs.acquisition_tab_build(self)
@@ -557,7 +561,6 @@ class MainWindow(QMainWindow):
        
         #ADDING TABS TO MAIN WINDOW
         self.main_window.addTab(self.sequence_tab_widget, "Sequence")
-        self.main_window.addTab(self.variables_tab_widget, "Variables")
         self.main_window.addTab(self.acquisition_tab_widget, "Acquisition")
         if config.digital_channels_number > 0:
             self.main_window.addTab(self.digital_tab_widget, "Digital")
@@ -567,6 +570,7 @@ class MainWindow(QMainWindow):
             self.main_window.addTab(self.dds_tab_widget, "DDS")
         if config.mirny_channels_number > 0:
             self.main_window.addTab(self.mirny_tab_widget, "Mirny")
+        self.main_window.addTab(self.variables_tab_widget, "Variables")
         if config.sampler_channels_number > 0:
             self.main_window.addTab(self.sampler_tab_widget, "Sampler")
         if config.slow_dds_channels_number > 0:
@@ -681,6 +685,7 @@ class MainWindow(QMainWindow):
                     self.experiment.title_dds_tab = deepcopy(default_experiment.title_dds_tab)
                     self.experiment.title_mirny_tab = deepcopy(default_experiment.title_mirny_tab)
                     self.experiment.title_sampler_tab = deepcopy(default_experiment.title_sampler_tab)
+                    self._ensure_variable_structures()
                     if config.slow_dds_channels_number > 0 and hasattr(default_experiment, 'title_slow_dds_tab'):
                         self.experiment.title_slow_dds_tab = deepcopy(default_experiment.title_slow_dds_tab)
                 else:
@@ -712,6 +717,143 @@ class MainWindow(QMainWindow):
                 pickle.dump(self.experiment, file)
 
     
+
+    def _ensure_title_lengths(self):
+        self._ensure_title_list('title_digital_tab', config.digital_channels_number, prefix='D')
+        self._ensure_title_list('title_analog_tab', config.analog_channels_number, prefix='A')
+        self._ensure_title_list('title_dds_tab', config.dds_channels_number, prefix='DDS')
+        self._ensure_title_list('title_mirny_tab', config.mirny_channels_number, prefix='M')
+        self._ensure_title_list('title_sampler_tab', config.sampler_channels_number, prefix='S')
+        self._ensure_title_list('title_slow_dds_tab', config.slow_dds_channels_number, prefix='slow DDS')
+
+
+    def _ensure_variable_structures(self):
+        raw_new_variables = getattr(self.experiment, 'new_variables', [])
+        if isinstance(raw_new_variables, list):
+            candidate_variables = raw_new_variables
+        else:
+            try:
+                candidate_variables = list(raw_new_variables)
+            except TypeError:
+                candidate_variables = []
+
+        normalized_variables = []
+        for candidate in candidate_variables:
+            if isinstance(candidate, self.Variable):
+                normalized_variables.append(candidate)
+                continue
+            if isinstance(candidate, dict):
+                name = candidate.get('name', '')
+                value = candidate.get('value', 0.0)
+                for_python = candidate.get('for_python', value)
+                normalized_variables.append(
+                    self.Variable(
+                        name=name,
+                        value=value,
+                        for_python=for_python,
+                        is_scanned=candidate.get('is_scanned', False),
+                        is_ramped=candidate.get('is_ramped', False),
+                        is_sampled=candidate.get('is_sampled', False),
+                        is_derived=candidate.get('is_derived', False),
+                        is_lookup=candidate.get('is_lookup', False),
+                    )
+                )
+                continue
+            name = getattr(candidate, 'name', None)
+            if name is None:
+                continue
+            value = getattr(candidate, 'value', 0.0)
+            for_python = getattr(candidate, 'for_python', value)
+            normalized_variables.append(
+                self.Variable(
+                    name=name,
+                    value=value,
+                    for_python=for_python,
+                    is_scanned=getattr(candidate, 'is_scanned', False),
+                    is_ramped=getattr(candidate, 'is_ramped', False),
+                    is_sampled=getattr(candidate, 'is_sampled', False),
+                    is_derived=getattr(candidate, 'is_derived', False),
+                    is_lookup=getattr(candidate, 'is_lookup', False),
+                )
+            )
+
+        self.experiment.new_variables = normalized_variables
+
+        variables_dict = getattr(self.experiment, 'variables', None)
+        if not isinstance(variables_dict, dict):
+            variables_dict = {}
+        self.experiment.variables = variables_dict
+
+        for variable in self.experiment.new_variables:
+            existing_entry = self.experiment.variables.get(variable.name)
+            if isinstance(existing_entry, self.Variable):
+                continue
+            if isinstance(existing_entry, dict):
+                self.experiment.variables[variable.name] = self.Variable(
+                    name=existing_entry.get('name', variable.name),
+                    value=existing_entry.get('value', variable.value),
+                    for_python=existing_entry.get('for_python', variable.for_python),
+                    is_scanned=existing_entry.get('is_scanned', variable.is_scanned),
+                    is_ramped=existing_entry.get('is_ramped', variable.is_ramped),
+                    is_sampled=existing_entry.get('is_sampled', variable.is_sampled),
+                    is_derived=existing_entry.get('is_derived', variable.is_derived),
+                    is_lookup=existing_entry.get('is_lookup', variable.is_lookup),
+                )
+            else:
+                self.experiment.variables[variable.name] = self.Variable(
+                    name=variable.name,
+                    value=getattr(existing_entry, 'value', variable.value),
+                    for_python=getattr(existing_entry, 'for_python', variable.for_python),
+                    is_scanned=getattr(existing_entry, 'is_scanned', variable.is_scanned),
+                    is_ramped=getattr(existing_entry, 'is_ramped', variable.is_ramped),
+                    is_sampled=getattr(existing_entry, 'is_sampled', variable.is_sampled),
+                    is_derived=getattr(existing_entry, 'is_derived', variable.is_derived),
+                    is_lookup=getattr(existing_entry, 'is_lookup', variable.is_lookup),
+                )
+
+        if 'id0' not in self.experiment.variables:
+            self.experiment.variables['id0'] = self.Variable(name='id0', value=0.0, for_python=0.0)
+        if '' not in self.experiment.variables:
+            self.experiment.variables[''] = self.Variable(name='', value=0.0, for_python=0.0)
+
+
+    def _ensure_title_list(self, attr_name, channel_count, prefix='X'):
+        if channel_count <= 0:
+            setattr(self.experiment, attr_name, [])
+            return
+
+        base_titles = ["#", "Name", "Time (ms)", ""]
+        existing = getattr(self.experiment, attr_name, None)
+        if isinstance(existing, list):
+            titles = list(existing)
+        elif existing is None:
+            titles = []
+        else:
+            try:
+                titles = list(existing)
+            except TypeError:
+                titles = []
+
+        # Ensure the leading columns exist
+        for idx in range(4):
+            if len(titles) <= idx:
+                titles.append(base_titles[idx])
+            elif idx < len(base_titles) and not titles[idx]:
+                titles[idx] = base_titles[idx]
+
+        required_len = 4 + channel_count
+        # Extend with default names if missing
+        next_index = max(0, len(titles) - 4)
+        while len(titles) < required_len:
+            titles.append(f"{prefix}{next_index}")
+            next_index += 1
+
+        # Trim excess entries if there are more than expected
+        if len(titles) > required_len:
+            titles = titles[:required_len]
+
+        setattr(self.experiment, attr_name, titles)
+
 
     def message_to_logger(self, message):
         '''
@@ -1034,6 +1176,8 @@ class MainWindow(QMainWindow):
                 else:
                     self.experiment.texp_locked = False
 
+                self._ensure_title_lengths()
+                self._ensure_variable_structures()
                 self.sequence_num_rows = len(self.experiment.sequence)
                 self.update_off()
                 #update the state of the checkbox for doing the scan
@@ -1044,6 +1188,23 @@ class MainWindow(QMainWindow):
                 self.experiment.file_name = loaded_file_name
                 self.create_file_name_label()
                 update.from_object(self)
+                try:
+                    exp_data = getattr(self.experiment, "experimental_data", None)
+                    row = getattr(exp_data, "experiment_id", None) if exp_data else None
+                    row_int = None
+                    if isinstance(row, int):
+                        row_int = row
+                    elif isinstance(row, str):
+                        row_stripped = row.strip()
+                        if row_stripped.isdigit():
+                            row_int = int(row_stripped)
+                    if row_int is not None and hasattr(self, "experiment_list_list_widget"):
+                        if 0 <= row_int < self.experiment_list_list_widget.count():
+                            self.experiment_list_list_widget.setCurrentRow(row_int)
+                        else:
+                            self.experiment_list_list_widget.clearSelection()
+                except Exception as restore_exc:
+                    self.message_to_logger(f"Could not restore experiment selection: {restore_exc}")
                 self.message_to_logger("Sequence loaded from %s" %self.experiment.file_name)
                 
                 #restore camera box state and parameters after successful load
@@ -1302,8 +1463,17 @@ class MainWindow(QMainWindow):
                     return
 
             try:
-                with open(self.repo_path / 'logs' / 'metadata.json', "w") as outfile:
+                if camera_launch_info and camera_launch_info.get("metadata_dir"):
+                    metadata_dir = Path(camera_launch_info["metadata_dir"])
+                else:
+                    metadata_dir = self.repo_path / 'logs'
+                metadata_dir.mkdir(parents=True, exist_ok=True)
+                if not getattr(self.experiment.experimental_data, "current_run_timestamp", ""):
+                    self.experiment.experimental_data.current_run_timestamp = datetime.now().isoformat()
+                self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
+                with open(metadata_dir / 'metadata.json', "w") as outfile:
                     json.dump(self.to_dict(self.experiment),outfile,indent=4)
+                self._record_experiment_run(metadata_dir)
                 if camera_launch_info:
                     self._start_camera_subprocess(camera_launch_info)
                     self.message_to_logger("Camera acquisition started")
@@ -1599,8 +1769,17 @@ class MainWindow(QMainWindow):
                     return
 
             try:
-                with open(self.repo_path / 'logs' / 'metadata.json', "w") as outfile:
+                if camera_launch_info and camera_launch_info.get("metadata_dir"):
+                    metadata_dir = Path(camera_launch_info["metadata_dir"])
+                else:
+                    metadata_dir = self.repo_path / 'logs'
+                metadata_dir.mkdir(parents=True, exist_ok=True)
+                if not getattr(self.experiment.experimental_data, "current_run_timestamp", ""):
+                    self.experiment.experimental_data.current_run_timestamp = datetime.now().isoformat()
+                self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
+                with open(metadata_dir / 'metadata.json', "w") as outfile:
                     json.dump(self.to_dict(self.experiment),outfile,indent=4)
+                self._record_experiment_run(metadata_dir)
                 if camera_launch_info:
                     self._start_camera_subprocess(camera_launch_info)
                     self.message_to_logger("Camera acquisition started")
@@ -2569,9 +2748,13 @@ class MainWindow(QMainWindow):
         if self.to_update:
             row = item.row()
             col = item.column()
-            edge_num = row - 2
-            channel = (col - 4)//6 #4 columns for edge and separation. division by 5 channel settings and 1 separation
-            setting = col - 4 - 6 * channel # the number is a sequential value of setting. Frequency is 0, Amplitude 1, attenuation 2, phase 3, state 4
+            if col % 6 == 0:
+                return
+            edge_num = row
+            channel = col // 6
+            setting = col - (channel * 6) - 1 # Frequency is 0, Amplitude 1, attenuation 2, phase 3, state 4
+            if edge_num < 0 or edge_num >= len(self.experiment.sequence):
+                return
             if self.mirny_table.item(row,col).text() == "": #User deleted the value. The function will display the previously set state
                 if edge_num == 0: #Default edge
                     self.error_message("You can not delete initial value!", "Initial value is needed!")
@@ -2582,7 +2765,9 @@ class MainWindow(QMainWindow):
                     #Removing background color
                     self.update_off()
                     for index_setting in range(5):
-                        self.mirny_table.item(row, channel*6 + 4 + index_setting).setBackground(self.white)
+                        cell = self.mirny_table.item(row, channel*6 + 1 + index_setting)
+                        if cell is not None:
+                            cell.setBackground(self.white)
                     self.experiment.sequence[edge_num].mirny[channel].changed = False
                     self.update_on()
                     update.mirny_tab(self)
@@ -2625,7 +2810,13 @@ class MainWindow(QMainWindow):
         '''
         if self.to_update:
             col = item.column()
-            self.experiment.title_mirny_tab[(col-4)//6 + 4] = self.mirny_dummy_header.item(0,col).text() # title has 3 leading names and a separator
+            row = item.row()
+            if row == 0 and col % 6 == 1:
+                channel_index = col // 6
+                target_index = channel_index + 4
+                while len(self.experiment.title_mirny_tab) <= target_index:
+                    self.experiment.title_mirny_tab.append(f"M{len(self.experiment.title_mirny_tab) - 4}")
+                self.experiment.title_mirny_tab[target_index] = self.mirny_dummy_header.item(0,col).text()
 
 
 
@@ -3554,6 +3745,7 @@ class MainWindow(QMainWindow):
             self.experiment_list_chosen_line_caption.clear()
             self.experiment.experimental_data.experiment_name = ''
             self.experiment.experimental_data.comment = ''
+            self.experiment.experimental_data.path = ''
             self.experiment.experimental_data.experiment_id = ''
             return
 
@@ -3567,6 +3759,11 @@ class MainWindow(QMainWindow):
         name = data[key]["name"]
         caption = data[key]["plot_x_caption"]
 
+        base_path = getattr(config, "experiment_data_root", "")
+        if base_path:
+            self.experiment.experimental_data.path = str(Path(base_path) / name)
+        else:
+            self.experiment.experimental_data.path = ""
         self.experiment_list_chosen_line.setText(name)
         self.experiment_list_chosen_line_caption.setText(caption)
         self.experiment.experimental_data.experiment_name = name
@@ -3726,8 +3923,29 @@ class MainWindow(QMainWindow):
         experiment_code = experiment_row if experiment_row >= 0 else 0
 
         info_text = (self.experiment.experimental_data.comment or "").strip()
-        output_root = (self.experiment.experimental_data.path or "").strip()
+        base_path = (self.experiment.experimental_data.path or "").strip()
+        experiment_name = (self.experiment.experimental_data.experiment_name or self.experiment_list_chosen_line.text() or "").strip()
+        if not base_path:
+            data_root = getattr(config, "experiment_data_root", "")
+            if data_root:
+                if experiment_name:
+                    base_path = str(Path(data_root) / experiment_name)
+                else:
+                    base_path = data_root
+        timestamp = datetime.now()
+        date_part = timestamp.strftime("%Y_%m_%d")
+        time_part = timestamp.strftime("%H_%M_%S")
+        if base_path:
+            run_base_dir = Path(base_path) / date_part / time_part
+        else:
+            run_base_dir = Path(self.repo_path / "logs" / "camera_runs" / date_part / time_part)
+        run_directory = run_base_dir / camera_name
 
+        if base_path:
+            self.experiment.experimental_data.path = base_path
+        self.experiment.experimental_data.current_run_path = str(run_directory)
+        self.experiment.experimental_data.current_run_metadata_path = str(run_base_dir)
+        self.experiment.experimental_data.current_run_timestamp = timestamp.isoformat()
         self.experiment.experimental_data.camera.camera_name = camera_name
         self.experiment.experimental_data.camera.serial_number = serial_number
         self.experiment.experimental_data.camera.gain_db = gain_value
@@ -3735,7 +3953,7 @@ class MainWindow(QMainWindow):
         self.experiment.experimental_data.camera.format_name = format_name
         self.experiment.experimental_data.experiment_id = experiment_code
         if not self.experiment.experimental_data.experiment_name:
-            self.experiment.experimental_data.experiment_name = self.experiment_list_chosen_line.text()
+            self.experiment.experimental_data.experiment_name = experiment_name
 
         argv = [
             str(camera_python),
@@ -3748,12 +3966,25 @@ class MainWindow(QMainWindow):
             "--repo-root", str(self.repo_path),
         ]
 
-        if output_root:
-            argv.extend(["--output-root", output_root])
+        parents = run_directory.parents
+        if len(parents) >= 3:
+            output_root = parents[2]
+        elif parents:
+            output_root = parents[-1]
+        else:
+            output_root = run_directory
+        argv.extend(["--output-root", str(output_root)])
+        argv.extend(["--target-dir", str(run_directory)])
         if info_text:
             argv.extend(["--info-text", info_text])
 
-        return {"argv": argv, "cwd": str(camera_script.parent)}
+        return {
+            "argv": argv,
+            "cwd": str(camera_script.parent),
+            "output_dir": str(run_directory),
+            "metadata_dir": str(run_base_dir),
+            "timestamp": timestamp.isoformat()
+        }
 
 
     def _start_camera_subprocess(self, launch_info):
@@ -3813,6 +4044,90 @@ class MainWindow(QMainWindow):
         thread = threading.Thread(target=runner, daemon=True)
         thread.start()
         return thread
+
+
+    def _record_experiment_run(self, metadata_dir):
+        db_path = getattr(config, "experiment_database_path", "")
+        if not db_path:
+            return
+        try:
+            openpyxl_module = importlib.import_module("openpyxl")
+        except ImportError:
+            if not self._openpyxl_missing_warned:
+                self.message_to_logger("openpyxl not installed – experiment log will not be updated.")
+                self._openpyxl_missing_warned = True
+            return
+
+        Workbook = getattr(openpyxl_module, "Workbook", None)
+        load_workbook = getattr(openpyxl_module, "load_workbook", None)
+        if Workbook is None or load_workbook is None:
+            if not self._openpyxl_missing_warned:
+                self.message_to_logger("openpyxl is missing workbook support – experiment log updates disabled.")
+                self._openpyxl_missing_warned = True
+            return
+
+        metadata_path = Path(metadata_dir)
+        db_file = Path(db_path)
+        try:
+            db_file.parent.mkdir(parents=True, exist_ok=True)
+            if db_file.exists():
+                workbook = load_workbook(db_file)
+                sheet = workbook.active
+            else:
+                workbook = Workbook()
+                sheet = workbook.active
+                sheet.title = "Experiments"
+                sheet.append([
+                    "Experiment",
+                    "Date",
+                    "Time",
+                    "Good data",
+                    "Comments",
+                    "Data path",
+                    "Scanned variables",
+                    "Scan ranges"
+                ])
+
+            timestamp_iso = getattr(self.experiment.experimental_data, "current_run_timestamp", "")
+            try:
+                run_ts = datetime.fromisoformat(timestamp_iso) if timestamp_iso else datetime.now()
+            except ValueError:
+                run_ts = datetime.now()
+
+            experiment_name = getattr(self.experiment.experimental_data, "experiment_name", "") or ""
+            date_value = run_ts.date()
+            time_value = run_ts.time().replace(microsecond=0)
+
+            scanned_variables = []
+            scan_ranges = []
+            for variable in getattr(self.experiment, "scanned_variables", []):
+                name = getattr(variable, "name", "")
+                if name and name != "None":
+                    scanned_variables.append(str(name))
+                    min_val = getattr(variable, "min_val", "")
+                    max_val = getattr(variable, "max_val", "")
+                    scan_ranges.append(f"{name}: {min_val} -> {max_val}")
+
+            row_values = [
+                experiment_name,
+                date_value,
+                time_value,
+                "",
+                "",
+                str(metadata_path),
+                "; ".join(scanned_variables),
+                "; ".join(scan_ranges)
+            ]
+
+            sheet.append(row_values)
+            last_row = sheet.max_row
+            data_cell = sheet.cell(row=last_row, column=6)
+            data_cell.hyperlink = str(metadata_path)
+            data_cell.style = "Hyperlink"
+
+            workbook.save(db_file)
+        except Exception as exc:
+            self.message_to_logger(f"Could not update experiment log: {exc}")
 
 
     def camera_which_cam_changed(self):

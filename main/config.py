@@ -15,8 +15,8 @@ from pathlib import Path
 digital_channels_number = 16
 analog_channels_number = 16
 dds_channels_number = 12
-mirny_channels_number = 0
-slow_dds_channels_number = 0
+mirny_channels_number = 4
+slow_dds_channels_number = 4
 sampler_channels_number = 8
 
 which_project = 'hybrid_experiment'
@@ -31,6 +31,8 @@ camera_serial_numbers_dict = {
     'X':'22433340',
     'Y':'22433344'
 }
+experiment_data_root = r"G:\Experimental Data\Hybrid\MOT_images"
+experiment_database_path = str(Path(experiment_data_root).parent / "Hybrid_exp_db.xlsx")
 # Construct camera_env_python path based on current Python environment
 _current_python = Path(sys.executable)
 _python_envs_path = Path(str(_current_python).split('python_envs')[0]) / 'python_envs'
