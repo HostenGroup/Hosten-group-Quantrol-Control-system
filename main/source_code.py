@@ -4087,6 +4087,16 @@ class MainWindow(QMainWindow):
         except ImportError:
             get_column_letter = None
 
+        try:
+            styles_module = importlib.import_module("openpyxl.styles")
+            PatternFill = getattr(styles_module, "PatternFill", None)
+            Font = getattr(styles_module, "Font", None)
+            Alignment = getattr(styles_module, "Alignment", None)
+        except ImportError:
+            PatternFill = None
+            Font = None
+            Alignment = None
+
         desired_headers = [
             "Date",
             "Experiment",
@@ -4099,9 +4109,8 @@ class MainWindow(QMainWindow):
             "Data path",
             "Comment"
         ]
-        column_width = 25
+        default_column_width = 25
         row_height = 20
-        good_data_default = "[ ]"
         header_aliases = {
             "Scanned variables": "Scanned variable",
             "Scan ranges": "Scan range",
@@ -4169,7 +4178,7 @@ class MainWindow(QMainWindow):
                     get_value(stored, "Scan range"),
                     get_value(stored, "Scan points number"),
                     get_value(stored, "Number of runs"),
-                    get_value(stored, "Good data", good_data_default),
+                    get_value(stored, "Good data"),
                     "path",
                     get_value(stored, "Comment")
                 ]
@@ -4183,22 +4192,40 @@ class MainWindow(QMainWindow):
                     data_cell.value = "path"
                     data_cell.hyperlink = link_target
                     data_cell.style = "Hyperlink"
-                good_cell = sheet.cell(row=current_row, column=8)
-                if not good_cell.value:
-                    good_cell.value = good_data_default
                 sheet.row_dimensions[current_row].height = row_height
 
         restructure_sheet_if_needed()
 
+        header_fill = PatternFill(fill_type="solid", fgColor="D9D9D9") if PatternFill else None
+        header_font = Font(bold=True) if Font else None
+        header_alignment = Alignment(horizontal="center", vertical="center") if Alignment else None
+
         for idx, header in enumerate(desired_headers, start=1):
-            sheet.cell(row=1, column=idx, value=header)
+            cell = sheet.cell(row=1, column=idx, value=header)
+            if header_font:
+                cell.font = header_font
+            if header_fill:
+                cell.fill = header_fill
+            if header_alignment:
+                cell.alignment = header_alignment
 
         if get_column_letter is not None:
+            width_map = {
+                1: 10,  # Date
+                3: 10,  # Time
+                6: 16,  # Scan points number
+                7: 16,  # Number of runs
+                8: 10,  # Good data
+                9: 10,  # Data path
+                10: 40  # Comment
+            }
             for col_idx in range(1, len(desired_headers) + 1):
                 column_letter = get_column_letter(col_idx)
-                sheet.column_dimensions[column_letter].width = column_width
+                width = width_map.get(col_idx, default_column_width)
+                sheet.column_dimensions[column_letter].width = width
 
         sheet.row_dimensions[1].height = row_height
+        sheet.freeze_panes = "A2"
 
         timestamp_iso = getattr(self.experiment.experimental_data, "current_run_timestamp", "")
         try:
@@ -4247,7 +4274,7 @@ class MainWindow(QMainWindow):
             "; ".join(scan_ranges),
             scan_points,
             number_of_runs_value,
-            good_data_default,
+            "",
             "path",
             ""
         ]
