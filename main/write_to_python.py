@@ -83,27 +83,51 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
         
         indentation = indentation[:-4]
     
-    if self.experiment.cam_trigger_off == True:
-        file.write(indentation + "# Not triggering camera at the beginning of a sequence %d times \n" %(self.experiment.cam_trigger_off_runs))
-        for val in config.camera_trigger_ttl:
-            file.write(indentation + "i_cam_trigger_off_runs" + str(val) + "= %d \n" %(self.experiment.cam_trigger_off_runs))
-
-    
     # for inital value of derived variables 
     arguments = self.experiment.derived_variables
     for argument in arguments:
         file.write(indentation + argument.name + " = " + "float("+ argument.initial_value + ")" + "\n")
 
+    warmup_runs = self.experiment.cam_trigger_off_runs if getattr(self.experiment, "cam_trigger_off", False) else 0
+    actual_runs = self.experiment.number_of_runs if multiple_runs else 1
+    if actual_runs <= 0:
+        actual_runs = 1
+    total_runs = warmup_runs + actual_runs
+    run_loop_added = False
+
     # Create an infinite while loop if needs to run continuously
     if run_continuous:
         file.write(indentation + "while True:\n")
         indentation += "    "
+        if warmup_runs > 0:
+            file.write(indentation + "if not hasattr(self, '_cam_warmup_remaining'):\n")
+            indentation += "    "
+            file.write(indentation + "self._cam_warmup_remaining = %d\n" % warmup_runs)
+            indentation = indentation[:-4]
+            file.write(indentation + "if self._cam_warmup_remaining > 0:\n")
+            indentation += "    "
+            file.write(indentation + "camera_enabled = False\n")
+            file.write(indentation + "self._cam_warmup_remaining -= 1\n")
+            indentation = indentation[:-4]
+            file.write(indentation + "else:\n")
+            indentation += "    "
+            file.write(indentation + "camera_enabled = True\n")
+            indentation = indentation[:-4]
+        else:
+            file.write(indentation + "camera_enabled = True\n")
 
     # owl begin
-    # Create for loop if needs to run multiple runs
-    if multiple_runs:
-        file.write(indentation + "for iruns in range(%d):   # multiple runs loop \n" %(self.experiment.number_of_runs)) 
-        indentation += "    "
+    if not run_continuous:
+        if total_runs > 1:
+            file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up\n" % total_runs)
+            indentation += "    "
+            run_loop_added = True
+            if warmup_runs > 0:
+                file.write(indentation + "camera_enabled = (run_index >= %d)\n" % warmup_runs)
+            else:
+                file.write(indentation + "camera_enabled = True\n")
+        else:
+            file.write(indentation + "camera_enabled = True\n")
     # owl end
 
     # 10 ns delay to avoid collision of the last edge assignment of digital channels as there is at most camera_trigger_ttl channel changes at a given time stamp
@@ -170,19 +194,18 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                     file.write(indentation + "delay(5*ms)\n")
 
                 if channel.changed == True:
-                    if self.experiment.cam_trigger_off == True and index in config.camera_trigger_ttl: # want to skip cam triggering for channel camera_trigger_ttl only
-                        if channel.value == 1: # 1 is on 
-                            file.write(indentation + "if i_cam_trigger_off_runs" + str(index) + " > 0:   # Skip cam triggering \n" )
+                    if index in config.camera_trigger_ttl:
+                        if channel.value == 1:
+                            file.write(indentation + "if camera_enabled:\n")
                             indentation += "    "
-                            file.write(indentation + "self.ttl" + str(index) + ".off() \n") 
-                            file.write(indentation + "i_cam_trigger_off_runs" + str(index) + " = i_cam_trigger_off_runs" + str(index) + " - 1 \n" )                            
+                            file.write(indentation + "self.ttl" + str(index) + ".on()\n")
                             indentation = indentation[:-4]
-                            file.write(indentation + "else: \n" )                            
+                            file.write(indentation + "else:\n")
                             indentation += "    "
-                            file.write(indentation + "self.ttl" + str(index) + ".on() \n") 
+                            file.write(indentation + "self.ttl" + str(index) + ".off()\n")
                             indentation = indentation[:-4]
                         else:
-                            file.write(indentation + "self.ttl" + str(index) + ".off() \n") 
+                            file.write(indentation + "self.ttl" + str(index) + ".off()\n")
                     else:
                         if channel.value == 1: # 1 is on 
                             file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
@@ -282,9 +305,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
     ############################# for continuous run AFTER experiment #############################
     ###############################################################################################
 
+    if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
+        indentation = indentation[:-4]
+    if not run_continuous and run_loop_added:
+        indentation = indentation[:-4]
+
     if self.experiment.cont_run_after_exp == True:
-        if multiple_runs:
-            indentation = indentation[:-4]  # make sure indentation is correct
         if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
             indentation = indentation[:-4] 
 

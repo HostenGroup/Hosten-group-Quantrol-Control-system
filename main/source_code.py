@@ -4397,7 +4397,7 @@ class MainWindow(QMainWindow):
             row_index = sheet.max_row
             date_cell_local = sheet.cell(row=row_index, column=1)
             if isinstance(date_cell_local.value, (datetime, date)):
-                date_cell_local.number_format = "m/d/yyyy"
+                date_cell_local.number_format = "d.m.yyyy"
             if metadata_value:
                 data_cell_local = sheet.cell(row=row_index, column=9)
                 data_cell_local.value = "path"
