@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
                      expression = "0", evaluation = 0,
                      for_python = 0, value = 0,
                      is_scanned = False, is_ramped = False,
-                     derived_variable_requested = -1): # owl
+                     derived_variable_requested = -1):
             self.expression = expression
             self.evaluation = evaluation
             self.value = value   
@@ -110,7 +110,7 @@ class MainWindow(QMainWindow):
                 is_scanned  :   Flag indicating if the digital channel state requires scanning. Even if there is a single scanned variable
                                 in the expression, the channel becomes scanned as it is supposed to be changing at different
                                 scan steps
-                is_ramped  :   Flag indicating if the digital channel is ramped # owl
+                is_ramped  :   Flag indicating if the digital channel is ramped
                 is_sampled  :   Flag indicating if the digital channel is sampled
                 is_derived  :   Flag indicating if the digital channel is dervied
                 is_lookup   :   Flag indicating if the digital channel is lookup                                
@@ -119,13 +119,13 @@ class MainWindow(QMainWindow):
                          value = 0.0, for_python = 0.0, changed = True,
                          is_scanned = False, is_ramped = False,
                          is_sampled = False, is_derived = False,
-                         is_lookup = False): # owl
+                         is_lookup = False):
                 self.expression = expression
                 self.evaluation = evaluation
                 self.value = value
                 self.for_python = for_python
                 self.changed = changed
-                self.is_scanned = is_scanned # owl
+                self.is_scanned = is_scanned
                 self.is_ramped = is_ramped
                 self.is_sampled = is_sampled
                 self.is_derived = is_derived
@@ -145,7 +145,7 @@ class MainWindow(QMainWindow):
                 is_scanned  :   Flag indicating if the analog channel state requires scanning. Even if there is a single scanned variable
                                 in the expression, the channel becomes scanned as it is supposed to be changing at different
                                 scan steps
-                is_ramped  :   Flag indicating if the digital channel is ramped # owl
+                is_ramped  :   Flag indicating if the digital channel is ramped
                 is_sampled  :   Flag indicating if the analgo channel is sampled
                 is_derived  :   Flag indicating if the analog channel is dervied
                 is_lookup   :   Flag indicating if the analog channel is lookup
@@ -154,14 +154,14 @@ class MainWindow(QMainWindow):
                          value = 0.0, for_python = "0.0",
                          changed = True, is_scanned = False,
                          is_ramped = False, is_sampled = False,
-                         is_derived = False, is_lookup = False): # OWL
+                         is_derived = False, is_lookup = False):
                 self.expression = expression
                 self.evaluation = evaluation
                 self.value = value
                 self.for_python = for_python
                 self.changed = changed
                 self.is_scanned = is_scanned
-                self.is_ramped = is_ramped # owl
+                self.is_ramped = is_ramped
                 self.is_sampled = is_sampled
                 self.is_derived = is_derived
                 self.is_lookup = is_lookup
@@ -206,19 +206,19 @@ class MainWindow(QMainWindow):
                     is_scanned  :   Flag indicating if the dds channel parameter requires scanning. Even if there is a single scanned variable
                                     in the expression, the channel parameter becomes scanned as it is supposed to be changing at different
                                     scan steps
-                    is_ramped  :   Flag indicating if the digital channel is ramped # owl
+                    is_ramped  :   Flag indicating if the digital channel is ramped
                     is_sampled  :   Flag indicating if the parameter is sampled
                     is_derived  :   Flag indicating if the parameter is dervied
                     is_lookup   :   Flag indicating if the parameter is lookup                                    
                 '''
-                def __init__(self, expression = "0.0", evaluation = 0.0, value = 0.0, changed = True, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False): # owl
+                def __init__(self, expression = "0.0", evaluation = 0.0, value = 0.0, changed = True, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False):
                     self.expression = expression
                     self.evaluation = evaluation
                     self.for_python = evaluation
                     self.value = value
                     self.changed = changed   
                     self.is_scanned = is_scanned 
-                    self.is_ramped = is_ramped # owl
+                    self.is_ramped = is_ramped
                     self.is_sampled = is_sampled     
                     self.is_derived = is_derived
                     self.is_lookup = is_lookup
@@ -270,17 +270,17 @@ class MainWindow(QMainWindow):
             self.derived_variables = []
             self.names_of_derived_variables = set()
             self.do_scan = False
-            self.do_ramp = False # owl
+            self.do_ramp = False
             self.number_of_steps = 1
             self.number_of_runs = 10
             self.cam_trigger_off_runs = 5
             self.file_name = ""
             self.scanned_variables = [] 
             self.scanned_variables_count = 0
-            self.ramped_variables = []  # owl
-            self.ramped_variables_count = 0 # owl
-            self.run_continuous = False # owl
-            self.multiple_runs = False # owl
+            self.ramped_variables = []
+            self.ramped_variables_count = 0
+            self.run_continuous = False
+            self.multiple_runs = False
             self.lookup_variables = []
             self.names_of_lookup_variables = set()
             self.camera_enabled = False
@@ -328,7 +328,6 @@ class MainWindow(QMainWindow):
             arguments   :   List of agruments for the function used to derive the variable
             function    :   String of the python description of the function to derive the variable
         ''' 
-        #add argument for initial value RACOON
         def __init__(self, name, arguments, edge_id, function, initial_value):
             self.name = name
             self.arguments = arguments
@@ -506,13 +505,13 @@ class MainWindow(QMainWindow):
                                1: float("inf"),
                                2: 31.5,
                                3: 360,
-                               4: 1} #max and min needs to be checked # MICE
+                               4: 1} #max and min needs to be checked
         
         self.min_dict_mirny = {0: 54,
                                1: -1*float("inf"),
                                2: 0,
                                3: 0,
-                               4: 0}  #max and min needs to be checked # MICE
+                               4: 0}  #max and min needs to be checked
         
         self.to_update = False
         self.green = QColor(37,211,102)
@@ -522,9 +521,9 @@ class MainWindow(QMainWindow):
         self.white = QColor(255,255,255)
         self.yellow = QColor(255, 255, 0)
         self.cyan = QColor(0, 255, 255)
-        self.purple = QColor(200, 150, 255) # owl
-        self.right_green = QColor(180, 255, 180) # fish
-        self.wrong_red = QColor(255, 0, 1) # fish
+        self.purple = QColor(200, 150, 255)
+        self.right_green = QColor(180, 255, 180)
+        self.wrong_red = QColor(255, 0, 1)
         self._texp_locked = False
         self._updating_texp_lock = False
         self._openpyxl_missing_warned = False
@@ -905,7 +904,7 @@ class MainWindow(QMainWindow):
         output_for_python = ""
         current = ""
         is_scanned = False
-        is_ramped = False # owl
+        is_ramped = False
         is_sampled = False
         is_derived = False
         is_lookup = False
@@ -930,11 +929,9 @@ class MainWindow(QMainWindow):
                     if self.experiment.do_scan and variable.is_scanned:#if scanned assign the python form else assign the value
                         is_scanned = True
                         output_for_python += str(self.experiment.variables[current].for_python) + text[index]
-                    # owl begin
                     elif self.experiment.do_ramp and variable.is_ramped: #if ramped assign the python form else assign the value
                         is_ramped = True 
                         output_for_python += str(self.experiment.variables[current].for_python) + text[index] 
-                    # owl end 
                     elif current in self.experiment.sampler_variables: #if sampled assign the name itself
                         output_for_python += "%s" %current + text[index]
                         is_sampled = True
@@ -963,7 +960,7 @@ class MainWindow(QMainWindow):
             output_eval = str(float(output_eval))
         except:
             pass
-        return (output_expression, output_eval, output_for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) #Since we added an additional sign we need to remove it # owl
+        return (output_expression, output_eval, output_for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup)
 
 
 
@@ -1080,7 +1077,7 @@ class MainWindow(QMainWindow):
                 else:                        
                     try:
                         expression = table_item.text()
-                        (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
+                        (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                         exec("self.value = " + str(evaluation)) # this is done here to be able to assign value of the id# type variable
                         if self.value < 0: #restricting negative values for time
                             self.error_message("Negative values are not allowed", "Negative time value")
@@ -1093,8 +1090,8 @@ class MainWindow(QMainWindow):
                             edge.expression = expression
                             edge.for_python = for_python
                             edge.is_scanned = is_scanned
-                            edge.is_ramped = is_ramped # owl
-                            self.experiment.variables[edge.id] = self.Variable(name = edge.id, value = edge.value, for_python = edge.for_python, is_scanned = edge.is_scanned, is_ramped = edge.is_ramped) # owl
+                            edge.is_ramped = is_ramped
+                            self.experiment.variables[edge.id] = self.Variable(name = edge.id, value = edge.value, for_python = edge.for_python, is_scanned = edge.is_scanned, is_ramped = edge.is_ramped)
                             update.sequence_tab(self) 
                             update.from_object(self)
                     except:
@@ -1418,11 +1415,6 @@ class MainWindow(QMainWindow):
                 count += 1
         self.experiment.scanned_variables_count = count
 
-
-
-
-
-    # owl begin
     def count_ramped_variables(self):
         '''
         analog to count_scanned_variables(self)
@@ -1432,7 +1424,6 @@ class MainWindow(QMainWindow):
             if variable.name != "None":
                 countr += 1
         self.experiment.ramped_variables_count = countr
-    # owl end
 
 
     def run_experiment_button_clicked(self): 
@@ -1441,14 +1432,17 @@ class MainWindow(QMainWindow):
         to make sure that all scanning variables are taken into account. After that it generates the run_experiment.py file and 
         submits the experimental description to the scheduler through artiq_run function.
         '''
+        if not self._ensure_camera_experiment_selected():
+            self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
+            return
         self.count_scanned_variables()
-        self.count_ramped_variables() # owl
+        self.count_ramped_variables()
         update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
         try:
             write_to_python.create_experiment(self)
-            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False: # fish begin
+            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False:
                 self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
-                raise ValueError("startID is not next to endID") # fish end
+                raise ValueError("startID is not next to endID")
             self.message_to_logger("Python file generated")
 
             camera_launch_info = None
@@ -1539,9 +1533,9 @@ class MainWindow(QMainWindow):
         update.digital_analog_dds_mirny_tabs(self) #specifically used to update for_python version of each parameter in the sequence
         try:
             write_to_python.create_experiment(self)
-            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False: # fish begin
+            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False:
                 self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
-                raise ValueError("startID is not next to endID") # fish end
+                raise ValueError("startID is not next to endID")
             self.message_to_logger("Python file generated")
         except:
             self.message_to_logger("Was not able to generate python file")
@@ -1665,7 +1659,7 @@ class MainWindow(QMainWindow):
             # print(item.derived_variable_requested)
         # if self.experiment.dynamic_variables[0].text() == "Freq"
 
-        # for ind, edge in enumerate(self.experiment.sequence): # owl
+        # for ind, edge in enumerate(self.experiment.sequence):
         #     print("edge number: ", ind, "id: ", edge.id, "expression: ", edge.expression, "evaluation: ", edge.evaluation, "value: " , edge.value, "for_python: ", edge.for_python)
 
         print(self.experiment.sequence[2].id)
@@ -1706,14 +1700,17 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to run the specified experimental sequence continuously.
         It passes the run_continuous flag into the write_to_python.create_experiment and the rest is handled there
         '''
+        if not self._ensure_camera_experiment_selected():
+            self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
+            return
         self.count_scanned_variables()
         self.count_ramped_variables()
         update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
         try:
             write_to_python.create_experiment(self, run_continuous=True)
-            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False: # fish begin
+            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False:
                 self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
-                raise ValueError("startID is not next to endID") # fish end
+                raise ValueError("startID is not next to endID")
             self.message_to_logger("Python file generated")
             try:
                 #initialize environment and submit the experiment to run continuously unless it is stopped
@@ -1747,14 +1744,17 @@ class MainWindow(QMainWindow):
         '''
         analog to continuous_run_button_clicked and run_experiment_button_clicked
         '''
+        if not self._ensure_camera_experiment_selected():
+            self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
+            return
         self.count_scanned_variables()
         self.count_ramped_variables()
         update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
         try:
             write_to_python.create_experiment(self, multiple_runs=True)
-            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False: # fish begin
+            if self.experiment.do_ramp == True and self.startID_edge_next_to_endID_edge() == False:
                 self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
-                raise ValueError("startID is not next to endID") # fish end
+                raise ValueError("startID is not next to endID")
             self.message_to_logger("Python file generated")
 
             camera_launch_info = None
@@ -2365,16 +2365,16 @@ class MainWindow(QMainWindow):
                             prev_index = self.index_of_a_new_variable(variable.name)
                             if prev_index != None: #make the value of variable to the previous before being ramped.
                                 #reverting the values to before ramping values and ramping states of the previous variable
-                                self.experiment.variables[variable.name].functionramp = self.experiment.new_variables[prev_index].value # owl 'Variable' object attribute 'functionramp'=value?
-                                self.experiment.variables[variable.name].is_ramped = False # owl
+                                self.experiment.variables[variable.name].functionramp = self.experiment.new_variables[prev_index].value
+                                self.experiment.variables[variable.name].is_ramped = False
                                 self.experiment.variables[variable.name].for_python = self.experiment.variables[variable.name].functionramp
-                                self.experiment.new_variables[prev_index].is_ramped = False  # owl
+                                self.experiment.new_variables[prev_index].is_ramped = False
                             #updating the values and ramping states of the new ramping variable
                             variable.name = new_variable_name
                             self.experiment.variables[variable.name].functionramp = variable.functionramp
-                            self.experiment.variables[variable.name].for_python = str(variable.functionramp) # owl 
-                            self.experiment.variables[variable.name].is_ramped = True # owl
-                            self.experiment.new_variables[index].is_ramped = True  # owl
+                            self.experiment.variables[variable.name].for_python = str(variable.functionramp)
+                            self.experiment.variables[variable.name].is_ramped = True
+                            self.experiment.new_variables[index].is_ramped = True
                         else: #The variable name enteres is used in sampler tab
                             self.error_message("The variable name you entered was already used in sampler tab", "Used variable name")
                             self.update_off()
@@ -2416,10 +2416,10 @@ class MainWindow(QMainWindow):
                     table_item.setText(str(variable.functionramp))
                     self.experiment.variables[variable.name].for_python = str(variable.functionramp)
                 except:
-                    self.error_message("Expression can not be evaluated", "Wrong entry") # owl
+                    self.error_message("Expression can not be evaluated", "Wrong entry")
             elif col == 4:  #stepsramp changed
                 try:
-                    variable.stepsramp = int(table_item.text())  # owl
+                    variable.stepsramp = int(table_item.text())
                     table_item.setText(str(variable.stepsramp))
                 except:
                     self.error_message("Expression can not be evaluated", "Wrong entry")
@@ -2429,7 +2429,7 @@ class MainWindow(QMainWindow):
             update.ramp_table(self)       
         else:
             pass
-    # owl end
+    
 
 
         
@@ -2504,7 +2504,7 @@ class MainWindow(QMainWindow):
                 try: 
                     #Checking whether the expression can be evaluated and the value is within allowed range
                     expression = table_item.text()
-                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                     exec("self.value = " + evaluation)
                     if (self.value == 0 or self.value == 1):
                         channel.changed = True
@@ -2598,14 +2598,14 @@ class MainWindow(QMainWindow):
                 try:
                     #Checking whether the expression can be evaluated and the value is within allowed range                    
                     expression = table_item.text()
-                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression) # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                     exec("self.value =" + evaluation)
                     if (self.value <= 9.9 and self.value >= -9.9):
                         channel.expression = expression
                         channel.evaluation = evaluation
                         channel.value = self.value
                         channel.is_scanned = is_scanned
-                        channel.is_ramped = is_ramped # owl 
+                        channel.is_ramped = is_ramped 
                         channel.for_python = for_python 
                         channel.changed = True
                         update.analog_tab(self)
@@ -2655,10 +2655,9 @@ class MainWindow(QMainWindow):
                     update.dds_tab(self)
             else:   #User entered a new input value
                 try:
-                    #RACOON FLAG
                     #Checking whether the expression can be evaluated and the value is within allowed range                     
                     expression = self.dds_table.item(row,col).text()
-                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                     exec("self.dummy_val =" + evaluation)
                     maximum, minimum = self.max_dict_dds[setting], self.min_dict_dds[setting]
                     if (self.dummy_val <= maximum and self.dummy_val >= minimum): 
@@ -2775,7 +2774,7 @@ class MainWindow(QMainWindow):
                 try:
                     #Checking whether the expression can be evaluated and the value is within allowed range                     
                     expression = self.mirny_table.item(row,col).text()
-                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
+                    (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                     exec("self.dummy_val =" + evaluation)
                     maximum, minimum = self.max_dict_mirny[setting], self.min_dict_mirny[setting]
                     if (self.dummy_val <= maximum and self.dummy_val >= minimum): 
@@ -2845,7 +2844,7 @@ class MainWindow(QMainWindow):
                     try:
                         #Checking whether the expression can be evaluated and the value is within allowed range                     
                         expression = self.slow_dds_table.item(row,col).text()
-                        (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)  # owl
+                        (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = self.decode_input(expression)
                         exec("self.dummy_val =" + evaluation)
                         maximum, minimum = self.max_dict_dds[setting], self.min_dict_dds[setting]
                         if (self.dummy_val <= maximum and self.dummy_val >= minimum): #Change accepted
@@ -2934,7 +2933,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def delete_variable_button_clicked(self): # cow
+    def delete_variable_button_clicked(self):
         '''
         Function is used when the user wants to delete the variable from the variables table.
         It checks if the variable is used in any expression by deleting it and trying to evaluate every expression.
@@ -2972,7 +2971,7 @@ class MainWindow(QMainWindow):
                         break
                 if variable_scanned == False and variable_ramped == False: 
                     #Checking if the variable is being used in arguments of derived variables
-                    is_derived_argument = False   # owl ?
+                    is_derived_argument = False
                     for derived_variable in self.experiment.derived_variables:
                         arguments = derived_variable.arguments.replace(" ","").split(",")
                         for argument in arguments:
@@ -3077,7 +3076,7 @@ class MainWindow(QMainWindow):
                             break
                     if variable_scanned == False and variable_ramped == False: 
                         #Checking if the variable is being used in arguments of derived variables
-                        is_derived_argument = False    # owl ?
+                        is_derived_argument = False
                         for derived_variable in self.experiment.derived_variables:
                             arguments = derived_variable.arguments.replace(" ","").split(",")
                             for argument in arguments:
@@ -3161,7 +3160,7 @@ class MainWindow(QMainWindow):
                         table_item.setText(variable.name)
                         update.variable_tables(self)
                         self.update_on()                          
-                        self.error_message("The variable is scanned or ramped. Remove it from the scan or ramp table before deleting.", "Scanned or Ramped variable")  # owl
+                        self.error_message("The variable is scanned or ramped. Remove it from the scan or ramp table before deleting.", "Scanned or Ramped variable")
                 else:
                     self.update_off()
                     table_item.setText(variable.name)
@@ -3293,7 +3292,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def delete_derived_variable_button_clicked(self):  # owl ?
+    def delete_derived_variable_button_clicked(self):
         '''
         Function is used when the user wants to delete the derived variable from the table.
         '''
@@ -3305,8 +3304,6 @@ class MainWindow(QMainWindow):
                 name = self.derived_variables_table.item(row,0).text()
                 backup = deepcopy(self.experiment.variables[name])
 
-
-                #RACOONnew print begin
                 print("\n", "Deleting variable:", name)  
                 print("==== DERIVED VARIABLE NAMES SET ====")
                 print(self.experiment.names_of_derived_variables)
@@ -3335,7 +3332,6 @@ class MainWindow(QMainWindow):
                         variable_name = "(invalid index)"
                     print(f"[{i}] edge_id: {edge_id}, derived_variable_requested: {drv_idx}, → variable: {variable_name}")
                 print("\n", "\n")
-                #RACOONnew print end
 
 
                 del self.experiment.variables[name]
@@ -3357,7 +3353,6 @@ class MainWindow(QMainWindow):
                         except:
                             pass
 
-                    #RACOONnew print begin
                     print("\n", "Deleting variable:", name)  
                     print("==== DERIVED VARIABLE NAMES SET ====")
                     print(self.experiment.names_of_derived_variables)
@@ -3386,7 +3381,6 @@ class MainWindow(QMainWindow):
                             variable_name = "(invalid index)"
                         print(f"[{i}] edge_id: {edge_id}, derived_variable_requested: {drv_idx}, → variable: {variable_name}")
                     print("\n", "\n")
-                    #RACOONnew print end
 
                 else: #Derived variable is used and can not be deleted
                     self.experiment.variables[backup.name] = backup
@@ -3425,7 +3419,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def delete_lookup_variable_button_clicked(self):   # owl ?
+    def delete_lookup_variable_button_clicked(self):
         '''
         Function is used when the user wants to delete the lookup variable from the table.
         '''
@@ -3447,7 +3441,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def derived_variables_table_changed(self, item):    # owl ?
+    def derived_variables_table_changed(self, item):
         '''
         Function is used when the user changes the values in the derived variables table. 
         '''
@@ -3489,11 +3483,9 @@ class MainWindow(QMainWindow):
                     if argument not in self.experiment.sampler_variables:
                         not_a_sampled_variable = True
                         #break
-                    #RACOON BEGIN
                     if argument in self.experiment.names_of_derived_variables:
                         not_a_sampled_variable = False                        
                         break
-                    #RACOON END
                 if not_a_sampled_variable: #Reverting back the Arguments table entry
                     self.error_message("Arguments include not sampled variables. First create variables in variables tab and then add them to the sampler to make them sampled","Not sampled arguments")
                     self.update_off()
@@ -3523,7 +3515,6 @@ class MainWindow(QMainWindow):
                     self.experiment.sequence[edge_index].derived_variable_requested = row-1 # -1 because the dummy variable is the first one
             if col == 3: #Variable function was changed
                 variable.function = table_item_text
-            #RACOON BEGIN 16/01/25
             if col == 4: 
                 variable.initial_value = table_item_text
                 if variable.name in self.experiment.variables:
@@ -3532,12 +3523,10 @@ class MainWindow(QMainWindow):
                     if variable.initial_value == "":
                         self.experiment.variables[variable.name].value = (variable.initial_value)
                         self.update_on()
-                    #self.experiment.variables[variable.name].value = float(variable.initial_value)
                     else: 
                         self.experiment.variables[variable.name].value = float(variable.initial_value)
                         self.update_on()
                 #print(vars(self.experiment.variables[variable.name]))
-            #RACOON END
 
 
 
@@ -3640,7 +3629,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def sampler_table_changed(self, item):   # owl ?
+    def sampler_table_changed(self, item):
         '''
         Function is used when the user changes the values in the sampler table. It ensures that the expressions are integer values
         0 or variable name defined in variables tab. The user can delete the input and the function will assign the value to 0 and unhighlight the channel
@@ -3666,10 +3655,10 @@ class MainWindow(QMainWindow):
                     if channel == lookup_variable.argument:
                         not_in_lookup_variables = False
                         break
-                if not_in_lookup_variables: #coww
+                if not_in_lookup_variables:
                     if table_entry == "" or table_entry == "0" or table_entry == "0.0": #User deleted the value or set it to 0. The function will assign 0 value
                         if channel in self.experiment.sampler_variables: #if the previous value of the sampler was a variable we need to revert back the variables tab value and activate editing
-                            self.experiment.sampler_variables.remove(channel) #owl ?
+                            self.experiment.sampler_variables.remove(channel)
                             update.variables_tab(self, derived_variables = False)
                         self.update_off()
                         table_item.setText("0")
@@ -3693,7 +3682,7 @@ class MainWindow(QMainWindow):
                                 self.update_off()
                                 table_item.setText(str(channel))
                                 self.update_on()
-                                self.error_message("Variable you entered is in the Scan or Ramp table. First remove it from there.", "Scanned / Ramped variable") # owl
+                                self.error_message("Variable you entered is in the Scan or Ramp table. First remove it from there.", "Scanned / Ramped variable")
                         else:
                             self.update_off()
                             table_item.setText(str(channel))
@@ -3872,6 +3861,26 @@ class MainWindow(QMainWindow):
 
         self.experiment_list_list_widget.takeItem(row)
         # update.acquisition_tab(self)
+
+
+    def _ensure_camera_experiment_selected(self):
+        if not hasattr(self, "camera_box") or not self.camera_box.isChecked():
+            return True
+
+        experiment_selected = False
+        if hasattr(self, "experiment_list_list_widget"):
+            experiment_selected = self.experiment_list_list_widget.currentRow() >= 0
+        if not experiment_selected:
+            experiment_name = getattr(self.experiment.experimental_data, "experiment_name", "")
+            experiment_selected = bool(str(experiment_name).strip())
+        if not experiment_selected and hasattr(self, "experiment_list_chosen_line"):
+            experiment_selected = bool(self.experiment_list_chosen_line.text().strip())
+
+        if experiment_selected:
+            return True
+
+        self.error_message("Experiment is not chosen. Choose an experiment.", "Camera acquisition")
+        return False
 
 
     def _prepare_camera_launch(self):

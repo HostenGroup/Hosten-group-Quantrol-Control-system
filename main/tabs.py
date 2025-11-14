@@ -414,7 +414,7 @@ def sequence_tab_build(self):
     self.scan_table.setChecked(False)
     self.scan_table.setFont(QFont('Arial', self.scale_font(14)))
     self.scan_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*20))
-    self.scan_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*300))  # owl
+    self.scan_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*300))
     self.scan_table.toggled.connect(self.scan_table_checked)
     vBox = QVBoxLayout()
     self.scan_table.setLayout(vBox)
@@ -422,14 +422,13 @@ def sequence_tab_build(self):
     vBox.addWidget(self.scan_table_parameters)
     self.scan_table.setToolTip("This Scan checkbox is used to enable or disable the variables scan. In case of the scan was unchecked the state of the table will be disabled but the previously set parameters of the scan will remain in place. This allows the user to quickly scan and not scan variables on demand. In order to change the parameters of the scan the user should check the Scan checkbox first. Disables scanning table looks a little faded.")
 
-    # owl begin 
     #TABLE OF RAMPING PARAMETERS
     self.ramp_table_parameters = QTableWidget()
-    self.ramp_table_parameters.setColumnCount(5)  # owl
+    self.ramp_table_parameters.setColumnCount(5)
     self.ramp_table_parameters.setRowCount(0)
     self.ramp_table_parameters.verticalHeader().setVisible(False)
     self.ramp_table_parameters.setFont(QFont('Arial', self.scale_font(14)))
-    self.ramp_table_parameters.setHorizontalHeaderLabels(["Variable","Start ID", "End ID","Function (use i)", "i"])  # owl
+    self.ramp_table_parameters.setHorizontalHeaderLabels(["Variable","Start ID", "End ID","Function (use i)", "i"])
     self.ramp_table_parameters.setColumnWidth(0,int(self.SCALE_W*145))
     self.ramp_table_parameters.setColumnWidth(1,int(self.SCALE_W*80))
     self.ramp_table_parameters.setColumnWidth(2,int(self.SCALE_W*80))
@@ -441,7 +440,7 @@ def sequence_tab_build(self):
     #Add ramped variable button
     self.add_ramped_variable_button = QPushButton()
     self.add_ramped_variable_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.add_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h)) # owl
+    self.add_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h))
     self.add_ramped_variable_button.setText("Add ramped variable")
     self.add_ramped_variable_button.clicked.connect(self.add_ramped_variable_button_pressed) #this should be modified
     self.add_ramped_variable_button.setToolTip("Ramped variables...")
@@ -449,12 +448,12 @@ def sequence_tab_build(self):
     #Delete ramped variable button
     self.delete_ramped_variable_button = QPushButton()
     self.delete_ramped_variable_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.delete_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h)) # owl
+    self.delete_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h))
     self.delete_ramped_variable_button.setText("Delete ramped variable")
     self.delete_ramped_variable_button.clicked.connect(self.delete_ramped_variable_button_pressed)#this should be modified
     self.delete_ramped_variable_button.setToolTip("Delete ramped variable button ...")
 
-    #Explain ramped ID # fish
+    #Explain ramped ID
     self.add_ramped_variable_label = QLabel("End ID edge right after Start ID edge!", self)
     self.add_ramped_variable_label.setFont(QFont('Arial', self.scale_font(14)))
     self.add_ramped_variable_label.setToolTip("The egde of end_ID has to be right after the edge of start_ID. This is indicated by the pink coloring in the sequence tab.")
@@ -473,15 +472,14 @@ def sequence_tab_build(self):
     self.ramp_table.setCheckable(True)
     self.ramp_table.setChecked(False)
     self.ramp_table.setFont(QFont('Arial', self.scale_font(14)))
-    self.ramp_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*320))  # owl
-    self.ramp_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*546))  # owl
+    self.ramp_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*320))
+    self.ramp_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*546))
     self.ramp_table.toggled.connect(self.ramp_table_checked)
     vBox = QVBoxLayout()
     self.ramp_table.setLayout(vBox)
     vBox.addWidget(temp)
     vBox.addWidget(self.ramp_table_parameters)
     self.ramp_table.setToolTip("This ramp checkbox is used to enable or disable the variables ramp. ")
-    # owl end 
 
 
 
@@ -489,7 +487,7 @@ def sequence_tab_build(self):
     logger_width = 1920 - 10 - 10 - width_of_table - 10 - self.variables_table_width - 10
     self.logger = QPlainTextEdit(self.sequence_tab_widget)
     self.logger.setFont(QFont('Arial', self.scale_font(12)))
-    self.logger.setGeometry(*self.scale_geom(width_of_table + 20, 870, logger_width, 210)) # owl
+    self.logger.setGeometry(*self.scale_geom(width_of_table + 20, 870, logger_width, 210))
     self.logger.setReadOnly(True)
     self.logger.appendPlainText("Welcome to the %s lab! Hope you enjoy your stay here :)" %config.research_group_name)
     self.logger.appendPlainText("Don't forget to initialize the hardware after the power cycle!!!")
@@ -913,9 +911,9 @@ def variables_tab_build(self):
     self.derived_variables_table = QTableWidget(self.variables_tab_widget)
     
     self.derived_variables_table.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, derived_variables_table_w, derived_variables_table_h)))  #size of the table
-    derived_variables_num_columns = 5 #RACOON
+    derived_variables_num_columns = 5
     self.derived_variables_table.setColumnCount(derived_variables_num_columns)
-    self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Edge id","Function in python syntax", "Initial value"]) #RACOON
+    self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Edge id","Function in python syntax", "Initial value"])
     self.derived_variables_table.verticalHeader().setVisible(False)
     self.derived_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.derived_variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
@@ -924,7 +922,7 @@ def variables_tab_build(self):
     self.derived_variables_table.setColumnWidth(1,int(self.SCALE_W*(90)))
     self.derived_variables_table.setColumnWidth(2,int(self.SCALE_W*(70)))
     # self.derived_variables_table.setColumnWidth(3,int(self.SCALE_W*(310)))
-    self.derived_variables_table.setColumnWidth(4,int(self.SCALE_W*(88))) #RACOON
+    self.derived_variables_table.setColumnWidth(4,int(self.SCALE_W*(88)))
     self.derived_variables_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
     self.derived_variables_table.setRowCount(1)
     prototypeItem = QTableWidgetItem()
@@ -941,8 +939,8 @@ def variables_tab_build(self):
     self.derived_variables_table.item(0,2).setToolTip("ID of the edge when user wants to request the calculation of the derived variable")
     self.derived_variables_table.setItem(0, 3, QTableWidgetItem("np.sin(x) + 5*np.sqrt(y)"))
     self.derived_variables_table.item(0,1).setToolTip("Function to be used to derive the variable. It should be python compatible with the numpy being imported as np")
-    self.derived_variables_table.setItem(0, 4, QTableWidgetItem("228.32")) #RACOON
-    self.derived_variables_table.item(0,1).setToolTip("Initial value for dyanmic variables...") #RACOON
+    self.derived_variables_table.setItem(0, 4, QTableWidgetItem("228.32"))
+    self.derived_variables_table.item(0,1).setToolTip("Initial value for dyanmic variables...")
     #when table contents are changed
     self.derived_variables_table.itemChanged.connect(self.derived_variables_table_changed)
 
