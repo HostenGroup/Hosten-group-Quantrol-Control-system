@@ -1139,7 +1139,13 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to load the sequence. It triggers the folder explorer and lets the user choose 
         the file to open.
         '''
-        loaded_file_name = QFileDialog.getOpenFileName(self, "Open File")[0]
+        sequences_dir = self.repo_path / "sequences"
+        initial_dir = sequences_dir if sequences_dir.is_dir() else self.repo_path
+        loaded_file_name = QFileDialog.getOpenFileName(
+            self,
+            "Open File",
+            str(initial_dir),
+        )[0]
         if loaded_file_name != "": #happens when no file name was given (canceled)
             try:
                 with open(loaded_file_name, 'rb') as file:
@@ -4110,23 +4116,26 @@ class MainWindow(QMainWindow):
                 Side = Side or None
 
         desired_headers = [
-            "Date",
+            "Date\n(dd.mm.yyyy)",
             "Experiment",
             "Time",
             "Scanned variable",
             "Scan range",
             "Scan steps",
             "Number of runs",
-            "Good data",
+            "Good data\n(Y/N)",
             "Data path",
             "Comment"
         ]
         default_column_width = 25
         row_height = 20
+        header_row_height = 30
         header_aliases = {
             "Scanned variables": "Scanned variable",
             "Scan ranges": "Scan range",
-            "Comments": "Comment"
+            "Comments": "Comment",
+            "Date (dd.mm.yyyy)": "Date\n(dd.mm.yyyy)",
+            "Good data (Y/N)": "Good data\n(Y/N)"
         }
 
         metadata_path = Path(metadata_dir)
@@ -4183,14 +4192,14 @@ class MainWindow(QMainWindow):
 
             for stored in rows_snapshot:
                 row_values = [
-                    get_value(stored, "Date                                                                     (dd.mm.yyyy)"),
+                    get_value(stored, "Date\n(dd.mm.yyyy)"),
                     get_value(stored, "Experiment"),
                     get_value(stored, "Time"),
                     get_value(stored, "Scanned variable"),
                     get_value(stored, "Scan range"),
                     get_value(stored, "Scan steps"),
                     get_value(stored, "Number of runs"),
-                    get_value(stored, "Good data                                                                (Y/N)"),
+                    get_value(stored, "Good data\n(Y/N)"),
                     "path",
                     get_value(stored, "Comment")
                 ]
@@ -4213,7 +4222,7 @@ class MainWindow(QMainWindow):
 
         header_fill = PatternFill(fill_type="solid", fgColor="D9D9D9") if PatternFill else None
         header_font = Font(bold=True) if Font else None
-        header_alignment = Alignment(horizontal="center", vertical="center") if Alignment else None
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True) if Alignment else None
         header_border_side = Side(style="thin", color="000000") if Side else None
 
         for idx, header in enumerate(desired_headers, start=1):
@@ -4248,7 +4257,7 @@ class MainWindow(QMainWindow):
                 width = width_map.get(col_idx, default_column_width)
                 sheet.column_dimensions[column_letter].width = width
 
-        sheet.row_dimensions[1].height = row_height
+        sheet.row_dimensions[1].height = header_row_height
         sheet.freeze_panes = "A2"
 
         timestamp_iso = getattr(self.experiment.experimental_data, "current_run_timestamp", "")
@@ -4330,7 +4339,7 @@ class MainWindow(QMainWindow):
                 sheet.add_data_validation(dv)
                 dv.add(target_range)
 
-        for row_idx in range(1, sheet.max_row + 1):
+        for row_idx in range(2, sheet.max_row + 1):
             sheet.row_dimensions[row_idx].height = row_height
 
         try:
