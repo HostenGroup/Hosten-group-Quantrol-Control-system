@@ -4115,7 +4115,7 @@ class MainWindow(QMainWindow):
             "Time",
             "Scanned variable",
             "Scan range",
-            "Scan points number",
+            "Scan steps",
             "Number of runs",
             "Good data",
             "Data path",

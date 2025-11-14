@@ -10,6 +10,7 @@ import argparse
 import datetime as dt
 import json
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -432,30 +433,25 @@ def run_acquisition(args: argparse.Namespace) -> None:
         print(str(exc))
         interrupted = False
         raise
-    else:
-        interrupted = False
+
     finally:
         if cam is not None:
             try:
                 cam.EndAcquisition()
+                del cam
+            except PySpin.SpinnakerException:
+                pass
             except Exception:
                 pass
 
-        for cam_obj in cam_list:
-            try:
-                cam_obj.DeInit()
-            except Exception:
-                pass
+        
 
-        cam_list.Clear()
-        system.ReleaseInstance()
-        print("Acquisition ended. Camera deinitialised. System released.")
 
         if not interrupted and file_directory is not None and info is not None and image_index >= 1:
-            info["image_number"] = image_index
-            file_directory.mkdir(parents=True, exist_ok=True)
-            with (file_directory / "info.json").open("w", encoding="utf-8") as file:
-                json.dump(info, file, indent=4)
+            # info["image_number"] = image_index
+            # file_directory.mkdir(parents=True, exist_ok=True)
+            # with (file_directory / "info.json").open("w", encoding="utf-8") as file:
+            #     json.dump(info, file, indent=4)
             print(rf"Files saved at {file_directory}")
 
             if time_start is not None:
@@ -480,6 +476,26 @@ def run_acquisition(args: argparse.Namespace) -> None:
                 except Exception:
                     print("Warning: image processing script failed")
 
+        for cam_obj in cam_list:
+            try:
+                cam_obj.DeInit()
+            except Exception as ex:
+                print(str(ex))
+        
+        cam_list.Clear()
+        del cam_list
+        del cam_obj
+        del camera_dict
+
+
+
+        try:
+            system.ReleaseInstance()
+        except PySpin.SpinnakerException as release_exc:
+            print(f"Warning: unable to release camera system cleanly: {release_exc}")
+        else:
+            print("Acquisition ended. Camera deinitialised. System released.")
+
 
 def main() -> None:
     args = parse_args()
@@ -493,3 +509,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
