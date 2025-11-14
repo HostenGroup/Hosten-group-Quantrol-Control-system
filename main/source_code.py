@@ -4299,30 +4299,114 @@ class MainWindow(QMainWindow):
         if not is_multiple_run:
             number_of_runs_value = 1
 
-        row_values = [
-            date_value,
-            experiment_name,
-            time_value,
-            "; ".join(scanned_variables),
-            "; ".join(scan_ranges),
-            scan_points,
-            number_of_runs_value,
-            "",
-            "path",
-            ""
-        ]
+        pending_entries = self._load_pending_log_entries()
 
-        sheet.append(row_values)
-        last_row = sheet.max_row
-        date_cell = sheet.cell(row=last_row, column=1)
-        if isinstance(date_cell.value, (datetime, date)):
-            date_cell.number_format = "dd.mm.yyyy"
-        data_cell = sheet.cell(row=last_row, column=9)
-        data_cell.value = "path"
-        data_cell.hyperlink = str(metadata_path)
-        data_cell.style = "Hyperlink"
+        current_entry = {
+            "date": date_value.isoformat(),
+            "experiment": experiment_name,
+            "time": time_value.strftime("%H:%M:%S"),
+            "scanned_variables": scanned_variables,
+            "scan_ranges": scan_ranges,
+            "scan_points": int(scan_points),
+            "number_of_runs": int(number_of_runs_value),
+            "good_data": "",
+            "metadata_path": str(metadata_path),
+            "comment": ""
+        }
 
-        sheet.row_dimensions[last_row].height = row_height
+        entries_to_write = list(pending_entries)
+        entries_to_write.append(current_entry)
+
+        def append_entry_to_sheet(entry_dict):
+            date_field = entry_dict.get("date")
+            if isinstance(date_field, date):
+                date_obj = date_field
+            elif isinstance(date_field, datetime):
+                date_obj = date_field.date()
+            elif isinstance(date_field, str):
+                try:
+                    date_obj = date.fromisoformat(date_field)
+                except ValueError:
+                    try:
+                        date_obj = datetime.fromisoformat(date_field).date()
+                    except ValueError:
+                        date_obj = datetime.now().date()
+            else:
+                date_obj = datetime.now().date()
+
+            time_field = entry_dict.get("time")
+            if isinstance(time_field, datetime):
+                time_obj = time_field.time().replace(microsecond=0)
+            elif isinstance(time_field, str):
+                try:
+                    time_obj = datetime.strptime(time_field, "%H:%M:%S").time()
+                except ValueError:
+                    try:
+                        time_obj = datetime.fromisoformat(time_field).time()
+                    except ValueError:
+                        time_obj = time_field
+            else:
+                time_obj = time_field if time_field else datetime.now().time().replace(microsecond=0)
+
+            scanned_field = entry_dict.get("scanned_variables", [])
+            if isinstance(scanned_field, (list, tuple)):
+                scanned_str = "; ".join(str(item) for item in scanned_field if item not in (None, ""))
+            else:
+                scanned_str = str(scanned_field) if scanned_field is not None else ""
+
+            range_field = entry_dict.get("scan_ranges", [])
+            if isinstance(range_field, (list, tuple)):
+                ranges_str = "; ".join(str(item) for item in range_field if item not in (None, ""))
+            else:
+                ranges_str = str(range_field) if range_field is not None else ""
+
+            scan_points_field = entry_dict.get("scan_points", 1)
+            try:
+                scan_points_value = int(scan_points_field)
+            except (TypeError, ValueError):
+                scan_points_value = 1
+            if scan_points_value <= 0:
+                scan_points_value = 1
+
+            number_of_runs_field = entry_dict.get("number_of_runs", 1)
+            try:
+                number_of_runs_int = int(number_of_runs_field)
+            except (TypeError, ValueError):
+                number_of_runs_int = 1
+            if number_of_runs_int <= 0:
+                number_of_runs_int = 1
+
+            good_data_value = entry_dict.get("good_data", "") or ""
+            comment_value = entry_dict.get("comment", "") or ""
+            metadata_value = entry_dict.get("metadata_path", "")
+
+            row_values_local = [
+                date_obj,
+                entry_dict.get("experiment", ""),
+                time_obj,
+                scanned_str,
+                ranges_str,
+                scan_points_value,
+                number_of_runs_int,
+                good_data_value,
+                "path" if metadata_value else "",
+                comment_value
+            ]
+
+            sheet.append(row_values_local)
+            row_index = sheet.max_row
+            date_cell_local = sheet.cell(row=row_index, column=1)
+            if isinstance(date_cell_local.value, (datetime, date)):
+                date_cell_local.number_format = "m/d/yyyy"
+            if metadata_value:
+                data_cell_local = sheet.cell(row=row_index, column=9)
+                data_cell_local.value = "path"
+                data_cell_local.hyperlink = metadata_value
+                data_cell_local.style = "Hyperlink"
+            sheet.row_dimensions[row_index].height = row_height
+
+        for entry_dict in entries_to_write:
+            append_entry_to_sheet(entry_dict)
 
         if DataValidation is not None:
             target_range = "H2:H1048576"
@@ -4344,8 +4428,56 @@ class MainWindow(QMainWindow):
 
         try:
             workbook.save(db_file)
+        except PermissionError:
+            self._set_pending_log_entries(entries_to_write)
+            self.message_to_logger("Experiment log update deferred: close the Excel workbook to allow writing. Pending entries will be retried automatically.")
+            return
         except Exception as exc:
-            self.message_to_logger(f"Could not update experiment log: {exc}")
+            self._set_pending_log_entries(entries_to_write)
+            self.message_to_logger(f"Could not update experiment log (will retry later): {exc}")
+            return
+
+        if pending_entries:
+            self.message_to_logger("Previously pending experiment log entries were written to the log file.")
+        self._set_pending_log_entries([])
+
+
+    def _pending_log_entries_path(self):
+        return self.repo_path / "logs" / "pending_experiment_log_entries.json"
+
+
+    def _load_pending_log_entries(self):
+        if hasattr(self, "_pending_log_entries_cache"):
+            return list(self._pending_log_entries_cache)
+
+        path = self._pending_log_entries_path()
+        entries = []
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as handle:
+                    data = json.load(handle)
+                    if isinstance(data, list):
+                        entries = data
+            except Exception as exc:
+                self.message_to_logger(f"Could not read pending experiment log entries: {exc}")
+        self._pending_log_entries_cache = entries
+        return list(entries)
+
+
+    def _set_pending_log_entries(self, entries):
+        entries_list = list(entries)
+        self._pending_log_entries_cache = entries_list
+        path = self._pending_log_entries_path()
+        try:
+            if entries_list:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(entries_list, handle, indent=2)
+            else:
+                if path.exists():
+                    path.unlink()
+        except Exception as exc:
+            self.message_to_logger(f"Could not update pending experiment log file: {exc}")
 
 
     def camera_which_cam_changed(self):
