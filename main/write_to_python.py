@@ -6,7 +6,7 @@ from datetime import datetime
 from update import closest_key
 
 
-def create_experiment(self, run_continuous = False, multiple_runs = False): # owl
+def create_experiment(self, run_continuous = False, multiple_runs = False):
     '''
     Function is used to create the description of the experimental sequence.   
     Python like description is saved as run_experiment.py
@@ -116,7 +116,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
         else:
             file.write(indentation + "camera_enabled = True\n")
 
-    # owl begin
     if not run_continuous:
         if total_runs > 1:
             file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up\n" % total_runs)
@@ -128,8 +127,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                 file.write(indentation + "camera_enabled = True\n")
         else:
             file.write(indentation + "camera_enabled = True\n")
-    # owl end
-
     # 10 ns delay to avoid collision of the last edge assignment of digital channels as there is at most camera_trigger_ttl channel changes at a given time stamp
     file.write(indentation + "delay(10*ns)\n")
     # If scan is needed 
@@ -161,26 +158,26 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
             except:
                 pass
         #ADDING A DELAY
-        if self.delta_t != 0 and flag_ramp_up_delay == False: #owltime 
+        if self.delta_t != 0 and flag_ramp_up_delay == False:
             file.write(indentation + "delay((" + str(self.delta_t) + ")*ms)\n") 
         
         flag_ramp_up_delay = False
-        #ADDING FOR LOOP FOR RAMP  # owl begin
+        # ADDING FOR LOOP FOR RAMP
         count_indentations = 0
         for variable in self.experiment.ramped_variables:
             if self.experiment.do_ramp == True and self.experiment.ramped_variables_count > 0:
-                if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False: # fish
-                    if edge_index != 0: # owl
+                if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False:
+                    if edge_index != 0:
                         flag_ramp_up = True
                         flag_ramp_up_delay = True
                         flag_ramp_variable = variable
                         file.write(indentation + "for i in range(1, (%d+1)):   # ramp up loop \n" %(variable.stepsramp)) 
-                        already_loop_for_edge[edge_index] = True # fish
+                        already_loop_for_edge[edge_index] = True
                         indentation += "    "
-                        count_indentations = count_indentations + 1  # owl end
+                        count_indentinations = count_indentinations + 1
 
         
-        #RPC for derived variable calculation # cowww
+        # RPC for derived variable calculation
         if edge_index > 0:
             index_of_derived_variable = self.experiment.sequence[edge_index].derived_variable_requested
             if index_of_derived_variable != -1:
@@ -291,15 +288,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
             except:
                 temp_text_ramp =  "((" + str(self.experiment.sequence[edge_index+1].for_python) + ")" + "-" + "(" + str(self.experiment.sequence[edge_index].for_python) + "))"
             file.write(indentation + "delay((" + temp_text_ramp + "/" +str(flag_ramp_variable.stepsramp) + ")*ms)  # for ramp up: time devided by steps \n") 
-        # owltime # fish end 
         
-        # # owl begin
         if flag_ramp_up == True: 
             flag_ramp_up = False  
             #file.write(indentation + "print('%s %s = ', %s)\n" %(("Value of ramped variable: "), str(flag_ramp_variable.name), flag_ramp_variable.functionramp))
             for indent in range(count_indentations):
                 indentation = indentation[:-4] 
-        # owl end
             
     ###############################################################################################
     ############################# for continuous run AFTER experiment #############################
@@ -352,23 +346,23 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                 except:
                     pass
             #ADDING A DELAY
-            if self.delta_t != 0 and flag_ramp_up_delay == False: #owltime 
+            if self.delta_t != 0 and flag_ramp_up_delay == False:
                 file.write(indentation + "delay((" + str(self.delta_t) + ")*ms)\n") 
             
             flag_ramp_up_delay = False
-            #ADDING FOR LOOP FOR RAMP  # owl begin
-            count_indentations = 0
+            # ADDING FOR LOOP FOR RAMP
+            count_indentinations = 0
             for variable in self.experiment.ramped_variables:
                 if self.experiment.do_ramp == True and self.experiment.ramped_variables_count > 0:
-                    if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False: # fish
-                        if edge_index != 0: # owl
+                    if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False:
+                        if edge_index != 0:
                             flag_ramp_up = True
                             flag_ramp_up_delay = True
                             flag_ramp_variable = variable
                             file.write(indentation + "for i in range(1, (%d+1)):   # ramp up loop \n" %(variable.stepsramp)) 
-                            already_loop_for_edge[edge_index] = True # fish
+                            already_loop_for_edge[edge_index] = True
                             indentation += "    "
-                            count_indentations = count_indentations + 1  # owl end
+                            count_indentinations = count_indentinations + 1
 
             
             #RPC for derived variable calculation
@@ -482,15 +476,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                 except:
                     temp_text_ramp =  "((" + str(self.experiment.sequence[edge_index+1].for_python) + ")" + "-" + "(" + str(self.experiment.sequence[edge_index].for_python) + "))"
                 file.write(indentation + "delay((" + temp_text_ramp + "/" +str(flag_ramp_variable.stepsramp) + ")*ms)  # for ramp up: time devided by steps \n") 
-            # owltime # fish end 
             
-            # # owl begin
             if flag_ramp_up == True: 
                 flag_ramp_up = False  
                 #file.write(indentation + "print('%s %s = ', %s)\n" %(("Value of ramped variable: "), str(flag_ramp_variable.name), flag_ramp_variable.functionramp))
                 for indent in range(count_indentations):
                     indentation = indentation[:-4] 
-            # owl end
 
         
     file.close()

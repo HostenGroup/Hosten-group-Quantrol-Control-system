@@ -147,7 +147,6 @@ def bottom_buttons_build(self,tab):
     self.go_to_edge_button.clicked.connect(self.go_to_edge_button_clicked)
     self.go_to_edge_button.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
 
-    # owl begin
     #multiple runs
     self.multiple_runs_button = QPushButton(tab)
     self.multiple_runs_button.setFont(QFont('Arial', self.scale_font(14)))
@@ -167,7 +166,6 @@ def bottom_buttons_build(self,tab):
     self.number_of_runs_input.setFont(QFont('Arial', self.scale_font(14)))
     self.number_of_runs_input.editingFinished.connect(self.number_of_runs_input_changed)
     self.number_of_runs_input.setText("10")
-    # owl end
     return self.number_of_runs_input
 
 
@@ -1453,7 +1451,7 @@ def acquisition_tab_build(self):
     self.camera_box.setChecked(False)
     self.camera_box.setFont(QFont('Arial', self.scale_font(14)))
     self.camera_box.move(int(self.SCALE_W*(self.button_w + 2*self.sep)), int(self.SCALE_H*self.top_margin))
-    self.camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(200)))  # owl
+    self.camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(200)))
     
     # self.camera_box.toggled.connect(self.camera_box_checked)
     form = QFormLayout(self.camera_box)

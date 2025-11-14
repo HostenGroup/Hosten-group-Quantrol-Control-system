@@ -1140,11 +1140,11 @@ class MainWindow(QMainWindow):
         the file to open.
         '''
         sequences_dir = self.repo_path / "sequences"
-        initial_dir = sequences_dir if sequences_dir.is_dir() else self.repo_path
+        sequences_dir.mkdir(exist_ok=True)
         loaded_file_name = QFileDialog.getOpenFileName(
             self,
             "Open File",
-            str(initial_dir),
+            str(sequences_dir),
         )[0]
         if loaded_file_name != "": #happens when no file name was given (canceled)
             try:
