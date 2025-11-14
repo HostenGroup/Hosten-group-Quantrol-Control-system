@@ -28,7 +28,7 @@ from PyQt5.QtGui import *
 import write_to_python
 import tabs
 import pickle
-from datetime import datetime
+from datetime import datetime, date
 from copy import deepcopy
 import update
 import threading
@@ -4092,10 +4092,22 @@ class MainWindow(QMainWindow):
             PatternFill = getattr(styles_module, "PatternFill", None)
             Font = getattr(styles_module, "Font", None)
             Alignment = getattr(styles_module, "Alignment", None)
+            Border = getattr(styles_module, "Border", None)
+            Side = getattr(styles_module, "Side", None)
         except ImportError:
             PatternFill = None
             Font = None
             Alignment = None
+            Border = None
+            Side = None
+        if Border is None or Side is None:
+            try:
+                borders_module = importlib.import_module("openpyxl.styles.borders")
+                Border = getattr(borders_module, "Border", Border)
+                Side = getattr(borders_module, "Side", Side)
+            except ImportError:
+                Border = Border or None
+                Side = Side or None
 
         desired_headers = [
             "Date",
@@ -4184,6 +4196,9 @@ class MainWindow(QMainWindow):
                 ]
                 sheet.append(row_values)
                 current_row = sheet.max_row
+                date_cell_snapshot = sheet.cell(row=current_row, column=1)
+                if isinstance(date_cell_snapshot.value, (datetime, date)):
+                    date_cell_snapshot.number_format = "yyyy-mm-dd"
                 link_target = get_link(stored, "Data path")
                 if not link_target:
                     link_target = get_value(stored, "Data path")
@@ -4199,6 +4214,7 @@ class MainWindow(QMainWindow):
         header_fill = PatternFill(fill_type="solid", fgColor="D9D9D9") if PatternFill else None
         header_font = Font(bold=True) if Font else None
         header_alignment = Alignment(horizontal="center", vertical="center") if Alignment else None
+        header_border_side = Side(style="thin", color="000000") if Side else None
 
         for idx, header in enumerate(desired_headers, start=1):
             cell = sheet.cell(row=1, column=idx, value=header)
@@ -4208,10 +4224,17 @@ class MainWindow(QMainWindow):
                 cell.fill = header_fill
             if header_alignment:
                 cell.alignment = header_alignment
+            if Border and header_border_side:
+                cell.border = Border(
+                    left=header_border_side,
+                    right=header_border_side,
+                    top=header_border_side,
+                    bottom=header_border_side
+                )
 
         if get_column_letter is not None:
             width_map = {
-                1: 10,  # Date
+                1: 11,  # Date
                 3: 10,  # Time
                 6: 16,  # Scan points number
                 7: 16,  # Number of runs
@@ -4245,7 +4268,7 @@ class MainWindow(QMainWindow):
                 scanned_variables.append(str(name))
                 min_val = getattr(variable, "min_val", "")
                 max_val = getattr(variable, "max_val", "")
-                scan_ranges.append(f"{name}: {min_val} -> {max_val}")
+                scan_ranges.append(f"{min_val} -> {max_val}")
 
         scan_points = 1
         if getattr(self.experiment, "do_scan", False) and getattr(self.experiment, "scanned_variables_count", 0) > 0:
@@ -4281,6 +4304,9 @@ class MainWindow(QMainWindow):
 
         sheet.append(row_values)
         last_row = sheet.max_row
+        date_cell = sheet.cell(row=last_row, column=1)
+        if isinstance(date_cell.value, (datetime, date)):
+            date_cell.number_format = "yyyy-mm-dd"
         data_cell = sheet.cell(row=last_row, column=9)
         data_cell.value = "path"
         data_cell.hyperlink = str(metadata_path)
