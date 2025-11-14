@@ -715,9 +715,9 @@ class MainWindow(QMainWindow):
             with open(save_path, 'wb') as file:
                 pickle.dump(self.experiment, file)
 
-    
 
     def _ensure_title_lengths(self):
+        """Ensure each per-tab title list matches the configured channel counts."""
         self._ensure_title_list('title_digital_tab', config.digital_channels_number, prefix='D')
         self._ensure_title_list('title_analog_tab', config.analog_channels_number, prefix='A')
         self._ensure_title_list('title_dds_tab', config.dds_channels_number, prefix='DDS')
@@ -727,6 +727,7 @@ class MainWindow(QMainWindow):
 
 
     def _ensure_variable_structures(self):
+        """Normalize experiment variable records into self.Variable objects."""
         raw_new_variables = getattr(self.experiment, 'new_variables', [])
         if isinstance(raw_new_variables, list):
             candidate_variables = raw_new_variables
@@ -817,6 +818,7 @@ class MainWindow(QMainWindow):
 
 
     def _ensure_title_list(self, attr_name, channel_count, prefix='X'):
+        """Pad or trim a title list so it aligns with the expected channel count."""
         if channel_count <= 0:
             setattr(self.experiment, attr_name, [])
             return
@@ -2723,6 +2725,7 @@ class MainWindow(QMainWindow):
 
     
     def update_dds_table_header(self, index, name):
+        """Rename a DDS channel header while keeping the default prefix numbering."""
         if name != "":
             self.experiment.title_dds_tab[index] = "DDS%d"%(index) + " " + name
         else:
@@ -3033,13 +3036,6 @@ class MainWindow(QMainWindow):
         # update.all_tabs(self,derived_variables = False)
         update.variable_tables(self)
 
-
-
-    def block_all_signals(self, block=True):
-        self.blockSignals(block)
-        for child in self.findChildren(QObject):
-            child.blockSignals(block)
-    
 
 
     def variables_table_changed(self, item):
@@ -3403,6 +3399,7 @@ class MainWindow(QMainWindow):
 
 
     def load_lookup_list_button_clicked(self):
+        """Attach a lookup table file to the selected lookup variable."""
         try:
             row = self.lookup_variables_table.selectedIndexes()[0].row()
             lookup_variable = self.experiment.lookup_variables[row-1]
@@ -3731,6 +3728,7 @@ class MainWindow(QMainWindow):
         return result
 
     def update_chosen_experiment(self):
+        """Load the highlighted experiment into the detail fields and model."""
         with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
             data = json.load(f)
 
@@ -3768,6 +3766,7 @@ class MainWindow(QMainWindow):
         self.experiment.experimental_data.experiment_id = int(row)
 
     def experiment_caption_changed(self):
+        """Prompt the user for a replacement caption for the selected experiment."""
         self.dialog = QDialog()
         self.dialog.setGeometry(*self.scale_geom(710, 435, 600, 200))
         self.dialog.setFont(QFont('Arial', self.scale_font(14)))
@@ -3793,6 +3792,7 @@ class MainWindow(QMainWindow):
 
 
     def update_experiment_names_list(self,name = '',caption = '',last = True):
+        """Persist experiment list additions or caption edits to disk."""
         
         with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
             data = json.load(f)
@@ -3829,6 +3829,7 @@ class MainWindow(QMainWindow):
 
 
     def add_element_experiment_list_button_clicked(self):
+        """Collect new experiment metadata via dialog and append it to the list."""
         #Pop up window to allow user to enter the name of the digital title
         self.dialog = QDialog()
         self.dialog.setGeometry(*self.scale_geom(710, 435, 600, 200))
@@ -3854,6 +3855,7 @@ class MainWindow(QMainWindow):
         self.dialog.exec_()
 
     def delete_element_experiment_list_button_clicked(self):
+        """Delete the selected experiment entry from the backing store and UI."""
         # sender = self.sender()
 
         row = self.experiment_list_list_widget.currentRow()
@@ -3872,6 +3874,7 @@ class MainWindow(QMainWindow):
 
 
     def _ensure_camera_experiment_selected(self):
+        """Return True when a camera experiment is chosen, otherwise warn the user."""
         if not hasattr(self, "camera_box") or not self.camera_box.isChecked():
             return True
 
@@ -3892,6 +3895,7 @@ class MainWindow(QMainWindow):
 
 
     def _prepare_camera_launch(self):
+        """Validate camera settings and build the launch metadata dictionary."""
         if not hasattr(self, "camera_box") or not self.camera_box.isChecked():
             return None
 
@@ -4005,6 +4009,7 @@ class MainWindow(QMainWindow):
 
 
     def _start_camera_subprocess(self, launch_info):
+        """Spawn the camera helper process in a background thread."""
         if not launch_info:
             return None
 
@@ -4030,6 +4035,7 @@ class MainWindow(QMainWindow):
 
 
     def _start_artiq_thread(self, delay_s=0.0, run_continuous=False):
+        """Start the ARTIQ runner in a detached thread for the configured platform."""
         delay_seconds = float(delay_s) if delay_s else 0.0
 
         if config.package_manager == "conda":
@@ -4064,6 +4070,7 @@ class MainWindow(QMainWindow):
 
 
     def _record_experiment_run(self, metadata_dir, *, is_multiple_run=False):
+        """Append the latest run metadata to the experiment spreadsheet when possible."""
         db_path = getattr(config, "experiment_database_path", "")
         if not db_path:
             return
@@ -4445,10 +4452,12 @@ class MainWindow(QMainWindow):
 
 
     def _pending_log_entries_path(self):
+        """Return the path used to store deferred experiment log entries."""
         return self.repo_path / "logs" / "pending_experiment_log_entries.json"
 
 
     def _load_pending_log_entries(self):
+        """Retrieve any deferred experiment log entries from disk into memory."""
         if hasattr(self, "_pending_log_entries_cache"):
             return list(self._pending_log_entries_cache)
 
@@ -4467,6 +4476,7 @@ class MainWindow(QMainWindow):
 
 
     def _set_pending_log_entries(self, entries):
+        """Persist the supplied pending log entries and refresh the cache."""
         entries_list = list(entries)
         self._pending_log_entries_cache = entries_list
         path = self._pending_log_entries_path()
@@ -4483,6 +4493,7 @@ class MainWindow(QMainWindow):
 
 
     def camera_which_cam_changed(self):
+        """Sync camera selections with stored metadata and serial numbers."""
         text_ = self.which_cam_combo.currentText()
         self.experiment.experimental_data.camera.camera_name = text_
         serial_number = config.camera_serial_numbers_dict.get(text_)
@@ -4568,6 +4579,7 @@ class MainWindow(QMainWindow):
             self._updating_texp_lock = False
 
     def camera_gain_changed(self):
+        """Validate the gain entry and apply it to the experiment model."""
         gain_text = self.gain_edit.text().strip()
         previous_gain = self.experiment.experimental_data.camera.gain_db
         if gain_text == "":
@@ -4586,6 +4598,7 @@ class MainWindow(QMainWindow):
 
 
     def camera_exposure_changed(self):
+        """Update camera exposure and ensure the T_exp_ variable stays in sync."""
         texp_key = "T_exp_"
         texp_str = self.exposure_edit.text().strip()
         if texp_str == "":
@@ -4621,6 +4634,7 @@ class MainWindow(QMainWindow):
 
 
     def camera_image_format_changed(self):
+        """Persist the chosen image format for camera acquisitions."""
         self.experiment.experimental_data.camera.format_name = self.format_combo.currentText()
 
 
