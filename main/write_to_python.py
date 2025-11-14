@@ -319,6 +319,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
         # Create an infinite while loop if needs to run continuously
         file.write(indentation + "while True:\n")
         indentation += "    "
+        file.write(indentation + "camera_enabled = False  # Camera disabled during post-experiment continuous run\n")
 
         # 10 ns delay to avoid collision of the last edge assignment of digital channels as there is at most 8 channel changes at a given time stamp
         file.write(indentation + "delay(10*ns)\n")
@@ -384,13 +385,23 @@ def create_experiment(self, run_continuous = False, multiple_runs = False): # ow
                         file.write(indentation + "delay(5*ms)\n")
 
                     if channel.changed == True:
-                        if channel.value == 1: # 1 is on 
-                            if index == 8: 
-                                file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
+                        if index in config.camera_trigger_ttl:
+                            if channel.value == 1:
+                                file.write(indentation + "if camera_enabled:\n")
+                                indentation += "    "
+                                file.write(indentation + "self.ttl" + str(index) + ".on()\n")
+                                indentation = indentation[:-4]
+                                file.write(indentation + "else:\n")
+                                indentation += "    "
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                                indentation = indentation[:-4]
                             else:
-                                file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
                         else:
-                            file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
+                            if channel.value == 1: # 1 is on 
+                                file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
+                            else:
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
                 
                 if edge_index == 0: #adding a 10 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
                     file.write(indentation + "delay(10*ns)\n")

@@ -1163,10 +1163,12 @@ class MainWindow(QMainWindow):
                     self.experiment.cam_trigger_off = False
                     self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
                 #this was only created to avoid crushing when the old versions of experiments are loaded without the cont_run_after_exp attribute
-                if hasattr(self.experiment, 'cont_run_after_exp'):
-                    pass
-                else:
+                if not hasattr(self.experiment, 'cont_run_after_exp'):
                     self.experiment.cont_run_after_exp = False
+
+                if self.experiment.cont_run_after_exp:
+                    self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+                else:
                     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
                 #this was only created to avoid crushing when the old versions of experiments are loaded without the camera_enabled attribute
                 if hasattr(self.experiment, 'camera_enabled'):
