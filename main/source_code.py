@@ -4183,14 +4183,14 @@ class MainWindow(QMainWindow):
 
             for stored in rows_snapshot:
                 row_values = [
-                    get_value(stored, "Date"),
+                    get_value(stored, "Date                                                                     (dd.mm.yyyy)"),
                     get_value(stored, "Experiment"),
                     get_value(stored, "Time"),
                     get_value(stored, "Scanned variable"),
                     get_value(stored, "Scan range"),
-                    get_value(stored, "Scan points number"),
+                    get_value(stored, "Scan steps"),
                     get_value(stored, "Number of runs"),
-                    get_value(stored, "Good data"),
+                    get_value(stored, "Good data                                                                (Y/N)"),
                     "path",
                     get_value(stored, "Comment")
                 ]
@@ -4198,7 +4198,7 @@ class MainWindow(QMainWindow):
                 current_row = sheet.max_row
                 date_cell_snapshot = sheet.cell(row=current_row, column=1)
                 if isinstance(date_cell_snapshot.value, (datetime, date)):
-                    date_cell_snapshot.number_format = "yyyy-mm-dd"
+                    date_cell_snapshot.number_format = "dd.mm.yyyy"
                 link_target = get_link(stored, "Data path")
                 if not link_target:
                     link_target = get_value(stored, "Data path")
@@ -4234,8 +4234,9 @@ class MainWindow(QMainWindow):
 
         if get_column_letter is not None:
             width_map = {
-                1: 11,  # Date
+                1: 14,  # Date
                 3: 10,  # Time
+                5: 20,  # Scan range
                 6: 16,  # Scan points number
                 7: 16,  # Number of runs
                 8: 10,  # Good data
@@ -4306,7 +4307,7 @@ class MainWindow(QMainWindow):
         last_row = sheet.max_row
         date_cell = sheet.cell(row=last_row, column=1)
         if isinstance(date_cell.value, (datetime, date)):
-            date_cell.number_format = "yyyy-mm-dd"
+            date_cell.number_format = "dd.mm.yyyy"
         data_cell = sheet.cell(row=last_row, column=9)
         data_cell.value = "path"
         data_cell.hyperlink = str(metadata_path)
