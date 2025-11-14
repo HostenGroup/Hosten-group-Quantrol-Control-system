@@ -1102,6 +1102,16 @@ class MainWindow(QMainWindow):
 
 
 
+    def sequence_table_editing_finished(self, index):
+        if not index.isValid():
+            return
+        if index.column() not in (1, 3):
+            return
+        item = self.sequence_table.item(index.row(), index.column())
+        if item is not None:
+            self.sequence_table_changed(item)
+
+
 
 
     def save_sequence_button_clicked(self):
