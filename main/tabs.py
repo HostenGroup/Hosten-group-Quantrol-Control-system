@@ -14,27 +14,6 @@ class ReadOnlyDelegate(QStyledItemDelegate):
     '''
     def createEditor(self, parent, option, index):
         return
-
-
-class EditingFinishedDelegate(QStyledItemDelegate):
-    '''
-    Delegate that emits editingFinished only after the editor confirms the edit.
-    '''
-    editingFinished = pyqtSignal(QPersistentModelIndex)
-
-    def createEditor(self, parent, option, index):
-        editor = super().createEditor(parent, option, index)
-        if hasattr(editor, "editingFinished"):
-            persistent_index = QPersistentModelIndex(index)
-            editor.editingFinished.connect(
-                lambda idx=persistent_index, ed=editor: self._commit_and_emit(idx, ed)
-            )
-        return editor
-
-    def _commit_and_emit(self, index, editor):
-        self.commitData.emit(editor)
-        self.closeEditor.emit(editor, QAbstractItemDelegate.NoHint)
-        self.editingFinished.emit(index)
     
 def making_separator(self):
 #         '''
@@ -357,14 +336,12 @@ def sequence_tab_build(self):
     self.sequence_table.setColumnWidth(3,int(self.SCALE_W*210))
     self.sequence_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
     # self.sequence_table.setColumnWidth(4,int(self.SCALE_W*100))
-    self.sequence_edit_delegate = EditingFinishedDelegate(self.sequence_table)
-    self.sequence_edit_delegate.editingFinished.connect(self.sequence_table_editing_finished)
-    self.sequence_table.setItemDelegate(self.sequence_edit_delegate)
-    read_only_delegate = ReadOnlyDelegate(self)
-    self.sequence_table.setItemDelegateForRow(0,read_only_delegate)
-    self.sequence_table.setItemDelegateForColumn(0,read_only_delegate)
-    self.sequence_table.setItemDelegateForColumn(2,read_only_delegate)
-    self.sequence_table.setItemDelegateForColumn(4,read_only_delegate)
+    self.sequence_table.itemChanged.connect(self.sequence_table_changed)
+    delegate = ReadOnlyDelegate(self)
+    self.sequence_table.setItemDelegateForRow(0,delegate)
+    self.sequence_table.setItemDelegateForColumn(0,delegate)
+    self.sequence_table.setItemDelegateForColumn(2,delegate)
+    self.sequence_table.setItemDelegateForColumn(4,delegate)
     #Setting the default values 
     self.sequence_table.setItem(0, 0, QTableWidgetItem("0"))
     self.sequence_table.setItem(0, 1, QTableWidgetItem(self.experiment.sequence[0].name))
