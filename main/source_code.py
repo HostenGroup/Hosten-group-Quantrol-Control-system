@@ -1467,7 +1467,7 @@ class MainWindow(QMainWindow):
                 self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
                 with open(metadata_dir / 'metadata.json', "w") as outfile:
                     json.dump(self.to_dict(self.experiment),outfile,indent=4)
-                self._record_experiment_run(metadata_dir)
+                self._record_experiment_run(metadata_dir, is_multiple_run=False)
                 if camera_launch_info:
                     self._start_camera_subprocess(camera_launch_info)
                     self.message_to_logger("Camera acquisition started")
@@ -1779,7 +1779,7 @@ class MainWindow(QMainWindow):
                 self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
                 with open(metadata_dir / 'metadata.json', "w") as outfile:
                     json.dump(self.to_dict(self.experiment),outfile,indent=4)
-                self._record_experiment_run(metadata_dir)
+                self._record_experiment_run(metadata_dir, is_multiple_run=True)
                 if camera_launch_info:
                     self._start_camera_subprocess(camera_launch_info)
                     self.message_to_logger("Camera acquisition started")
@@ -4055,7 +4055,7 @@ class MainWindow(QMainWindow):
         return thread
 
 
-    def _record_experiment_run(self, metadata_dir):
+    def _record_experiment_run(self, metadata_dir, *, is_multiple_run=False):
         db_path = getattr(config, "experiment_database_path", "")
         if not db_path:
             return
@@ -4063,7 +4063,7 @@ class MainWindow(QMainWindow):
             openpyxl_module = importlib.import_module("openpyxl")
         except ImportError:
             if not self._openpyxl_missing_warned:
-                self.message_to_logger("openpyxl not installed – experiment log will not be updated.")
+                self.message_to_logger("openpyxl not installed - experiment log will not be updated.")
                 self._openpyxl_missing_warned = True
             return
 
@@ -4071,9 +4071,42 @@ class MainWindow(QMainWindow):
         load_workbook = getattr(openpyxl_module, "load_workbook", None)
         if Workbook is None or load_workbook is None:
             if not self._openpyxl_missing_warned:
-                self.message_to_logger("openpyxl is missing workbook support – experiment log updates disabled.")
+                self.message_to_logger("openpyxl is missing workbook support - experiment log updates disabled.")
                 self._openpyxl_missing_warned = True
             return
+
+        try:
+            data_validation_module = importlib.import_module("openpyxl.worksheet.datavalidation")
+            DataValidation = getattr(data_validation_module, "DataValidation", None)
+        except ImportError:
+            DataValidation = None
+
+        try:
+            utils_module = importlib.import_module("openpyxl.utils")
+            get_column_letter = getattr(utils_module, "get_column_letter", None)
+        except ImportError:
+            get_column_letter = None
+
+        desired_headers = [
+            "Date",
+            "Experiment",
+            "Time",
+            "Scanned variable",
+            "Scan range",
+            "Scan points number",
+            "Number of runs",
+            "Good data",
+            "Data path",
+            "Comment"
+        ]
+        column_width = 25
+        row_height = 20
+        good_data_default = "[ ]"
+        header_aliases = {
+            "Scanned variables": "Scanned variable",
+            "Scan ranges": "Scan range",
+            "Comments": "Comment"
+        }
 
         metadata_path = Path(metadata_dir)
         db_file = Path(db_path)
@@ -4086,54 +4119,167 @@ class MainWindow(QMainWindow):
                 workbook = Workbook()
                 sheet = workbook.active
                 sheet.title = "Experiments"
-                sheet.append([
-                    "Experiment",
-                    "Date",
-                    "Time",
-                    "Good data",
-                    "Comments",
-                    "Data path",
-                    "Scanned variables",
-                    "Scan ranges"
-                ])
 
-            timestamp_iso = getattr(self.experiment.experimental_data, "current_run_timestamp", "")
+        except Exception as exc:
+            self.message_to_logger(f"Could not update experiment log: {exc}")
+            return
+
+        def restructure_sheet_if_needed():
+            existing_headers = []
+            if sheet.max_row >= 1:
+                existing_headers = [cell.value if cell.value is not None else "" for cell in sheet[1]]
+            if not any(existing_headers):
+                if sheet.max_row:
+                    sheet.delete_rows(1, sheet.max_row)
+                sheet.append(desired_headers)
+                return
+            if existing_headers == desired_headers:
+                return
+            rows_snapshot = []
+            for row in sheet.iter_rows(min_row=2):
+                info = {}
+                for idx, cell in enumerate(row):
+                    header_key = existing_headers[idx] if idx < len(existing_headers) else f"__extra_{idx}"
+                    canonical_key = header_aliases.get(header_key, header_key)
+                    info[canonical_key] = (cell.value, cell.hyperlink.target if cell.hyperlink else None)
+                rows_snapshot.append(info)
+            sheet.delete_rows(1, sheet.max_row)
+            sheet.append(desired_headers)
+
+            def get_value(info, key, default=""):
+                packed = info.get(key)
+                if packed is None:
+                    return default
+                value, _ = packed
+                return value if value is not None else default
+
+            def get_link(info, key):
+                packed = info.get(key)
+                if packed is None:
+                    return None
+                _, link = packed
+                return link
+
+            for stored in rows_snapshot:
+                row_values = [
+                    get_value(stored, "Date"),
+                    get_value(stored, "Experiment"),
+                    get_value(stored, "Time"),
+                    get_value(stored, "Scanned variable"),
+                    get_value(stored, "Scan range"),
+                    get_value(stored, "Scan points number"),
+                    get_value(stored, "Number of runs"),
+                    get_value(stored, "Good data", good_data_default),
+                    "path",
+                    get_value(stored, "Comment")
+                ]
+                sheet.append(row_values)
+                current_row = sheet.max_row
+                link_target = get_link(stored, "Data path")
+                if not link_target:
+                    link_target = get_value(stored, "Data path")
+                if link_target:
+                    data_cell = sheet.cell(row=current_row, column=9)
+                    data_cell.value = "path"
+                    data_cell.hyperlink = link_target
+                    data_cell.style = "Hyperlink"
+                good_cell = sheet.cell(row=current_row, column=8)
+                if not good_cell.value:
+                    good_cell.value = good_data_default
+                sheet.row_dimensions[current_row].height = row_height
+
+        restructure_sheet_if_needed()
+
+        for idx, header in enumerate(desired_headers, start=1):
+            sheet.cell(row=1, column=idx, value=header)
+
+        if get_column_letter is not None:
+            for col_idx in range(1, len(desired_headers) + 1):
+                column_letter = get_column_letter(col_idx)
+                sheet.column_dimensions[column_letter].width = column_width
+
+        sheet.row_dimensions[1].height = row_height
+
+        timestamp_iso = getattr(self.experiment.experimental_data, "current_run_timestamp", "")
+        try:
+            run_ts = datetime.fromisoformat(timestamp_iso) if timestamp_iso else datetime.now()
+        except ValueError:
+            run_ts = datetime.now()
+
+        experiment_name = getattr(self.experiment.experimental_data, "experiment_name", "") or ""
+        date_value = run_ts.date()
+        time_value = run_ts.time().replace(microsecond=0)
+
+        scanned_variables = []
+        scan_ranges = []
+        for variable in getattr(self.experiment, "scanned_variables", []):
+            name = getattr(variable, "name", "")
+            if name and name != "None":
+                scanned_variables.append(str(name))
+                min_val = getattr(variable, "min_val", "")
+                max_val = getattr(variable, "max_val", "")
+                scan_ranges.append(f"{name}: {min_val} -> {max_val}")
+
+        scan_points = 1
+        if getattr(self.experiment, "do_scan", False) and getattr(self.experiment, "scanned_variables_count", 0) > 0:
             try:
-                run_ts = datetime.fromisoformat(timestamp_iso) if timestamp_iso else datetime.now()
-            except ValueError:
-                run_ts = datetime.now()
+                scan_points = int(getattr(self.experiment, "number_of_steps", 1))
+            except (TypeError, ValueError):
+                scan_points = 1
+            if scan_points <= 0:
+                scan_points = 1
 
-            experiment_name = getattr(self.experiment.experimental_data, "experiment_name", "") or ""
-            date_value = run_ts.date()
-            time_value = run_ts.time().replace(microsecond=0)
+        number_of_runs_value = getattr(self.experiment, "number_of_runs", 1)
+        try:
+            number_of_runs_value = int(number_of_runs_value)
+        except (TypeError, ValueError):
+            number_of_runs_value = 1
+        if number_of_runs_value <= 0:
+            number_of_runs_value = 1
+        if not is_multiple_run:
+            number_of_runs_value = 1
 
-            scanned_variables = []
-            scan_ranges = []
-            for variable in getattr(self.experiment, "scanned_variables", []):
-                name = getattr(variable, "name", "")
-                if name and name != "None":
-                    scanned_variables.append(str(name))
-                    min_val = getattr(variable, "min_val", "")
-                    max_val = getattr(variable, "max_val", "")
-                    scan_ranges.append(f"{name}: {min_val} -> {max_val}")
+        row_values = [
+            date_value,
+            experiment_name,
+            time_value,
+            "; ".join(scanned_variables),
+            "; ".join(scan_ranges),
+            scan_points,
+            number_of_runs_value,
+            good_data_default,
+            "path",
+            ""
+        ]
 
-            row_values = [
-                experiment_name,
-                date_value,
-                time_value,
-                "",
-                "",
-                str(metadata_path),
-                "; ".join(scanned_variables),
-                "; ".join(scan_ranges)
-            ]
+        sheet.append(row_values)
+        last_row = sheet.max_row
+        data_cell = sheet.cell(row=last_row, column=9)
+        data_cell.value = "path"
+        data_cell.hyperlink = str(metadata_path)
+        data_cell.style = "Hyperlink"
 
-            sheet.append(row_values)
-            last_row = sheet.max_row
-            data_cell = sheet.cell(row=last_row, column=6)
-            data_cell.hyperlink = str(metadata_path)
-            data_cell.style = "Hyperlink"
+        sheet.row_dimensions[last_row].height = row_height
 
+        if DataValidation is not None:
+            target_range = "H2:H1048576"
+            existing_range = False
+            if hasattr(sheet, "data_validations"):
+                for dv in sheet.data_validations.dataValidation:
+                    if any(str(rng) == target_range for rng in dv.ranges):
+                        existing_range = True
+                        break
+            if not existing_range:
+                dv = DataValidation(type="list", formula1='"[ ],[x]"', allow_blank=True)
+                dv.error = "Select [x] once the dataset is validated."
+                dv.prompt = "Switch to [x] when the run produced good data."
+                sheet.add_data_validation(dv)
+                dv.add(target_range)
+
+        for row_idx in range(1, sheet.max_row + 1):
+            sheet.row_dimensions[row_idx].height = row_height
+
+        try:
             workbook.save(db_file)
         except Exception as exc:
             self.message_to_logger(f"Could not update experiment log: {exc}")
