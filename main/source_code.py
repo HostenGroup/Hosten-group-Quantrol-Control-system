@@ -40,7 +40,6 @@ from scipy.io import savemat, loadmat
 import json
 import importlib
 from pathlib import Path
-from typing import List
 
 
 # Subclass QMainWindow to customize your application's main window
@@ -437,7 +436,6 @@ class MainWindow(QMainWindow):
             self.exposure_time = exposure_time
             self.serial_number = serial_number
             self.camera_name = camera_name
-            self.discard_images = 0
 
 
     def __init__(self):
@@ -2200,7 +2198,7 @@ class MainWindow(QMainWindow):
 
     def skip_images_button_clicked(self):
         '''
-        Toggle the initial warm-up mode where the camera is triggered for ten runs but images are discarded.
+        Function is used to toggle the initial trigger of the camera 10 times due to the problem of image acquisition.
         '''
         self.experiment.skip_images = not self.experiment.skip_images
         if self.experiment.skip_images:
@@ -3955,104 +3953,6 @@ class MainWindow(QMainWindow):
         return False
 
 
-    @staticmethod
-    def _coerce_digital_level(value) -> int:
-        """Normalize digital channel values to 0 or 1."""
-        try:
-            return 1 if float(value) >= 0.5 else 0
-        except (TypeError, ValueError):
-            if isinstance(value, str):
-                text = value.strip().lower()
-                return 1 if text in {"1", "true", "on", "high"} else 0
-        return 0
-
-
-    def _normalize_camera_trigger_indices(self, raw_indices) -> List[int]:
-        """Return a sorted list of valid digital channel indices for camera triggering."""
-        if raw_indices is None:
-            return []
-        if not isinstance(raw_indices, (list, tuple, set)):
-            raw_indices = [raw_indices]
-
-        digital_count = len(self.experiment.sequence[0].digital) if self.experiment.sequence else getattr(config, "digital_channels_number", 0)
-        indices: List[int] = []
-        for item in raw_indices:
-            try:
-                idx = int(item)
-            except (TypeError, ValueError):
-                continue
-            if idx < 0:
-                continue
-            if digital_count and idx >= digital_count:
-                continue
-            if idx not in indices:
-                indices.append(idx)
-        indices.sort()
-        return indices
-
-
-    def _resolve_camera_trigger_indices(self, camera_name: str) -> List[int]:
-        """Determine which digital channels trigger the selected camera."""
-        trigger_map = getattr(config, "camera_trigger_ttl_map", None)
-        if isinstance(trigger_map, dict):
-            indices = trigger_map.get(camera_name) or trigger_map.get("default")
-            normalized = self._normalize_camera_trigger_indices(indices)
-            if normalized:
-                return normalized
-
-        camera_trigger_config = getattr(config, "camera_trigger_ttl", [])
-        if isinstance(camera_trigger_config, dict):
-            indices = camera_trigger_config.get(camera_name) or camera_trigger_config.get("default")
-            return self._normalize_camera_trigger_indices(indices)
-
-        camera_order = list(getattr(config, "camera_serial_numbers_dict", {}).keys())
-        camera_index = camera_order.index(camera_name) if camera_name in camera_order else 0
-
-        if isinstance(camera_trigger_config, (list, tuple)):
-            config_list = list(camera_trigger_config)
-            if not config_list:
-                return []
-            candidate = None
-            if camera_index < len(config_list):
-                candidate = config_list[camera_index]
-            else:
-                candidate = config_list[0]
-            normalized = self._normalize_camera_trigger_indices(candidate)
-            if normalized:
-                return normalized
-            return self._normalize_camera_trigger_indices(config_list)
-
-        return self._normalize_camera_trigger_indices(camera_trigger_config)
-
-
-    def _count_camera_trigger_rising_edges(self, trigger_indices: List[int]) -> int:
-        """Count 0->1 transitions for the given digital channels within one sequence run."""
-        if not trigger_indices or not getattr(self, "experiment", None) or not self.experiment.sequence:
-            return 0
-
-        sequence = self.experiment.sequence
-        prev_values = {idx: 0 for idx in trigger_indices}
-        first_edge = sequence[0]
-        for idx in trigger_indices:
-            if idx < len(first_edge.digital):
-                prev_values[idx] = self._coerce_digital_level(first_edge.digital[idx].value)
-
-        triggers = 0
-        for edge in sequence[1:]:
-            digital_channels = edge.digital if hasattr(edge, "digital") else []
-            for idx in trigger_indices:
-                if idx >= len(digital_channels):
-                    continue
-                channel = digital_channels[idx]
-                current_value = self._coerce_digital_level(channel.value)
-                channel_changed = getattr(channel, "changed", False)
-                if channel_changed and prev_values.get(idx, 0) == 0 and current_value == 1:
-                    triggers += 1
-                if channel_changed:
-                    prev_values[idx] = current_value
-        return triggers
-
-
     def _prepare_camera_launch(self):
         """Validate camera settings and build the launch metadata dictionary."""
         if not hasattr(self, "camera_box") or not self.camera_box.isChecked():
@@ -4157,20 +4057,10 @@ class MainWindow(QMainWindow):
         argv.extend(["--target-dir", str(run_directory)])
         if info_text:
             argv.extend(["--info-text", info_text])
-
-        trigger_indices = self._resolve_camera_trigger_indices(camera_name)
-        triggers_per_run = self._count_camera_trigger_rising_edges(trigger_indices)
-
-        skip_image_runs = 10 if (config.allow_skipping_images and getattr(self.experiment, "skip_images", False)) else 0
-        discard_images = skip_image_runs * triggers_per_run if skip_image_runs else 0
-        camera_data = getattr(self.experiment.experimental_data, "camera", None)
-        if discard_images:
-            argv.extend(["--discard-images", str(discard_images)])
-            if camera_data is not None:
-                camera_data.discard_images = discard_images
-        else:
-            if camera_data is not None:
-                camera_data.discard_images = 0
+        if getattr(self.experiment, "skip_images", False) and getattr(config, "allow_skipping_images", False):
+            skip_count = getattr(config, "skip_images_trigger_count", 10)
+            if skip_count > 0:
+                argv.extend(["--drop-initial-count", str(int(skip_count))])
 
         return {
             "argv": argv,

@@ -10,7 +10,6 @@ import argparse
 import datetime as dt
 import json
 import sys
-import time
 import traceback
 from pathlib import Path
 from typing import Dict, Optional
@@ -346,11 +345,9 @@ def run_acquisition(args: argparse.Namespace) -> None:
     cam: Optional[PySpin.Camera] = None
     file_directory: Optional[Path] = None
     info: Optional[Dict[str, object]] = None
-    image_index = 0
-    total_captures = 0
-    discard_remaining = max(0, int(getattr(args, "discard_images", 0) or 0))
-    discard_initial = discard_remaining
+    saved_images = 0
     time_start: Optional[dt.datetime] = None
+    drop_initial = 0
     interrupted = False
     try:
         camera_dict = initialise_cameras(cam_list)
@@ -370,7 +367,6 @@ def run_acquisition(args: argparse.Namespace) -> None:
             "comments": args.info_text,
             "parameters": parameters,
         }
-        info["discard_images"] = discard_initial
 
         configure_camera(cam, exposure_us, args.gain_db, args.format, info)
 
@@ -383,13 +379,12 @@ def run_acquisition(args: argparse.Namespace) -> None:
         short_timeout = 50
         num_of_timeouts = int(timeout_ms / short_timeout)
         timeout_counter = 0
-
-        if discard_initial > 0:
-            print(f"Skip-images mode: discarding the first {discard_initial} captured frame(s).")
+        drop_initial = max(int(getattr(args, "drop_initial_count", 0) or 0), 0)
+        remaining_warmup = drop_initial
 
         print("Use hardware to trigger image acquisition. Press Ctrl+C to interrupt.")
         while True:
-            if timeout_counter >= num_of_timeouts and image_index > 0:
+            if timeout_counter >= num_of_timeouts and saved_images > 0:
                 raise RuntimeError("Camera timeout. Acquisition finished successfully.")
 
             try:
@@ -408,16 +403,17 @@ def run_acquisition(args: argparse.Namespace) -> None:
                     time_start = dt.datetime.now()
 
                 timeout_counter = 0
-                total_captures += 1
-                if discard_remaining > 0:
-                    discard_remaining -= 1
-                    print(f"Discarded image number: {total_captures} (skip-images warm-up)")
+
+                if remaining_warmup > 0:
+                    remaining_warmup -= 1
+                    skipped = drop_initial - remaining_warmup
+                    print(f"Discarded warm-up image {skipped}/{drop_initial}")
                 else:
-                    filename = file_directory / f"{args.camera}_{image_index}.tif"
+                    filename = file_directory / f"{args.camera}_{saved_images}.tif"
                     image.Save(str(filename))
-                    image_index += 1
-                    print(f"Saved image number: {image_index}")
-                print("Use hardware to trigger image acquisition. Press Ctrl+C to interrupt.")
+                    saved_images += 1
+                    print(f"Saved image number: {saved_images}")
+                    print("Use hardware to trigger image acquisition. Press Ctrl+C to interrupt.")
             finally:
                 image.Release()
 
@@ -442,8 +438,11 @@ def run_acquisition(args: argparse.Namespace) -> None:
         
 
 
-        if not interrupted and file_directory is not None and info is not None and image_index >= 1:
-            # info["image_number"] = image_index
+        if info is not None:
+            info["skipped_images"] = drop_initial
+
+        if not interrupted and file_directory is not None and info is not None and saved_images >= 1:
+            # info["image_number"] = saved_images
             # file_directory.mkdir(parents=True, exist_ok=True)
             # with (file_directory / "info.json").open("w", encoding="utf-8") as file:
             #     json.dump(info, file, indent=4)
@@ -507,7 +506,7 @@ def main() -> None:
     parser.add_argument("--target-dir", type=str, default=None, help="Exact directory for this acquisition run")
     parser.add_argument("--info-text", type=str, default="", help="Optional comment stored in info.json")
     parser.add_argument("--process-images", action="store_true", help="Run legacy post-processing once acquisition finishes")
-    parser.add_argument("--discard-images", type=int, default=0, help="Skip saving this many initial captures")
+    parser.add_argument("--drop-initial-count", type=int, default=0, help="Number of initial hardware triggers to ignore when saving")
     args = parser.parse_args()
     try:
         run_acquisition(args)

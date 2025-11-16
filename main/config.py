@@ -39,6 +39,7 @@ _python_envs_path = Path(str(_current_python).split('python_envs')[0]) / 'python
 camera_env_python = str(_python_envs_path / 'camera_env' / 'Scripts' / 'python.exe')
 camera_launch_delay_s = 5
 allow_skipping_images = True
+skip_images_trigger_count = 10
 slow_dds_channels = [
     "urukul3_ch0",
     "urukul3_ch1",

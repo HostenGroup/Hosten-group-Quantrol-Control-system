@@ -26,6 +26,7 @@ artiq_environment_name = "artiq_5" # it can be either artiq or artiq_5 for Hoste
 analog_card = "zotino" # it can be either fastino or zotino for Hosten lab systems
 research_group_name = "Hosten"
 allow_skipping_images = True
+skip_images_trigger_count = 10
 list_of_devices_for_initialization = [
     "urukul0_cpld",
     "urukul0_ch0",

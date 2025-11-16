@@ -256,7 +256,7 @@ def sequence_tab_buttons_build(self,width_of_table):
         self.skip_images_button.setText("Skip images")
         self.skip_images_button.clicked.connect(self.skip_images_button_clicked)
         self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""") 
-        self.skip_images_button.setToolTip("Skip images button enables ten initial warm-up runs where the camera is triggered but the captured images are discarded. Button color shows the current state: green keeps the warm-up enabled, red disables it. Modify write_to_python.py to adjust the triggering channels; set allow_skipping_images to False in config.py to hide the control entirely.")
+        self.skip_images_button.setToolTip("Skip images button allows on demand triggering the camera acquisition 10 times in the beginning of experiment. Button's color represents current state where green indicates that the image triggering should be done, and red, when it should be avoided. Modify the write_to_python.py in order to change the triggering digital channels. The option of removing the button is in the config.py file. If not needed, set the allow_skipping_images to False")
         self.experiment.skip_images = True
 
     #camera trigger off cam_trigger_off_runs times

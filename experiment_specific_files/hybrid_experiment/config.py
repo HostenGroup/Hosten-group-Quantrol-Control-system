@@ -29,6 +29,7 @@ camera_serial_numbers_dict = {
     'Y':'22433344'
 }
 allow_skipping_images = True
+skip_images_trigger_count = 10
 slow_dds_channels = [
     "urukul3_ch0",
     "urukul3_ch1",
