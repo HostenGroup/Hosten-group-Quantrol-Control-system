@@ -72,10 +72,11 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + argument.name + " = " + "float("+ argument.initial_value + ")" + "\n")
 
     warmup_runs = self.experiment.cam_trigger_off_runs if getattr(self.experiment, "cam_trigger_off", False) else 0
+    skip_image_runs = 10 if (config.allow_skipping_images and getattr(self.experiment, "skip_images", False)) else 0
     actual_runs = self.experiment.number_of_runs if multiple_runs else 1
     if actual_runs <= 0:
         actual_runs = 1
-    total_runs = warmup_runs + actual_runs
+    total_runs = warmup_runs + skip_image_runs + actual_runs
     run_loop_added = False
 
     # Create an infinite while loop if needs to run continuously
@@ -101,7 +102,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
     if not run_continuous:
         if total_runs > 1:
-            file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up\n" % total_runs)
+            file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up and skip-image runs\n" % total_runs)
             indentation += "    "
             run_loop_added = True
             if warmup_runs > 0:

@@ -48,7 +48,6 @@ class MainWindow(QMainWindow):
     '''
     Main window that includes everything that needs to be displayed to the user
     '''
-    CAMERA_SKIP_WARMUP_RUNS = 10
     class Edge:
         '''
         An object that is used to describe the time edge of experimental sequence
@@ -438,6 +437,7 @@ class MainWindow(QMainWindow):
             self.exposure_time = exposure_time
             self.serial_number = serial_number
             self.camera_name = camera_name
+            self.discard_images = 0
 
 
     def __init__(self):
@@ -2200,7 +2200,7 @@ class MainWindow(QMainWindow):
 
     def skip_images_button_clicked(self):
         '''
-        Function is used to toggle the initial trigger of the camera 10 times due to the problem of image acquisition.
+        Toggle the initial warm-up mode where the camera is triggered for ten runs but images are discarded.
         '''
         self.experiment.skip_images = not self.experiment.skip_images
         if self.experiment.skip_images:
@@ -3964,7 +3964,7 @@ class MainWindow(QMainWindow):
             if isinstance(value, str):
                 text = value.strip().lower()
                 return 1 if text in {"1", "true", "on", "high"} else 0
-            return 0
+        return 0
 
 
     def _normalize_camera_trigger_indices(self, raw_indices) -> List[int]:
@@ -4045,9 +4045,10 @@ class MainWindow(QMainWindow):
                     continue
                 channel = digital_channels[idx]
                 current_value = self._coerce_digital_level(channel.value)
-                if channel.changed and prev_values.get(idx, 0) == 0 and current_value == 1:
+                channel_changed = getattr(channel, "changed", False)
+                if channel_changed and prev_values.get(idx, 0) == 0 and current_value == 1:
                     triggers += 1
-                if channel.changed:
+                if channel_changed:
                     prev_values[idx] = current_value
         return triggers
 
@@ -4159,20 +4160,24 @@ class MainWindow(QMainWindow):
 
         trigger_indices = self._resolve_camera_trigger_indices(camera_name)
         triggers_per_run = self._count_camera_trigger_rising_edges(trigger_indices)
-        skip_initial_images = 0
-        if getattr(config, "allow_skipping_images", False) and getattr(self.experiment, "skip_images", False):
-            skip_initial_images = triggers_per_run * self.CAMERA_SKIP_WARMUP_RUNS
-        argv.extend(["--skip-initial-images", str(skip_initial_images)])
+
+        skip_image_runs = 10 if (config.allow_skipping_images and getattr(self.experiment, "skip_images", False)) else 0
+        discard_images = skip_image_runs * triggers_per_run if skip_image_runs else 0
+        camera_data = getattr(self.experiment.experimental_data, "camera", None)
+        if discard_images:
+            argv.extend(["--discard-images", str(discard_images)])
+            if camera_data is not None:
+                camera_data.discard_images = discard_images
+        else:
+            if camera_data is not None:
+                camera_data.discard_images = 0
 
         return {
             "argv": argv,
             "cwd": str(camera_script.parent),
             "output_dir": str(run_directory),
             "metadata_dir": str(run_base_dir),
-            "timestamp": timestamp.isoformat(),
-            "camera_trigger_indices": trigger_indices,
-            "camera_triggers_per_run": triggers_per_run,
-            "camera_skip_images": skip_initial_images,
+            "timestamp": timestamp.isoformat()
         }
 
 
