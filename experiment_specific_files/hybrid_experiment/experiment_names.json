@@ -24,22 +24,18 @@
         "plot_x_caption": "camera_calibration"
     },
     "6": {
-        "name": "test",
-        "plot_x_caption": "test"
-    },
-    "7": {
         "name": "Field minimization",
         "plot_x_caption": "Magnetic field bias, V"
     },
-    "8": {
+    "7": {
         "name": "Spin echo",
         "plot_x_caption": "Echo time, ms"
     },
-    "9": {
+    "8": {
         "name": "MOT_jiggle",
         "plot_x_caption": "Phase, deg"
     },
-    "10": {
+    "9": {
         "name": "dummy_bruh",
         "plot_x_caption": "bruh"
     }

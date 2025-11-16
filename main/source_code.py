@@ -3794,17 +3794,21 @@ class MainWindow(QMainWindow):
     def update_experiment_names_list(self,name = '',caption = '',last = True):
         """Persist experiment list additions or caption edits to disk."""
         
-        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r', encoding="utf-8") as f:
             data = json.load(f)
 
         if last == True:
+            if data:
+                try:
+                    next_index = max(int(key) for key in data.keys()) + 1
+                except ValueError:
+                    next_index = len(data)
+            else:
+                next_index = 0
 
-            last_key = list(data.keys())[-1]
-
-            
-            data[f"{int(last_key) + 1}"] = {}
-            data[f"{int(last_key) + 1}"]["name"] = name
-            data[f"{int(last_key) + 1}"]["plot_x_caption"] = caption
+            data[str(next_index)] = {}
+            data[str(next_index)]["name"] = name
+            data[str(next_index)]["plot_x_caption"] = caption
 
             self.experiment_list_list_widget.addItem(name)
             self.dialog.accept()
@@ -3819,8 +3823,9 @@ class MainWindow(QMainWindow):
             data[key]["plot_x_caption"] = caption
             self.experiment.experimental_data.comment = caption
 
+        data = self._normalize_experiment_name_keys(data)
 
-        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w') as f:
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w', encoding="utf-8") as f:
             json.dump(data,f,indent = 4)
         # update.acquisition_tab(self)
         
@@ -3860,16 +3865,70 @@ class MainWindow(QMainWindow):
 
         row = self.experiment_list_list_widget.currentRow()
 
-        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r') as f:
-            data = json.load(f)
+        if row < 0:
+            self.error_message("Select the experiment you want to delete.", "No experiment selected")
+            return
 
-            del data[f"{int(row)}"]
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'r', encoding="utf-8") as handle:
+            data = json.load(handle)
 
-        
-        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w') as f:
-            json.dump(data,f,indent = 4)
+        key = f"{int(row)}"
+        if key not in data:
+            self.error_message(f"Experiment entry with key {key} was not found in experiment_names.json", "Missing experiment")
+            return
+
+        experiment_name = data[key].get("name", "").strip()
+
+        data_root = getattr(config, "experiment_data_root", "")
+        if experiment_name and data_root:
+            candidate_path = Path(data_root) / experiment_name
+            try:
+                has_data_directory = candidate_path.exists() and candidate_path.is_dir()
+            except OSError as exc:
+                self.error_message(
+                    f"Could not access the data directory for '{experiment_name}': {exc}",
+                    "Filesystem error"
+                )
+                return
+
+            if has_data_directory:
+                confirm_dialog = QInputDialog(self)
+                confirm_dialog.setWindowTitle("Confirm experiment deletion")
+                confirm_dialog.setLabelText(
+                    "There is data in the folder with this experiment name.\n"
+                    "Are you sure you want to delete it? Type DELETE if you are sure."
+                )
+                confirm_dialog.setTextEchoMode(QLineEdit.Normal)
+                confirm_dialog.resize(*self.scale_geom(0, 0, 400, 120)[2:])
+
+                if confirm_dialog.exec_() != QDialog.Accepted or confirm_dialog.textValue().strip().upper() != "DELETE":
+                    return
+
+        del data[key]
+
+        data = self._normalize_experiment_name_keys(data)
+
+
+        with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json", 'w', encoding="utf-8") as handle:
+            json.dump(data, handle, indent=4)
+
+        if experiment_name:
+            self._remove_experiment_log_rows(experiment_name)
 
         self.experiment_list_list_widget.takeItem(row)
+        remaining = self.experiment_list_list_widget.count()
+        if remaining > 0:
+            new_row = min(row, remaining - 1)
+            self.experiment_list_list_widget.setCurrentRow(new_row)
+            self.update_chosen_experiment()
+        else:
+            self.experiment_list_btn_delete.setEnabled(False)
+            self.experiment_list_chosen_line.clear()
+            self.experiment_list_chosen_line_caption.clear()
+            self.experiment.experimental_data.experiment_name = ''
+            self.experiment.experimental_data.comment = ''
+            self.experiment.experimental_data.path = ''
+            self.experiment.experimental_data.experiment_id = -1
         # update.acquisition_tab(self)
 
 
@@ -4449,6 +4508,88 @@ class MainWindow(QMainWindow):
         if pending_entries:
             self.message_to_logger("Previously pending experiment log entries were written to the log file.")
         self._set_pending_log_entries([])
+
+
+    def _remove_experiment_log_rows(self, experiment_name):
+        """Remove rows in the experiment log workbook that match the given experiment name."""
+        db_path = getattr(config, "experiment_database_path", "")
+        if not db_path or not experiment_name:
+            return
+
+        try:
+            openpyxl_module = importlib.import_module("openpyxl")
+        except ImportError:
+            self.message_to_logger("openpyxl not installed - experiment log cleanup skipped.")
+            return
+
+        load_workbook = getattr(openpyxl_module, "load_workbook", None)
+        if load_workbook is None:
+            self.message_to_logger("openpyxl missing load_workbook - experiment log cleanup skipped.")
+            return
+
+        try:
+            workbook = load_workbook(db_path)
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            self.message_to_logger("Experiment log cleanup skipped: close the Excel workbook and retry.")
+            return
+        except Exception as exc:
+            self.message_to_logger(f"Could not load experiment log for cleanup: {exc}")
+            return
+
+        try:
+            sheet = workbook.active
+            if sheet.max_row <= 1:
+                return
+
+            rows_to_delete = []
+            for row_idx in range(2, sheet.max_row + 1):
+                cell_value = sheet.cell(row=row_idx, column=2).value
+                match = False
+                if isinstance(cell_value, str):
+                    match = cell_value.strip() == experiment_name
+                elif cell_value is not None:
+                    try:
+                        match = str(cell_value).strip() == experiment_name
+                    except Exception:
+                        match = False
+                if match:
+                    rows_to_delete.append(row_idx)
+
+            if not rows_to_delete:
+                return
+
+            for row_idx in reversed(rows_to_delete):
+                sheet.delete_rows(row_idx)
+
+            try:
+                workbook.save(db_path)
+            except PermissionError:
+                self.message_to_logger("Experiment log cleanup could not save: close the Excel workbook and retry.")
+            except Exception as exc:
+                self.message_to_logger(f"Could not save experiment log after cleanup: {exc}")
+        finally:
+            try:
+                workbook.close()
+            except Exception:
+                pass
+
+
+    def _normalize_experiment_name_keys(self, mapping):
+        """Return a copy of the experiment metadata with sequential string keys."""
+        if not isinstance(mapping, dict):
+            return {}
+
+        try:
+            sorted_items = sorted(mapping.items(), key=lambda item: int(item[0]))
+        except (ValueError, TypeError):
+            sorted_items = list(mapping.items())
+
+        normalized = {}
+        for idx, (_, value) in enumerate(sorted_items):
+            normalized[str(idx)] = value
+        return normalized
 
 
     def _pending_log_entries_path(self):
