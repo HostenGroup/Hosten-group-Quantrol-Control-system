@@ -300,9 +300,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation = indentation[:-4]
 
     if self.experiment.cont_run_after_exp == True:
-        if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
-            indentation = indentation[:-4] 
-
         # self.function_to_write_cont_run_after_experiment(file)
 
         # Create an infinite while loop if needs to run continuously
