@@ -66,23 +66,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "inputs = [0.0]*8\n")
     file.write(indentation + "delay(1*s)\n") # this delay is added since our reference clock is 1GHz and self.core.break_realtime moves it forward by 15000 clock cycles
     
-    # This is used to trigger the camera 10 times and discard those images
-    if config.allow_skipping_images == True and self.experiment.skip_images:
-        file.write(indentation + "# Triggering camera 10 times in the beginning of experiment\n")
-        for val in config.camera_trigger_ttl:
-            file.write(indentation + "self.ttl" + str(val) + ".off()\n")
-        file.write(indentation + "delay(100*ms)\n")
-        file.write(indentation + "for _ in range(10):\n")
-        indentation += "    "
-        for val in config.camera_trigger_ttl:
-            file.write(indentation + "self.ttl" + str(val) + ".on()\n")
-        file.write(indentation + "delay(100*ms)\n")
-        for val in config.camera_trigger_ttl:
-            file.write(indentation + "self.ttl" + str(val) + ".off()\n")
-        file.write(indentation + "delay(100*ms)\n")
-        
-        indentation = indentation[:-4]
-    
     # for inital value of derived variables 
     arguments = self.experiment.derived_variables
     for argument in arguments:

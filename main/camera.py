@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import PySpin
 
@@ -365,6 +365,7 @@ def run_acquisition(args: argparse.Namespace) -> None:
             "experiment": experiment_name,
             "comments": args.info_text,
             "parameters": parameters,
+            "discarded_images": max(0, int(getattr(args, "skip_initial_images", 0) or 0)),
         }
 
         configure_camera(cam, exposure_us, args.gain_db, args.format, info)
@@ -378,6 +379,9 @@ def run_acquisition(args: argparse.Namespace) -> None:
         short_timeout = 50
         num_of_timeouts = int(timeout_ms / short_timeout)
         timeout_counter = 0
+        discard_remaining = info["discarded_images"]
+        if discard_remaining:
+            print(f"Skipping the first {discard_remaining} captured image(s) (camera warm-up).")
 
         print("Use hardware to trigger image acquisition. Press Ctrl+C to interrupt.")
         while True:
@@ -399,11 +403,17 @@ def run_acquisition(args: argparse.Namespace) -> None:
                 if time_start is None:
                     time_start = dt.datetime.now()
 
-                filename = file_directory / f"{args.camera}_{image_index}.tif"
-                image.Save(str(filename))
                 timeout_counter = 0
-                image_index += 1
-                print(f"Saved image number: {image_index}")
+
+                if discard_remaining > 0:
+                    discarded_index = info["discarded_images"] - discard_remaining + 1
+                    discard_remaining -= 1
+                    print(f"Discarded warm-up image {discarded_index}/{info['discarded_images']}")
+                else:
+                    filename = file_directory / f"{args.camera}_{image_index}.tif"
+                    image.Save(str(filename))
+                    image_index += 1
+                    print(f"Saved image number: {image_index}")
                 print("Use hardware to trigger image acquisition. Press Ctrl+C to interrupt.")
             finally:
                 image.Release()
@@ -494,6 +504,7 @@ def main() -> None:
     parser.add_argument("--target-dir", type=str, default=None, help="Exact directory for this acquisition run")
     parser.add_argument("--info-text", type=str, default="", help="Optional comment stored in info.json")
     parser.add_argument("--process-images", action="store_true", help="Run legacy post-processing once acquisition finishes")
+    parser.add_argument("--skip-initial-images", type=int, default=0, help="Number of initial captured images to discard before saving")
     args = parser.parse_args()
     try:
         run_acquisition(args)
