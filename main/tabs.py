@@ -63,6 +63,44 @@ def making_separator(self):
 #             self.sampler_table.item(0,3).setBackground(self.grey)
     return
 
+
+def _create_header_separator(self, parent: QWidget, x: int, y: int, width: int) -> QFrame:
+    """Add a thin gray separator between header widgets and their tables."""
+    thickness = max(2, int(round(4*self.SCALE_H)))
+    separator = QFrame(parent)
+    separator.setGeometry(x, y, width, thickness)
+    separator.setFrameShape(QFrame.NoFrame)
+    separator.setFrameShadow(QFrame.Plain)
+    separator.setStyleSheet(
+        f"QFrame {{ background-color: {self.grey.name()}; border: 0px; margin: 0px; padding: 0px; }}"
+    )
+    separator.setAutoFillBackground(True)
+    separator.setFocusPolicy(Qt.NoFocus)
+    separator.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+    separator.raise_()
+    return separator
+
+
+def _create_header_column_overlay(self, parent: QWidget, table: QTableWidget, column: int) -> QFrame:
+    """Create a grey overlay covering the specified header column."""
+    header = table.horizontalHeader()
+    x = table.geometry().x() + header.sectionPosition(column)
+    y = table.geometry().y()
+    width = header.sectionSize(column)
+    height = header.height()
+    overlay = QFrame(parent)
+    overlay.setGeometry(x, y, width, height)
+    overlay.setFrameShape(QFrame.NoFrame)
+    overlay.setFrameShadow(QFrame.Plain)
+    overlay.setStyleSheet(
+        f"QFrame {{ background-color: {self.grey.name()}; border: 0px; margin: 0px; padding: 0px; }}"
+    )
+    overlay.setAutoFillBackground(True)
+    overlay.setFocusPolicy(Qt.NoFocus)
+    overlay.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+    overlay.raise_()
+    return overlay
+
 def variables_sidebar_build(self,tab):
     width_of_table_variables = self.variables_table_width
     height_of_table_variables = self.bottom_buttons_y_val - self.top_margin - 10
@@ -541,6 +579,29 @@ def digital_tab_build(self):
     #self.digital_table.setItemDelegateForRow(0, delegate)
     for i in range(4, self.digital_tab_num_cols):
         exec("self.digital_table.setColumnWidth(%d,int(self.SCALE_W*(%d)))" % (i, self.digital_and_analog_table_column_width))
+
+    for row_index in range(self.digital_table.rowCount()):
+        separator_item = self.digital_table.item(row_index, 3)
+        if separator_item is None:
+            separator_item = QTableWidgetItem()
+            self.digital_table.setItem(row_index, 3, separator_item)
+        separator_item.setFlags(Qt.NoItemFlags)
+        separator_item.setBackground(self.grey)
+
+    header_separator_item = self.digital_table.horizontalHeaderItem(3)
+    if header_separator_item is None:
+        header_separator_item = QTableWidgetItem()
+        self.digital_table.setHorizontalHeaderItem(3, header_separator_item)
+    header_separator_item.setText("")
+    header_separator_item.setBackground(self.grey)
+    header_separator_item.setData(Qt.ForegroundRole, self.grey)
+
+    self.digital_header_column_separator = _create_header_column_overlay(
+        self,
+        self.digital_tab_widget,
+        self.digital_table,
+        3,
+    )
     
     
     #Filling the DIGITAL table
@@ -585,6 +646,29 @@ def digital_tab_build(self):
     self.digital_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.digital_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
+    separator_height = max(2, int(round(self.SCALE_H)))
+    digital_table_geom = self.digital_table.geometry()
+    digital_header_height = self.digital_table.horizontalHeader().height()
+    digital_sep_y = digital_table_geom.y() + digital_header_height - separator_height // 2
+    self.digital_header_separator_right = _create_header_separator(
+        self,
+        self.digital_tab_widget,
+        digital_table_geom.x(),
+        digital_sep_y,
+        digital_table_geom.width(),
+    )
+
+    digital_dummy_geom = self.digital_dummy.geometry()
+    digital_dummy_header_height = self.digital_dummy.horizontalHeader().height()
+    digital_dummy_sep_y = digital_dummy_geom.y() + digital_dummy_header_height - separator_height // 2
+    self.digital_header_separator_left = _create_header_separator(
+        self,
+        self.digital_tab_widget,
+        digital_dummy_geom.x(),
+        digital_dummy_sep_y,
+        digital_dummy_geom.width(),
+    )
+
     self.number_of_runs_input_digital = bottom_buttons_build(self,self.digital_tab_widget)
     self.variables_table_digital, self.delete_variable_digital = variables_sidebar_build(self,self.digital_tab_widget)
 
@@ -625,6 +709,29 @@ def analog_tab_build(self):
     #self.analog_table.setItemDelegateForRow(0,delegate)
     for i in range(4, self.analog_tab_num_cols):
         exec("self.analog_table.setColumnWidth(%d,int(self.SCALE_W*(%d)))" % (i,self.digital_and_analog_table_column_width))
+
+    for row_index in range(self.analog_table.rowCount()):
+        separator_item = self.analog_table.item(row_index, 3)
+        if separator_item is None:
+            separator_item = QTableWidgetItem()
+            self.analog_table.setItem(row_index, 3, separator_item)
+        separator_item.setFlags(Qt.NoItemFlags)
+        separator_item.setBackground(self.grey)
+
+    analog_header_separator_item = self.analog_table.horizontalHeaderItem(3)
+    if analog_header_separator_item is None:
+        analog_header_separator_item = QTableWidgetItem()
+        self.analog_table.setHorizontalHeaderItem(3, analog_header_separator_item)
+    analog_header_separator_item.setText("")
+    analog_header_separator_item.setBackground(self.grey)
+    analog_header_separator_item.setData(Qt.ForegroundRole, self.grey)
+
+    self.analog_header_column_separator = _create_header_column_overlay(
+        self,
+        self.analog_tab_widget,
+        self.analog_table,
+        3,
+    )
     #Filling the default values
     for index, channel in enumerate(self.experiment.sequence[0].analog):
         # plus 3 is because first 3 columns are used by number, name and time of edge
@@ -666,6 +773,29 @@ def analog_tab_build(self):
     self.analog_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.analog_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
+    separator_height = max(2, int(round(self.SCALE_H)))
+    analog_table_geom = self.analog_table.geometry()
+    analog_header_height = self.analog_table.horizontalHeader().height()
+    analog_sep_y = analog_table_geom.y() + analog_header_height - separator_height // 2
+    self.analog_header_separator_right = _create_header_separator(
+        self,
+        self.analog_tab_widget,
+        analog_table_geom.x(),
+        analog_sep_y,
+        analog_table_geom.width(),
+    )
+
+    analog_dummy_geom = self.analog_dummy.geometry()
+    analog_dummy_header_height = self.analog_dummy.horizontalHeader().height()
+    analog_dummy_sep_y = analog_dummy_geom.y() + analog_dummy_header_height - separator_height // 2
+    self.analog_header_separator_left = _create_header_separator(
+        self,
+        self.analog_tab_widget,
+        analog_dummy_geom.x(),
+        analog_dummy_sep_y,
+        analog_dummy_geom.width(),
+    )
+
     self.number_of_runs_input_analog = bottom_buttons_build(self,self.analog_tab_widget)
     self.variables_table_analog, self.delete_variable_analog = variables_sidebar_build(self,self.analog_tab_widget)
 
@@ -678,7 +808,7 @@ def dds_tab_build(self):
     dds_table_w = 1920 - 2*self.sep - self.variables_table_width - self.sep
     dds_table_h = self.bottom_buttons_y_val - self.top_margin - self.sep
     dds_header_h = 90
-    dds_side_w = 320
+    dds_side_w = 335
     
     #DDS LABLE
     dds_lable = QLabel(self.dds_tab_widget)
@@ -696,7 +826,7 @@ def dds_tab_build(self):
 
     self.dds_table.verticalHeader().setVisible(False)
     self.dds_table.horizontalHeader().setVisible(False)
-    self.dds_table.setRowCount(1)
+    self.dds_table.setRowCount(self.sequence_num_rows)
     self.dds_table.horizontalHeader().setMinimumSectionSize(0)
     self.dds_table.setFont(QFont('Arial', self.scale_font(12)))
     self.dds_table.setFrameStyle(QFrame.NoFrame)
@@ -706,8 +836,13 @@ def dds_tab_build(self):
     #SHAPING THE TABLE
     for i in range(config.dds_channels_number):
         # self.dds_table.setSpan(0,1 + 6*i, 1, 5) # stretching the title of the channel
-        self.dds_table.setItem(0,6*i + 0, QTableWidgetItem())
-        self.dds_table.item(0,6*i + 0).setBackground(self.grey)
+        for row_index in range(self.dds_table.rowCount()):
+            separator_item = self.dds_table.item(row_index, 6*i + 0)
+            if separator_item is None:
+                separator_item = QTableWidgetItem()
+                self.dds_table.setItem(row_index, 6*i + 0, separator_item)
+            separator_item.setFlags(Qt.NoItemFlags)
+            separator_item.setBackground(self.grey)
         self.dds_table.horizontalHeader().setMinimumSectionSize(0)
 
         self.dds_table.setColumnWidth(0 + 6*i,int(self.SCALE_W*(5))) # making separation line thin
@@ -742,15 +877,16 @@ def dds_tab_build(self):
     self.dds_seq = QTableWidget(self.dds_tab_widget)
     self.dds_seq.setGeometry(QRect(*self.scale_geom(self.sep,self.top_margin + dds_header_h,dds_side_w,dds_table_h - dds_header_h)))
     self.dds_seq.setColumnCount(3)
-    self.dds_seq.setRowCount(1)
+    self.dds_seq.setRowCount(self.sequence_num_rows)
     self.dds_seq.verticalHeader().setVisible(False)
     self.dds_seq.horizontalHeader().setVisible(False)
     self.dds_seq.horizontalHeader().setMinimumSectionSize(0)
     self.dds_seq.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.dds_seq.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     self.dds_seq.setFont(QFont('Arial', self.scale_font(12)))
-    self.dds_seq.setColumnWidth(0,int(self.SCALE_W*(40)))
-    self.dds_seq.setColumnWidth(2,int(self.SCALE_W*(100)))
+    self.dds_seq.setColumnWidth(0, int(self.SCALE_W * 50))
+    self.dds_seq.setColumnWidth(1, int(self.SCALE_W * 180))
+    self.dds_seq.setColumnWidth(2, int(self.SCALE_W * 100))
     self.dds_seq.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
     self.dds_seq.setFrameStyle(QFrame.NoFrame)
 
@@ -805,8 +941,12 @@ def dds_tab_build(self):
     for i in range(config.dds_channels_number):
         #separator
         self.dds_table_header.setSpan(0, 6*i + 0, 2, 1)
-        self.dds_table_header.setItem(0,6*i + 0, QTableWidgetItem())
-        self.dds_table_header.item(0, 6*i + 0).setBackground(self.grey)
+        separator_header_item = self.dds_table_header.item(0, 6*i + 0)
+        if separator_header_item is None:
+            separator_header_item = QTableWidgetItem()
+            self.dds_table_header.setItem(0, 6*i + 0, separator_header_item)
+        separator_header_item.setFlags(Qt.NoItemFlags)
+        separator_header_item.setBackground(self.grey)
         #headers Channel
         title_index = i + 4
         title_text = str(dds_titles[title_index]) if title_index < len(dds_titles) else f"DDS{i}"
@@ -836,10 +976,12 @@ def dds_tab_build(self):
     self.dds_seq_header.setFrameStyle(QFrame.NoFrame)
     
     #SHAPING THE FIRST 3 COLUMNS
-    self.dds_seq_header.setColumnWidth(0,int(self.SCALE_W*(40)))
-    self.dds_seq_header.setColumnWidth(2,int(self.SCALE_W*(100)))
+    self.dds_seq_header.setColumnWidth(0, int(self.SCALE_W * 50))
+    self.dds_seq_header.setColumnWidth(1, int(self.SCALE_W * 180))
+    self.dds_seq_header.setColumnWidth(2, int(self.SCALE_W * 100))
     self.dds_seq_header.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-    self.dds_seq_header.setRowHeight(0,int(self.SCALE_H*(dds_header_h)))
+    self.dds_seq_header.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+    self.dds_seq_header.setRowHeight(0, int(self.SCALE_H * (dds_header_h)))
     for i in range(3):
         self.dds_seq_header.setItemDelegateForColumn(i,delegate)
     
@@ -885,6 +1027,28 @@ def dds_tab_build(self):
     for tbl in self.dds_seq_tables:
         scrollbar = tbl.horizontalScrollBar()
         scrollbar.valueChanged.connect(lambda idx,bar=scrollbar: move_other_scrollbars_horizontal(idx, bar))
+
+    separator_height = max(2, int(round(self.SCALE_H)))
+
+    dds_left_geom = self.dds_seq.geometry()
+    dds_left_sep_y = dds_left_geom.y() - separator_height // 2
+    self.dds_header_separator_left = _create_header_separator(
+        self,
+        self.dds_tab_widget,
+        dds_left_geom.x(),
+        dds_left_sep_y,
+        dds_left_geom.width(),
+    )
+
+    dds_right_geom = self.dds_table.geometry()
+    dds_right_sep_y = dds_right_geom.y() - separator_height // 2
+    self.dds_header_separator_right = _create_header_separator(
+        self,
+        self.dds_tab_widget,
+        dds_right_geom.x(),
+        dds_right_sep_y,
+        dds_right_geom.width(),
+    )
 
     self.number_of_runs_input_dds = bottom_buttons_build(self,self.dds_tab_widget)
     self.variables_table_dds, self.delete_variable_dds = variables_sidebar_build(self,self.dds_tab_widget)
@@ -1056,6 +1220,29 @@ def sampler_tab_build(self):
     for i in range(4, self.sampler_tab_num_cols):
         exec("self.sampler_table.setColumnWidth(%d,int(self.SCALE_W*(%d)))" % (i, self.sampler_table_column_width))
 
+    for row_index in range(self.sampler_table.rowCount()):
+        separator_item = self.sampler_table.item(row_index, 3)
+        if separator_item is None:
+            separator_item = QTableWidgetItem()
+            self.sampler_table.setItem(row_index, 3, separator_item)
+        separator_item.setFlags(Qt.NoItemFlags)
+        separator_item.setBackground(self.grey)
+
+    sampler_header_separator_item = self.sampler_table.horizontalHeaderItem(3)
+    if sampler_header_separator_item is None:
+        sampler_header_separator_item = QTableWidgetItem()
+        self.sampler_table.setHorizontalHeaderItem(3, sampler_header_separator_item)
+    sampler_header_separator_item.setText("")
+    sampler_header_separator_item.setBackground(self.grey)
+    sampler_header_separator_item.setData(Qt.ForegroundRole, self.grey)
+
+    self.sampler_header_column_separator = _create_header_column_overlay(
+        self,
+        self.sampler_tab_widget,
+        self.sampler_table,
+        3,
+    )
+
     for index, channel in enumerate(self.experiment.sequence[0].sampler):
         col = index + 4
         self.sampler_table.setItem(0, col, QTableWidgetItem(str(channel)))
@@ -1074,6 +1261,18 @@ def sampler_tab_build(self):
     delegate = ReadOnlyDelegate(self)
     for _ in range(3):
         exec("self.sampler_table.setItemDelegateForColumn(%d,delegate)" %_)
+
+    separator_height = max(2, int(round(self.SCALE_H)))
+    sampler_geom = self.sampler_table.geometry()
+    sampler_header_height = self.sampler_table.horizontalHeader().height()
+    sampler_sep_y = sampler_geom.y() + sampler_header_height - separator_height // 2
+    self.sampler_header_separator = _create_header_separator(
+        self,
+        self.sampler_tab_widget,
+        sampler_geom.x(),
+        sampler_sep_y,
+        sampler_geom.width(),
+    )
 
     
     self.number_of_runs_input_sampler = bottom_buttons_build(self,self.sampler_tab_widget)
@@ -1230,6 +1429,7 @@ def mirny_tab_build(self):
     self.mirny_fixed.setColumnWidth(0, int(self.SCALE_W * 50))
     self.mirny_fixed.setColumnWidth(1, int(self.SCALE_W * 180))
     self.mirny_fixed.setColumnWidth(2, int(self.SCALE_W * 100))
+    self.mirny_fixed.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
     self.mirny_fixed.setRowHeight(0, int(self.SCALE_H * mirny_header_h))
     for col in range(3):
         self.mirny_fixed.setItemDelegateForColumn(col, delegate)
@@ -1276,6 +1476,28 @@ def mirny_tab_build(self):
     for tbl in self.mirny_dummy_tables:
         scrollbar = tbl.horizontalScrollBar()
         scrollbar.valueChanged.connect(lambda idx, bar=scrollbar: move_other_scrollbars_horizontal(idx, bar))
+
+    separator_height = max(2, int(round(self.SCALE_H)))
+
+    mirny_left_geom = self.mirny_dummy.geometry()
+    mirny_left_sep_y = mirny_left_geom.y() - separator_height // 2
+    self.mirny_header_separator_left = _create_header_separator(
+        self,
+        self.mirny_tab_widget,
+        mirny_left_geom.x(),
+        mirny_left_sep_y,
+        mirny_left_geom.width(),
+    )
+
+    mirny_right_geom = self.mirny_table.geometry()
+    mirny_right_sep_y = mirny_right_geom.y() - separator_height // 2
+    self.mirny_header_separator_right = _create_header_separator(
+        self,
+        self.mirny_tab_widget,
+        mirny_right_geom.x(),
+        mirny_right_sep_y,
+        mirny_right_geom.width(),
+    )
 
     self.number_of_runs_input_mirny = bottom_buttons_build(self, self.mirny_tab_widget)
     self.variables_table_mirny, self.delete_variable_mirny = variables_sidebar_build(self, self.mirny_tab_widget)
@@ -1343,6 +1565,18 @@ def slow_dds_tab_build(self):
         self.slow_dds_table.setItem(1,6*i + 3, QTableWidgetItem('Att (dB)'))
         self.slow_dds_table.setItem(1,6*i + 4, QTableWidgetItem('phase (deg)'))
         self.slow_dds_table.setItem(1,6*i + 5, QTableWidgetItem('state'))
+
+    separator_height = max(2, int(round(self.SCALE_H)))
+    slow_dds_geom = self.slow_dds_table.geometry()
+    slow_header_height = self.slow_dds_table.rowHeight(0) + self.slow_dds_table.rowHeight(1)
+    slow_sep_y = slow_dds_geom.y() + slow_header_height - separator_height // 2
+    self.slow_dds_header_separator = _create_header_separator(
+        self,
+        self.slow_dds_tab_widget,
+        slow_dds_geom.x(),
+        slow_sep_y,
+        slow_dds_geom.width(),
+    )
 
     #button to set slow dds states
     self.set_slow_dds_states = QPushButton(self.slow_dds_tab_widget)

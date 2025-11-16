@@ -160,6 +160,12 @@ def sampler_tab(self):
                 table_item.setBackground(self.green)
             else:
                 table_item.setBackground(self.white)
+                separator_item = self.sampler_table.item(row, 3)
+                if separator_item is None:
+                    separator_item = QTableWidgetItem()
+                    self.sampler_table.setItem(row, 3, separator_item)
+                separator_item.setFlags(Qt.NoItemFlags)
+                separator_item.setBackground(self.grey)
     
                         
     self.update_on()
@@ -963,6 +969,12 @@ def from_object(self):
             self.sampler_table.setItem(row,0, QTableWidgetItem(str(row)))
             self.sampler_table.setItem(row,1, QTableWidgetItem(edge.name))
             self.sampler_table.setItem(row,2, QTableWidgetItem(str(edge.value)))
+            separator_item = self.sampler_table.item(row, 3)
+            if separator_item is None:
+                separator_item = QTableWidgetItem()
+                self.sampler_table.setItem(row, 3, separator_item)
+            separator_item.setFlags(Qt.NoItemFlags)
+            separator_item.setBackground(self.grey)
     
     # update color in SEQUENCE table 
     if  self.ramp_table.isChecked() == True:
@@ -973,6 +985,13 @@ def from_object(self):
 
     #Displaying DIGITAL table
     if config.digital_channels_number > 0:
+        for row in range(self.sequence_num_rows):
+            separator_item = self.digital_table.item(row, 3)
+            if separator_item is None:
+                separator_item = QTableWidgetItem()
+                self.digital_table.setItem(row, 3, separator_item)
+            separator_item.setFlags(Qt.NoItemFlags)
+            separator_item.setBackground(self.grey)
         for channel_index in range(config.digital_channels_number):
             for row in range(self.sequence_num_rows):
                 channel = self.experiment.sequence[row].digital[channel_index]
@@ -1027,6 +1046,13 @@ def from_object(self):
 
     #Displaying ANALOG table
     if config.analog_channels_number > 0:
+        for row in range(self.sequence_num_rows):
+            separator_item = self.analog_table.item(row, 3)
+            if separator_item is None:
+                separator_item = QTableWidgetItem()
+                self.analog_table.setItem(row, 3, separator_item)
+            separator_item.setFlags(Qt.NoItemFlags)
+            separator_item.setBackground(self.grey)
         for channel_index in range(config.analog_channels_number):
             for row in range(self.sequence_num_rows):
                 channel = self.experiment.sequence[row].analog[channel_index]
@@ -1089,6 +1115,13 @@ def from_object(self):
                 for row in range(self.sequence_num_rows): # plus 2 because of 2 rows used for title
                     channel = self.experiment.sequence[row].dds[channel_index]
                     # plus 4 is because first 4 columns are used by number, name, time of edge and separator and times 6 is becuase each channel has 5 columns and 1 separator
+                    base_col = channel_index * 6
+                    sep_item = self.dds_table.item(row, base_col)
+                    if sep_item is None:
+                        sep_item = QTableWidgetItem()
+                        self.dds_table.setItem(row, base_col, sep_item)
+                    sep_item.setFlags(Qt.NoItemFlags)
+                    sep_item.setBackground(self.grey)
                     col = channel_index * 6 + 1 + setting
                     exec("self.channel_entry = channel.%s" %self.setting_dict[setting])
                     channel_entry = self.channel_entry
