@@ -20,25 +20,7 @@ import PySpin
 import config
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run FLIR camera acquisition with parameters provided by Quantrol."
-    )
-    # Analog gain and exposure mirror the legacy defaults (e.g. gain_db=20, exposure=350 us)
-    parser.add_argument("--camera", required=True, help="Camera label as defined in config.camera_serial_numbers_dict")
-    parser.add_argument("--format", required=True, help="Pixel format name, e.g. Mono8")
-    parser.add_argument("--gain-db", required=True, type=float, help="Analog gain in dB")
-    parser.add_argument("--exposure-ms", required=True, type=float, help="Exposure time in milliseconds")
-    parser.add_argument("--experiment-code", type=int, default=0, help="Index of the experiment in experiment_names.json")
-    parser.add_argument("--repo-root", type=str, default=str(Path(__file__).resolve().parents[1]), help="Repository root path")
-    parser.add_argument("--output-root", type=str, default=None, help="Root directory for saving captures. Defaults to Hybrid MOT path")
-    parser.add_argument("--target-dir", type=str, default=None, help="Exact directory for this acquisition run")
-    parser.add_argument("--info-text", type=str, default="", help="Optional comment stored in info.json")
-    parser.add_argument("--process-images", action="store_true", help="Run legacy post-processing once acquisition finishes")
-    return parser.parse_args()
-
-
-def load_experiment_entry(repo_root: Path, experiment_code: int) -> Dict[str, str]:
+def load_experiment_entry(repo_root: Path, experiment_code: int) -> Dict[str, object]:
     experiments_file = repo_root / "experiment_specific_files" / config.which_project / "experiment_names.json"
     if not experiments_file.exists():
         raise FileNotFoundError(f"Experiment list not found at {experiments_file}")
@@ -498,7 +480,21 @@ def run_acquisition(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    args = parse_args()
+    parser = argparse.ArgumentParser(
+        description="Run FLIR camera acquisition with parameters provided by Quantrol."
+    )
+    # Analog gain and exposure mirror the legacy defaults (e.g. gain_db=20, exposure=350 us)
+    parser.add_argument("--camera", required=True, help="Camera label as defined in config.camera_serial_numbers_dict")
+    parser.add_argument("--format", required=True, help="Pixel format name, e.g. Mono8")
+    parser.add_argument("--gain-db", required=True, type=float, help="Analog gain in dB")
+    parser.add_argument("--exposure-ms", required=True, type=float, help="Exposure time in milliseconds")
+    parser.add_argument("--experiment-code", type=int, default=0, help="Index of the experiment in experiment_names.json")
+    parser.add_argument("--repo-root", type=str, default=str(Path(__file__).resolve().parents[1]), help="Repository root path")
+    parser.add_argument("--output-root", type=str, default=None, help="Root directory for saving captures. Defaults to Hybrid MOT path")
+    parser.add_argument("--target-dir", type=str, default=None, help="Exact directory for this acquisition run")
+    parser.add_argument("--info-text", type=str, default="", help="Optional comment stored in info.json")
+    parser.add_argument("--process-images", action="store_true", help="Run legacy post-processing once acquisition finishes")
+    args = parser.parse_args()
     try:
         run_acquisition(args)
     except Exception as exc:
