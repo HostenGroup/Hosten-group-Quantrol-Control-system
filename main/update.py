@@ -3,6 +3,63 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 import config
 import tabs
+import numpy as np
+import re
+
+
+def _compute_constant_derived_values(self):
+    """Return {derived_name: value} for derived variables with static arguments."""
+    constant_map = {}
+    for derived in getattr(self.experiment, "derived_variables", []):
+        arguments_raw = derived.arguments.replace(" ", "") if getattr(derived, "arguments", None) else ""
+        if arguments_raw:
+            argument_names = [arg for arg in arguments_raw.split(",") if arg]
+        else:
+            argument_names = []
+
+        local_values = {}
+        is_constant = True
+        for argument in argument_names:
+            variable = self.experiment.variables.get(argument)
+            if variable is None or variable.is_scanned or variable.is_ramped or getattr(variable, "is_sampled", False) or variable.is_derived or variable.is_lookup:
+                is_constant = False
+                break
+            local_values[argument] = variable.value
+
+        if not is_constant:
+            continue
+
+        expression = (derived.function or "").strip()
+        if not expression:
+            continue
+
+        try:
+            value = eval(expression, {"np": np, "__builtins__": {}}, local_values)
+        except Exception:
+            continue
+
+        constant_map[derived.name] = value
+    return constant_map
+
+
+def _format_derived_tooltip(expression, base_label, constant_values):
+    """Decorate tooltip with constant derived values referenced in expression."""
+    if not expression or not constant_values:
+        return base_label
+
+    matches = []
+    for name, value in constant_values.items():
+        if re.search(rf"\b{re.escape(name)}\b", expression):
+            if isinstance(value, (int, float)):
+                value_repr = f"{value:g}"
+            else:
+                value_repr = str(value)
+            matches.append(f"{name}={value_repr}")
+
+    if not matches:
+        return base_label
+
+    return f"{base_label}: {', '.join(matches)}"
 
 def sequence_tab(self):
     self.update_off()
@@ -68,6 +125,7 @@ def sequence_tab(self):
 
 def digital_tab(self, update_expressions_and_evaluations = True, update_values_and_table = True):
     self.update_off()
+    constant_tooltips = getattr(self, "_constant_derived_tooltips", {})
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.digital_channels_number):
         for row in range(self.sequence_num_rows):
@@ -99,7 +157,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                         elif channel.is_derived:
                             table_item.setBackground(self.cyan)
                             table_item.setText(channel.expression)
-                            table_item.setToolTip("derived")    
+                            table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))    
                         elif channel.is_lookup:
                             table_item.setBackground(self.light_grey)
                             table_item.setText(channel.expression)
@@ -136,7 +194,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                     if channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setToolTip("lookup")
                     else:
@@ -176,6 +234,7 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
     Used in analog_table_changed()
     '''
     self.update_off()
+    constant_tooltips = getattr(self, "_constant_derived_tooltips", {})
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.analog_channels_number):
         for row in range(self.sequence_num_rows):
@@ -213,7 +272,7 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                             elif channel.is_derived:
                                 table_item.setBackground(self.cyan)
                                 table_item.setText(channel.expression)
-                                table_item.setToolTip("derived")    
+                                table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                             elif channel.is_lookup:
                                 table_item.setBackground(self.light_grey)
                                 table_item.setText(channel.expression)
@@ -254,7 +313,7 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                     if channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setToolTip("lookup")
                     else:                
@@ -270,6 +329,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
     Used in dds_table_changed()
     '''
     self.update_off()
+    constant_tooltips = getattr(self, "_constant_derived_tooltips", {})
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.dds_channels_number):
         for setting in range(4,-1,-1): #start an update from the state of the channel to properly update the color coding
@@ -320,7 +380,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                                 table_item.setToolTip("sampled")
                             elif channel_entry.is_derived:
                                 table_item.setBackground(self.cyan)
-                                table_item.setToolTip("derived")
+                                table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                             elif channel_entry.is_lookup:
                                 table_item.setBackground(self.light_grey)
                                 table_item.setToolTip("lookup")
@@ -359,7 +419,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                         if channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                             table_item.setToolTip("lookup")
                         else:                        
@@ -395,6 +455,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
     Used in mirny_table_changed()
     '''
     self.update_off()
+    constant_tooltips = getattr(self, "_constant_derived_tooltips", {})
     #note that in order to display numbers you first need to convert them to string
     for channel_index in range(config.mirny_channels_number):
         for setting in range(4,-1,-1): #start an update from the state of the channel to properly update the color coding
@@ -456,7 +517,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                                 table_item.setToolTip("sampled")
                             elif channel_entry.is_derived:
                                 table_item.setBackground(self.cyan)
-                                table_item.setToolTip("derived")
+                                table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                             elif channel_entry.is_lookup:
                                 table_item.setBackground(self.light_grey)
                                 table_item.setToolTip("lookup")
@@ -495,7 +556,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                         if channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                             table_item.setToolTip("lookup")
                         else:                        
@@ -557,8 +618,10 @@ def digital_analog_dds_mirny_tabs(self, update_expressions_and_evaluations = Tru
     '''
     This function updates all tabs. It just calls an update of each tab one by one
     '''
+    self._constant_derived_tooltips = {}
     sequence_tab_return = sequence_tab(self)
     if (sequence_tab_return==None):
+        self._constant_derived_tooltips = _compute_constant_derived_values(self)
         digital_tab_return = digital_tab(self, update_expressions_and_evaluations, update_values_and_tables)
         if (digital_tab_return==None):
             analog_tab_return = analog_tab(self, update_expressions_and_evaluations, update_values_and_tables)
@@ -594,6 +657,8 @@ def all_tabs(self, update_expressions_and_evaluations = True,
              derived_variables = True, lookup_variables = True):
     # print('alltabs')
     sequence_tab(self)
+    self._constant_derived_tooltips = _compute_constant_derived_values(self)
+    constant_tooltips = self._constant_derived_tooltips
     variables_tab(self,new_variables,derived_variables, lookup_variables)
     sampler_tab(self)
     acquisition_tab(self)
@@ -976,6 +1041,9 @@ def from_object(self):
             separator_item.setFlags(Qt.NoItemFlags)
             separator_item.setBackground(self.grey)
     
+    self._constant_derived_tooltips = _compute_constant_derived_values(self)
+    constant_tooltips = self._constant_derived_tooltips
+
     # update color in SEQUENCE table 
     if  self.ramp_table.isChecked() == True:
         try: 
@@ -1005,7 +1073,7 @@ def from_object(self):
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
                         table_item.setBackground(self.cyan)
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setBackground(self.light_grey)
                         table_item.setToolTip("lookup")
@@ -1036,7 +1104,7 @@ def from_object(self):
                     if channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setToolTip("lookup")
                     else:
@@ -1069,7 +1137,7 @@ def from_object(self):
                         table_item.setToolTip("ramped")
                     elif channel.is_derived:
                         table_item.setBackground(self.cyan)
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setBackground(self.light_grey)
                         table_item.setToolTip("lookup")
@@ -1100,7 +1168,7 @@ def from_object(self):
                     if channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setToolTip("lookup")
                     else:                
@@ -1136,7 +1204,7 @@ def from_object(self):
                             table_item.setToolTip("ramped")
                         elif channel_entry.is_derived:
                             table_item.setBackground(self.cyan)
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                             table_item.setBackground(self.light_grey)
                             table_item.setToolTip("lookup")
@@ -1166,7 +1234,7 @@ def from_object(self):
                         if channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                              table_item.setToolTip("lookup")
                         else:                        
@@ -1198,7 +1266,7 @@ def from_object(self):
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
                             table_item.setBackground(self.cyan)
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                             table_item.setBackground(self.light_grey)
                             table_item.setToolTip("lookup")
@@ -1228,7 +1296,7 @@ def from_object(self):
                         if channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_ramped:
                             table_item.setToolTip("ramped")
                         elif channel_entry.is_lookup:
@@ -1282,6 +1350,8 @@ def from_object(self):
 
 def all_values(self):
     self.update_off()
+    self._constant_derived_tooltips = _compute_constant_derived_values(self)
+    constant_tooltips = self._constant_derived_tooltips
     #Displaying SEQUENCE table and timing part of other tables
     for row, edge in enumerate(self.experiment.sequence):
         #displaying edge names and times        
@@ -1337,7 +1407,7 @@ def all_values(self):
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
                         table_item.setBackground(self.cyan)
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setBackground(self.light_grey)
                         table_item.setToolTip("lookup")
@@ -1368,7 +1438,7 @@ def all_values(self):
                     if channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setToolTip("lookup")
                     else:
@@ -1394,7 +1464,7 @@ def all_values(self):
                         table_item.setToolTip("ramped")
                     elif channel.is_derived:
                         table_item.setBackground(self.cyan)
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setBackground(self.light_grey)
                         table_item.setToolTip("lookup")
@@ -1425,7 +1495,7 @@ def all_values(self):
                     if channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
-                        table_item.setToolTip("derived")
+                        table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
                     elif channel.is_lookup:
                         table_item.setToolTip("lookup")
                     else:                
@@ -1454,7 +1524,7 @@ def all_values(self):
                             table_item.setToolTip("ramped")
                         elif channel_entry.is_derived:
                             table_item.setBackground(self.cyan)
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                             table_item.setBackground(self.light_grey)
                             table_item.setToolTip("lookup")
@@ -1484,7 +1554,7 @@ def all_values(self):
                         if channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                              table_item.setToolTip("lookup")
                         else:                        
@@ -1516,7 +1586,7 @@ def all_values(self):
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
                             table_item.setBackground(self.cyan)
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                             table_item.setBackground(self.light_grey)
                             table_item.setToolTip("lookup")
@@ -1546,7 +1616,7 @@ def all_values(self):
                         if channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
-                            table_item.setToolTip("derived")
+                            table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_ramped:
                             table_item.setToolTip("ramped")
                         elif channel_entry.is_lookup:

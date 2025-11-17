@@ -26,7 +26,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     
     #Creating functions to calculate derived variables
     for variable in self.experiment.derived_variables:
-        file.write(indentation + "def calculate_%s(%s) -> TFloat:\n"%(variable.name, variable.arguments))
+        file.write(indentation + "def calculate_%s(%s):\n"%(variable.name, variable.arguments))
         indentation += "    "
         file.write(indentation + "return %s \n\n" %variable.function)
         indentation = indentation[:-4]
@@ -53,7 +53,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         var_names = ""
         for variable in self.experiment.scanned_variables:
             if variable.name != "None":
-                file.write(indentation + "self.%s = np.linspace(%f, %f, %d)\n"%(variable.name, variable.min_val, variable.max_val, self.experiment.number_of_steps))
+                file.write(indentation + "self.%s = list(np.linspace(%f, %f, %d))\n"%(variable.name, variable.min_val, variable.max_val, self.experiment.number_of_steps))
                 var_names += variable.name + ", "
     file.write("\n")
     indentation = indentation[:-4]
@@ -82,6 +82,27 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     arguments = self.experiment.derived_variables
     for argument in arguments:
         file.write(indentation + argument.name + " = " + "float("+ argument.initial_value + ")" + "\n")
+
+    # initialize regular (non-scanned) variables so expressions have bindings
+    base_variables = []
+    for variable in getattr(self.experiment, "new_variables", []):
+        if variable.name in ("", "None"):
+            continue
+        if getattr(variable, "is_scanned", False):
+            continue
+        if getattr(variable, "is_ramped", False):
+            continue
+        if getattr(variable, "is_sampled", False):
+            continue
+        if getattr(variable, "is_derived", False):
+            continue
+        if getattr(variable, "is_lookup", False):
+            continue
+        base_variables.append(variable)
+
+    for variable in base_variables:
+        value_expr = variable.for_python if str(variable.for_python).strip() != "" else variable.value
+        file.write(indentation + f"{variable.name} = {value_expr}\n")
 
     warmup_runs = self.experiment.cam_trigger_off_runs if getattr(self.experiment, "cam_trigger_off", False) else 0
     actual_runs = self.experiment.number_of_runs if multiple_runs else 1
@@ -131,6 +152,9 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "#Beginning of the Scan\n")
         file.write(indentation + "for step in range(%d):\n" %(self.experiment.number_of_steps))
         indentation += "    "
+        for variable in self.experiment.scanned_variables:
+            if variable.name != "None":
+                file.write(indentation + f"{variable.name} = self.{variable.name}[step]\n")
     self.delta_t = 0 
 
     #flag_init is used to indicate that there is no need for a delay calculation for the first row
@@ -316,6 +340,9 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             file.write(indentation + "#Beginning of the Scan\n")
             file.write(indentation + "for step in range(%d):\n" %(self.experiment.number_of_steps))
             indentation += "    "
+            for variable in self.experiment.scanned_variables:
+                if variable.name != "None":
+                    file.write(indentation + f"{variable.name} = self.{variable.name}[step]\n")
         self.delta_t = 0 
 
         #flag_init is used to indicate that there is no need for a delay calculation for the first row

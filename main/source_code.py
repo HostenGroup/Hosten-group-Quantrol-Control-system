@@ -821,6 +821,201 @@ class MainWindow(QMainWindow):
             self.experiment.variables[''] = self.Variable(name='', value=0.0, for_python=0.0)
 
 
+    def _adjust_edge_channel_list(self, edge, attr_name, expected_count, factory, factory_kwargs=None, source_items=None):
+        """Trim or extend an edge's channel list to match current channel count."""
+        trimmed = 0
+        added = 0
+        try:
+            items = getattr(edge, attr_name)
+        except AttributeError:
+            items = []
+
+        if isinstance(items, list):
+            working = list(items)
+        else:
+            try:
+                working = list(items)
+            except TypeError:
+                working = []
+
+        if expected_count <= 0:
+            trimmed = len(working)
+            working = []
+        else:
+            if len(working) > expected_count:
+                trimmed = len(working) - expected_count
+                working = working[:expected_count]
+            elif len(working) < expected_count:
+                missing = expected_count - len(working)
+                # Top up the list with default objects so remaining columns render
+                for _ in range(missing):
+                    target_index = len(working)
+                    template = None
+                    if source_items and target_index < len(source_items):
+                        try:
+                            template = deepcopy(source_items[target_index])
+                        except Exception:
+                            template = None
+                    if template is not None:
+                        new_item = template
+                        if hasattr(new_item, 'changed'):
+                            new_item.changed = False
+                        for nested_attr in ('frequency', 'amplitude', 'attenuation', 'phase', 'state'):
+                            nested = getattr(new_item, nested_attr, None)
+                            if hasattr(nested, 'changed'):
+                                nested.changed = False
+                    else:
+                        if factory_kwargs:
+                            new_item = factory(**factory_kwargs)
+                        else:
+                            new_item = factory()
+                    working.append(new_item)
+                added = missing
+
+        setattr(edge, attr_name, working)
+        return trimmed, added
+
+
+    def _adjust_edge_sampler_list(self, edge, expected_count):
+        """Normalize sampler channel storage for a single edge."""
+        trimmed = 0
+        added = 0
+        try:
+            items = getattr(edge, 'sampler')
+        except AttributeError:
+            items = []
+
+        if isinstance(items, list):
+            working = list(items)
+        else:
+            try:
+                working = list(items)
+            except TypeError:
+                working = []
+
+        if expected_count <= 0:
+            trimmed = len(working)
+            working = []
+        else:
+            if len(working) > expected_count:
+                trimmed = len(working) - expected_count
+                working = working[:expected_count]
+            elif len(working) < expected_count:
+                missing = expected_count - len(working)
+                # Pad sampler list with inert placeholders when hardware has more inputs
+                working.extend(['0'] * missing)
+                added = missing
+
+        setattr(edge, 'sampler', working)
+        return trimmed, added
+
+
+    def _adjust_slow_dds(self, expected_count):
+        """Align slow DDS collection with the configured channel count."""
+        trimmed = 0
+        added = 0
+        slow_dds = getattr(self.experiment, 'slow_dds', None)
+        if isinstance(slow_dds, list):
+            working = list(slow_dds)
+        else:
+            try:
+                working = list(slow_dds)
+            except TypeError:
+                working = []
+
+        if expected_count <= 0:
+            trimmed = len(working)
+            working = []
+        else:
+            if len(working) > expected_count:
+                trimmed = len(working) - expected_count
+                working = working[:expected_count]
+            elif len(working) < expected_count:
+                missing = expected_count - len(working)
+                # Populate newly available slots with default slow DDS objects
+                for _ in range(missing):
+                    working.append(self.SLOW_DDS())
+                added = missing
+
+        self.experiment.slow_dds = working
+        return trimmed, added
+
+
+    def _reconcile_loaded_sequence_layout(self):
+        """Align loaded sequence channel data with current hardware configuration."""
+        # Track truncation/extension counts for each channel family so we can inform the user
+        stats = {
+            'digital': {'trimmed': 0, 'added': 0},
+            'analog': {'trimmed': 0, 'added': 0},
+            'dds': {'trimmed': 0, 'added': 0},
+            'mirny': {'trimmed': 0, 'added': 0},
+            'sampler': {'trimmed': 0, 'added': 0},
+            'slow_dds': {'trimmed': 0, 'added': 0},
+        }
+
+        sequence = getattr(self.experiment, 'sequence', [])
+        if not isinstance(sequence, list):
+            try:
+                sequence = list(sequence)
+            except TypeError:
+                sequence = []
+            self.experiment.sequence = sequence
+
+        channel_specs = [
+            ('digital', config.digital_channels_number, self.Edge.Digital, None),
+            ('analog', config.analog_channels_number, self.Edge.Analog, None),
+            ('dds', config.dds_channels_number, self.Edge.DDS, None),
+            ('mirny', config.mirny_channels_number, self.Edge.DDS, {'is_mirny': True}),
+        ]
+
+        for index, edge in enumerate(sequence):
+            for name, expected, factory, kwargs in channel_specs:
+                filtered_kwargs = kwargs if kwargs else None
+                source_items = None
+                if index > 0:
+                    try:
+                        source_items = getattr(sequence[index - 1], name)
+                    except AttributeError:
+                        source_items = None
+                # Only seed defaults on the very first edge; later edges inherit the previous edge state
+                trimmed, added = self._adjust_edge_channel_list(edge, name, expected, factory, filtered_kwargs, source_items)
+                stats[name]['trimmed'] += trimmed
+                stats[name]['added'] += added
+            trimmed, added = self._adjust_edge_sampler_list(edge, config.sampler_channels_number)
+            stats['sampler']['trimmed'] += trimmed
+            stats['sampler']['added'] += added
+
+        trimmed, added = self._adjust_slow_dds(config.slow_dds_channels_number)
+        stats['slow_dds']['trimmed'] += trimmed
+        stats['slow_dds']['added'] += added
+
+        # Convert raw adjustment counts into short human-friendly log messages
+        friendly_names = {
+            'digital': 'digital',
+            'analog': 'analog',
+            'dds': 'DDS',
+            'mirny': 'Mirny',
+            'sampler': 'sampler',
+            'slow_dds': 'slow DDS',
+        }
+
+        notes = []
+        for key, label in friendly_names.items():
+            trimmed = stats[key]['trimmed']
+            added = stats[key]['added']
+            if not trimmed and not added:
+                continue
+            parts = []
+            if trimmed:
+                parts.append(f"removed {trimmed}")
+            if added:
+                noun = "default" if added == 1 else "defaults"
+                parts.append(f"added {added} {noun}")
+            notes.append(f"{label}: {', '.join(parts)}")
+
+        return notes
+
+
     def _ensure_title_list(self, attr_name, channel_count, prefix='X'):
         """Pad or trim a title list so it aligns with the expected channel count."""
         if channel_count <= 0:
@@ -1189,6 +1384,8 @@ class MainWindow(QMainWindow):
 
                 self._ensure_title_lengths()
                 self._ensure_variable_structures()
+                # Trim/extend per-channel arrays so partially compatible sequences still load
+                adjustment_notes = self._reconcile_loaded_sequence_layout()
                 self.sequence_num_rows = len(self.experiment.sequence)
                 self.update_off()
                 #update the state of the checkbox for doing the scan
@@ -1217,6 +1414,10 @@ class MainWindow(QMainWindow):
                 except Exception as restore_exc:
                     self.message_to_logger(f"Could not restore experiment selection: {restore_exc}")
                 self.message_to_logger("Sequence loaded from %s" %self.experiment.file_name)
+                if adjustment_notes:
+                    self.message_to_logger(
+                        "Adjusted loaded sequence to match available hardware: " + "; ".join(adjustment_notes)
+                    )
                 
                 #restore camera box state and parameters after successful load
                 try:
@@ -3488,23 +3689,29 @@ class MainWindow(QMainWindow):
                     self.derived_variables_table.item(row,col).setText(self.experiment.derived_variables[row-1].name)
                     self.update_on()
             if col == 1: #Variable arguments were changed
-                #Checking if the variables in the arguments are sampled variables
-                arguments = table_item_text.split(",")
-                not_a_sampled_variable = False
+                arguments = [arg for arg in table_item_text.split(",") if arg]
+                invalid_arguments = []
                 for argument in arguments:
-                    if argument not in self.experiment.sampler_variables:
-                        not_a_sampled_variable = True
-                        #break
                     if argument in self.experiment.names_of_derived_variables:
-                        not_a_sampled_variable = False                        
-                        break
-                if not_a_sampled_variable: #Reverting back the Arguments table entry
-                    self.error_message("Arguments include not sampled variables. First create variables in variables tab and then add them to the sampler to make them sampled","Not sampled arguments")
+                        continue
+                    if argument not in self.experiment.variables:
+                        invalid_arguments.append(argument)
+                if invalid_arguments:
+                    invalid_list = ", ".join(invalid_arguments)
+                    self.error_message(
+                        f"Arguments must reference existing variables or derived variables. Unknown: {invalid_list}",
+                        "Invalid arguments",
+                    )
                     self.update_off()
-                    self.derived_variables_table.item(row,col).setText(self.experiment.derived_variables[row-1].arguments)
+                    self.derived_variables_table.item(row, col).setText(self.experiment.derived_variables[row-1].arguments)
                     self.update_on()
                 else:
-                    variable.arguments = table_item_text
+                    normalized_arguments = ",".join(arguments)
+                    variable.arguments = normalized_arguments
+                    if normalized_arguments != table_item_text:
+                        self.update_off()
+                        self.derived_variables_table.item(row, col).setText(normalized_arguments)
+                        self.update_on()
             if col == 2: #Variable execution edge was changed
                 new_edge_id = table_item_text
                 if self.find_edge_index_by_id(new_edge_id) == None:
@@ -3579,9 +3786,11 @@ class MainWindow(QMainWindow):
                     self.lookup_variables_table.item(row, col).setText(self.experiment.lookup_variables[row-1].name)
                     self.update_on()
             if col == 1: #Variable argument was changed
-                #Checking if the variable in the argument is a sampled variable
-                if table_item_text not in self.experiment.sampler_variables:
-                    self.error_message("Argument include not sampled variable. First create a variable in variables tab and then add it in the sampler to make it sampled", "Not sampled argument")
+                if table_item_text and table_item_text not in self.experiment.variables and table_item_text not in self.experiment.names_of_derived_variables:
+                    self.error_message(
+                        "Argument must reference an existing variable or derived variable.",
+                        "Invalid argument",
+                    )
                     self.update_off()
                     self.lookup_variables_table.item(row, col).setText(self.experiment.lookup_variables[row-1].argument)
                     self.update_on()
