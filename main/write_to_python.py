@@ -158,7 +158,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         
         flag_ramp_up_delay = False
         # ADDING FOR LOOP FOR RAMP
-        count_indentations = 0
+        count_indent = 0
         for variable in self.experiment.ramped_variables:
             if self.experiment.do_ramp == True and self.experiment.ramped_variables_count > 0:
                 if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False:
@@ -169,7 +169,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                         file.write(indentation + "for i in range(1, (%d+1)):   # ramp up loop \n" %(variable.stepsramp)) 
                         already_loop_for_edge[edge_index] = True
                         indentation += "    "
-                        count_indentinations = count_indentinations + 1
+                        count_indent = count_indent + 1
 
         
         # RPC for derived variable calculation
@@ -287,7 +287,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         if flag_ramp_up == True: 
             flag_ramp_up = False  
             #file.write(indentation + "print('%s %s = ', %s)\n" %(("Value of ramped variable: "), str(flag_ramp_variable.name), flag_ramp_variable.functionramp))
-            for indent in range(count_indentations):
+            for indent in range(count_indent):
                 indentation = indentation[:-4] 
             
     ###############################################################################################
@@ -343,7 +343,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             
             flag_ramp_up_delay = False
             # ADDING FOR LOOP FOR RAMP
-            count_indentinations = 0
+            count_indent = 0
             for variable in self.experiment.ramped_variables:
                 if self.experiment.do_ramp == True and self.experiment.ramped_variables_count > 0:
                     if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False:
@@ -354,7 +354,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                             file.write(indentation + "for i in range(1, (%d+1)):   # ramp up loop \n" %(variable.stepsramp)) 
                             already_loop_for_edge[edge_index] = True
                             indentation += "    "
-                            count_indentinations = count_indentinations + 1
+                            count_indent = count_indent + 1
 
             
             #RPC for derived variable calculation
@@ -472,7 +472,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             if flag_ramp_up == True: 
                 flag_ramp_up = False  
                 #file.write(indentation + "print('%s %s = ', %s)\n" %(("Value of ramped variable: "), str(flag_ramp_variable.name), flag_ramp_variable.functionramp))
-                for indent in range(count_indentations):
+                for indent in range(count_indent):
                     indentation = indentation[:-4] 
 
         

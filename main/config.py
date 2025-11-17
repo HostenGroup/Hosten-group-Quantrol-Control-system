@@ -32,11 +32,20 @@ camera_serial_numbers_dict = {
     'Y':'22433344'
 }
 experiment_data_root = r"G:\Experimental Data\Hybrid\MOT_images"
+
 experiment_database_path = str(Path(experiment_data_root).parent / "Hybrid_exp_db.xlsx")
+
 # Construct camera_env_python path based on current Python environment
+
 _current_python = Path(sys.executable)
+
 _python_envs_path = Path(str(_current_python).split('python_envs')[0]) / 'python_envs'
+
 camera_env_python = str(_python_envs_path / 'camera_env' / 'Scripts' / 'python.exe')
+
+camera_gain_minmax = [0.00,47.98]
+camera_exp_us_minmax = [19.0,30000000]
+
 camera_launch_delay_s = 5
 allow_skipping_images = True
 skip_images_trigger_count = 10

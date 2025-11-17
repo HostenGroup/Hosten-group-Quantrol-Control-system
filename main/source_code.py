@@ -518,12 +518,16 @@ class MainWindow(QMainWindow):
         self.red = QColor(247,140,140)
         self.grey = QColor(100,100,100)
         self.light_grey = QColor(211,211,211)
+        self.cameo_pink = QColor(239,187,204)
+        self.mimi_pink = QColor(255,218,233)
+        self.melon = QColor(254,186,173)
         self.white = QColor(255,255,255)
         self.yellow = QColor(255, 255, 0)
         self.cyan = QColor(0, 255, 255)
         self.purple = QColor(200, 150, 255)
         self.right_green = QColor(180, 255, 180)
         self.wrong_red = QColor(255, 0, 1)
+        self.texp_color = self.mimi_pink
         self._texp_locked = False
         self._updating_texp_lock = False
         self._openpyxl_missing_warned = False
@@ -1980,7 +1984,7 @@ class MainWindow(QMainWindow):
                     if variable.name != "None":
                         self.experiment.variables[variable.name].value = variable.min_val
             update.digital_analog_dds_mirny_tabs(self)
-            update.variables_tab(self, derived_variables = False)
+            update.variable_tables(self)
         
 
 
@@ -1993,6 +1997,8 @@ class MainWindow(QMainWindow):
         '''
         self.experiment.scanned_variables.append(self.Scanned_variable("None", 0.0, 0.0))
         update.scan_table(self)
+        update.digital_analog_dds_mirny_tabs(self)
+        update.variable_tables(self)
 
 
 
@@ -2014,7 +2020,7 @@ class MainWindow(QMainWindow):
                 self.experiment.variables[variable.name].for_python = self.experiment.variables[variable.name].value
             del self.experiment.scanned_variables[row]
             #First update the variables tab in order to update the values for evaluation in following update steps
-            update.variables_tab(self, derived_variables = False)
+            update.variable_tables(self)
             update.scan_table(self)
             update.digital_analog_dds_mirny_tabs(self)
             if row != 0:
@@ -2187,7 +2193,7 @@ class MainWindow(QMainWindow):
                 except:
                     self.error_message("Expression can not be evaluated", "Wrong entry")
             update.digital_analog_dds_mirny_tabs(self)
-            update.variables_tab(self, derived_variables = False)
+            update.variable_tables(self)
             update.scan_table(self)       
         else:
             pass
@@ -2292,8 +2298,7 @@ class MainWindow(QMainWindow):
                     self.update_sequence_edge_colors()
                     
             update.digital_analog_dds_mirny_tabs(self)
-            update.variables_tab(self, derived_variables = False)
-
+            update.variable_tables(self)
 
 
 
@@ -2304,6 +2309,8 @@ class MainWindow(QMainWindow):
         '''
         self.experiment.ramped_variables.append(self.Ramped_variable("None", 0, 0, 0.0, 0)) 
         update.ramp_table(self)
+        update.digital_analog_dds_mirny_tabs(self)
+        update.variable_tables(self)
 
 
 
@@ -2325,7 +2332,7 @@ class MainWindow(QMainWindow):
                 self.experiment.variables[variable.name].for_python = self.experiment.variables[variable.name].value
             del self.experiment.ramped_variables[row]
             #First update the variables tab in order to update the values for evaluation in following update steps
-            update.variables_tab(self, derived_variables = False)
+            update.variable_tables(self)
             update.ramp_table(self)
             update.digital_analog_dds_mirny_tabs(self)
             if row != 0:
@@ -2435,7 +2442,7 @@ class MainWindow(QMainWindow):
                     self.error_message("Expression can not be evaluated", "Wrong entry")
 
             update.digital_analog_dds_mirny_tabs(self)
-            update.variables_tab(self, derived_variables = False)
+            update.variable_tables(self)
             update.ramp_table(self)       
         else:
             pass
@@ -4714,7 +4721,7 @@ class MainWindow(QMainWindow):
                     if self._texp_locked:
                         if current_flags != Qt.NoItemFlags and current_flags != (Qt.ItemIsSelectable | Qt.ItemIsEnabled):
                             item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-                        item.setBackground(self.light_grey)
+                        item.setBackground(self.texp_color)
                     else:
                         if current_flags != Qt.NoItemFlags:
                             item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
@@ -4725,54 +4732,113 @@ class MainWindow(QMainWindow):
 
     def camera_gain_changed(self):
         """Validate the gain entry and apply it to the experiment model."""
-        gain_text = self.gain_edit.text().strip()
-        previous_gain = self.experiment.experimental_data.camera.gain_db
-        if gain_text == "":
-            self.error_message("Gain cannot be empty", "Wrong entry")
-            self.gain_edit.setText(str(previous_gain))
+        if getattr(self, "_camera_gain_handling", False):
             return
+        self._camera_gain_handling = True
         try:
-            gain_value = float(gain_text)
-        except ValueError:
-            self.error_message("Gain must be a number", "Wrong entry")
-            self.gain_edit.setText(str(previous_gain))
-            return
+            gain_text = self.gain_edit.text().strip()
+            previous_gain = self.experiment.experimental_data.camera.gain_db
+            if gain_text == "":
+                self.error_message("Gain cannot be empty", "Wrong entry")
+                self.gain_edit.setText(str(previous_gain))
+                return
+            try:
+                gain_value = float(gain_text)
+            except ValueError:
+                self.error_message("Gain must be a number", "Wrong entry")
+                self.gain_edit.setText(str(previous_gain))
+                return
 
-        self.experiment.experimental_data.camera.gain_db = gain_value
-        self.gain_edit.setText(str(gain_value))
+            gain_bounds = getattr(config, "camera_gain_minmax", None)
+            if isinstance(gain_bounds, (list, tuple)) and len(gain_bounds) == 2:
+                try:
+                    gain_min = float(gain_bounds[0])
+                    gain_max = float(gain_bounds[1])
+                    if gain_min > gain_max:
+                        gain_min, gain_max = gain_max, gain_min
+                    if gain_value < gain_min or gain_value > gain_max:
+                        self.error_message(
+                            f"Value for Gain should be within [{gain_min}, {gain_max}]",
+                            "Wrong entry",
+                        )
+                        self.gain_edit.setText(str(previous_gain))
+                        return
+                except (TypeError, ValueError):
+                    pass
+
+            self.experiment.experimental_data.camera.gain_db = gain_value
+            self.gain_edit.setText(str(gain_value))
+        finally:
+            self._camera_gain_handling = False
 
 
     def camera_exposure_changed(self):
         """Update camera exposure and ensure the T_exp_ variable stays in sync."""
-        texp_key = "T_exp_"
-        texp_str = self.exposure_edit.text().strip()
-        if texp_str == "":
-            self.error_message("Exposure time cannot be empty", "Wrong entry")
-            self._set_camera_exposure_line(self.experiment.experimental_data.camera.exposure_time)
+        if getattr(self, "_camera_exposure_handling", False):
             return
+        self._camera_exposure_handling = True
         try:
-            texp_ = float(texp_str)
-        except ValueError:
-            self.error_message("Exposure time must be a number", "Wrong entry")
-            self._set_camera_exposure_line(self.experiment.experimental_data.camera.exposure_time)
-            return
+            texp_key = "T_exp_"
+            texp_str = self.exposure_edit.text().strip()
+            previous_texp = self.experiment.experimental_data.camera.exposure_time
+            if texp_str == "":
+                self.error_message("Exposure time cannot be empty", "Wrong entry")
+                self._set_camera_exposure_line(previous_texp)
+                return
+            try:
+                texp_ = float(texp_str)
+            except ValueError:
+                self.error_message("Exposure time must be a number", "Wrong entry")
+                self._set_camera_exposure_line(previous_texp)
+                return
 
-        self.experiment.experimental_data.camera.exposure_time = texp_
-        self._set_camera_exposure_line(texp_)
+            exposure_bounds_ms = None
+            exposure_bounds_us = getattr(config, "camera_exp_us_minmax", None)
+            if isinstance(exposure_bounds_us, (list, tuple)) and len(exposure_bounds_us) == 2:
+                try:
+                    exposure_bounds_ms = [float(exposure_bounds_us[0]) / 1000.0, float(exposure_bounds_us[1]) / 1000.0]
+                except (TypeError, ValueError):
+                    exposure_bounds_ms = None
+            if exposure_bounds_ms is None:
+                exposure_bounds = getattr(config, "camera_exp_minmax", None)
+                if isinstance(exposure_bounds, (list, tuple)) and len(exposure_bounds) == 2:
+                    try:
+                        exposure_bounds_ms = [float(exposure_bounds[0]), float(exposure_bounds[1])]
+                    except (TypeError, ValueError):
+                        exposure_bounds_ms = None
 
-        index = self._get_texp_variable_index()
-        if index is None:
-            variable = self.Variable(texp_key, texp_, texp_)
-            self.experiment.variables[texp_key] = variable
-            self.experiment.new_variables.append(variable)
-        else:
-            variable = self.experiment.new_variables[index]
-            variable.value = texp_
-            variable.for_python = texp_
-            self.experiment.variables[texp_key].value = texp_
-            self.experiment.variables[texp_key].for_python = texp_
+            if exposure_bounds_ms is not None:
+                exposure_min, exposure_max = exposure_bounds_ms
+                if exposure_min > exposure_max:
+                    exposure_min, exposure_max = exposure_max, exposure_min
+                if texp_ < exposure_min or texp_ > exposure_max:
+                    min_display = f"{exposure_min:g}"
+                    max_display = f"{exposure_max:g}"
+                    self.error_message(
+                        f"Value of exposure time should be within [{min_display}, {max_display}] ms",
+                        "Wrong entry",
+                    )
+                    self._set_camera_exposure_line(previous_texp)
+                    return
 
-        update.variable_tables(self)
+            self.experiment.experimental_data.camera.exposure_time = texp_
+            self._set_camera_exposure_line(texp_)
+
+            index = self._get_texp_variable_index()
+            if index is None:
+                variable = self.Variable(texp_key, texp_, texp_)
+                self.experiment.variables[texp_key] = variable
+                self.experiment.new_variables.append(variable)
+            else:
+                variable = self.experiment.new_variables[index]
+                variable.value = texp_
+                variable.for_python = texp_
+                self.experiment.variables[texp_key].value = texp_
+                self.experiment.variables[texp_key].for_python = texp_
+
+            update.variable_tables(self)
+        finally:
+            self._camera_exposure_handling = False
 
         
         
