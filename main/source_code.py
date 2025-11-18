@@ -41,403 +41,29 @@ import json
 import importlib
 from pathlib import Path
 
+# Import data structures from experiment_data module
+from experiment_data import (
+    Edge, Experiment, SlowDDS, ExperimentalData,
+    DerivedVariable, LookupVariable, ScannedVariable, RampedVariable,
+    Variable, CustomThread, Camera
+)
+
+# Import validation functions
+from validation import (
+    show_error_message, remove_restricted_characters, 
+    ExpressionParser, validate_positive_number, validate_range
+)
+
+# Import file I/O functions
+import file_io
+
 
 # Subclass QMainWindow to customize your application's main window
 class MainWindow(QMainWindow):
     '''
     Main window that includes everything that needs to be displayed to the user
     '''
-    class Edge:
-        '''
-        An object that is used to describe the time edge of experimental sequence
-        Attributes description:
-            expression  :   Mathematical expression used to describe the time edge
-            evaluation  :   Expression that can be executed in python to evaluate the time edge. 
-                            In case there is a scanned variable in the expression its minimum value is assigned to
-                            be able to sort the sequence. It is a user responsibility to make sure that the sequence
-                            of time edges will never be changed during the scan
-            value       :   Time value of the edge. In case there is no scanned variable it is just the value, otherwise
-                            it is a value of the expression evaluated with the minimum value of the scanned variable
-            name        :   Descriptive name of the time edge to help user understand the purpose of the edge
-            id          :   Unique id in the form of id0, id1, etc. It is used to let the user know what default variable
-                            can be used to quickly use the value of this time edge. For example, one can offset the 
-                            next time edge with respect to the previous one using "id1 + 5"
-            is_scanned  :   Flag indicating if the time edge requires scanning. Even if there is a single scanned variable
-                            in the edge expression, the edge becomes scanned as it is supposed to be changing at different
-                            scan steps
-            for_python  :   The version of the time edge description that is used in the python like experimental sequence
-                            generation. It is only used in write_to_python.py and only updated when the run_experiment_button_clicked
-            analog      :   List of Analog objects used to describe the state of the analog channel
-            digital     :   List of Digital objects used to describe the state of the digital channel
-            dds         :   List of DDS objects used to describe the state of the dds channel
-            mirny       :   List of DDS objects used to describe the state of the mirny channel
-            sampler     :   List of sampler channel parameters. 0 indicates that there is no requested input read. Other than 0 it can be a
-                            variable name that will be used for storing the value of the input
-            derived_variable_requested      :   Index of the derived variable for non zero values. -1 corresponds to no derived variables requested
-                                                
-        '''
-        def __init__(self, name = "", id = "id0",
-                     expression = "0", evaluation = 0,
-                     for_python = 0, value = 0,
-                     is_scanned = False, is_ramped = False,
-                     derived_variable_requested = -1):
-            self.expression = expression
-            self.evaluation = evaluation
-            self.value = value   
-            self.name = name
-            self.id = id
-            self.is_scanned = is_scanned
-            self.is_ramped = is_ramped 
-            self.for_python = for_python
-            self.digital = [self.Digital() for i in range(config.digital_channels_number)]
-            self.analog = [self.Analog() for i in range(config.analog_channels_number)]
-            self.dds = [self.DDS() for i in range(config.dds_channels_number)]
-            self.mirny = [self.DDS(is_mirny = True) for i in range(config.mirny_channels_number)]
-            self.sampler = ['0']*8
-            self.derived_variable_requested = derived_variable_requested
-
-
-        class Digital:
-            '''
-            An object that is used to describe the state of the digital channel
-            Attributes description:
-                expression  :   Mathematical expression used to describe the state of digital channel
-                evaluation  :   Expression that can be executed in python to evaluate the state of digital channel
-                value       :   The value of the digital channel
-                for_python  :   The version of the digital channel state description that is used in the python like experimental sequence
-                                generation. It is only used in write_to_python.py and only updated when the run_experiment_button_clicked
-                changed     :   Flag indicating if the digital channel is required to be changed at this time edge
-                is_scanned  :   Flag indicating if the digital channel state requires scanning. Even if there is a single scanned variable
-                                in the expression, the channel becomes scanned as it is supposed to be changing at different
-                                scan steps
-                is_ramped  :   Flag indicating if the digital channel is ramped
-                is_sampled  :   Flag indicating if the digital channel is sampled
-                is_derived  :   Flag indicating if the digital channel is dervied
-                is_lookup   :   Flag indicating if the digital channel is lookup                                
-            '''
-            def __init__(self, expression = "0.0", evaluation = 0.0,
-                         value = 0.0, for_python = 0.0, changed = True,
-                         is_scanned = False, is_ramped = False,
-                         is_sampled = False, is_derived = False,
-                         is_lookup = False):
-                self.expression = expression
-                self.evaluation = evaluation
-                self.value = value
-                self.for_python = for_python
-                self.changed = changed
-                self.is_scanned = is_scanned
-                self.is_ramped = is_ramped
-                self.is_sampled = is_sampled
-                self.is_derived = is_derived
-                self.is_lookup = is_lookup
-
-
-        class Analog:
-            '''
-            An object that is used to describe the state of the analog channel
-            Attributes description:
-                expression  :   Mathematical expression used to describe the state of analog channel
-                evaluation  :   Expression that can be executed in python to evaluate the state of analog channel
-                value       :   The value of the analog channel
-                for_python  :   The version of the analog channel value description that is used in the python like experimental sequence
-                                generation. It is only used in write_to_python.py and only updated when the run_experiment_button_clicked
-                changed     :   Flag indicating if the analog channel is required to be changed at this time edge
-                is_scanned  :   Flag indicating if the analog channel state requires scanning. Even if there is a single scanned variable
-                                in the expression, the channel becomes scanned as it is supposed to be changing at different
-                                scan steps
-                is_ramped  :   Flag indicating if the digital channel is ramped
-                is_sampled  :   Flag indicating if the analgo channel is sampled
-                is_derived  :   Flag indicating if the analog channel is dervied
-                is_lookup   :   Flag indicating if the analog channel is lookup
-            '''            
-            def __init__(self, expression = "0.0", evaluation = 0.0,
-                         value = 0.0, for_python = "0.0",
-                         changed = True, is_scanned = False,
-                         is_ramped = False, is_sampled = False,
-                         is_derived = False, is_lookup = False):
-                self.expression = expression
-                self.evaluation = evaluation
-                self.value = value
-                self.for_python = for_python
-                self.changed = changed
-                self.is_scanned = is_scanned
-                self.is_ramped = is_ramped
-                self.is_sampled = is_sampled
-                self.is_derived = is_derived
-                self.is_lookup = is_lookup
-
-
-        class DDS:
-            '''
-            An object that is used to describe the state of the dds channel
-            Attributes description:
-                frequency    :   An object that is used to describe the frequency state of the dds channel
-                amplitude    :   An object that is used to describe the amplitude state of the dds channel
-                attenuation  :   An object that is used to describe the attenuation state of the dds channel
-                phase        :   An object that is used to describe the phase state of the dds channel
-                state        :   An object that is used to describe the ON/OFF state of the dds channel
-                changed      :   Flag indicating if the dds channel is required to be changed at this time edge
-            '''
-            def __init__(self, state = 0, changed = True, is_mirny = False):
-                self.is_mirny = is_mirny
-                if self.is_mirny == True:
-                    self.frequency = self.Object(expression = "55.0", evaluation = 55.0, value = 55.0)
-                    self.amplitude = self.Object(expression = "5.0", evaluation = 5.0, value = 5.0)
-                else:
-                    self.frequency = self.Object()
-                    self.amplitude = self.Object()
-                self.phase = self.Object()
-                self.attenuation = self.Object()
-                self.state = self.Object()
-                self.changed = changed
-
-        
-            class Object:
-                '''
-                An object that is used to describe the state of the dds channel parameters
-                Attributes description:
-                    expression  :   Mathematical expression used to describe the dds channel parameter
-                    evaluation  :   Expression that can be executed in python to evaluate the dds channel parameter
-                    value       :   The value of the dds channel parameter
-                    for_python  :   The version of the dds parameter description that is used in the python like experimental sequence
-                                    generation. It is only used in write_to_python.py and only updated when the run_experiment_button_clicked
-                    changed     :   Flag indicating if the dds channel parameter is required to be changed at this time edge. If any of the
-                                    dds parameters is required to be changed the state is going to be updated at this time edge
-                    is_scanned  :   Flag indicating if the dds channel parameter requires scanning. Even if there is a single scanned variable
-                                    in the expression, the channel parameter becomes scanned as it is supposed to be changing at different
-                                    scan steps
-                    is_ramped  :   Flag indicating if the digital channel is ramped
-                    is_sampled  :   Flag indicating if the parameter is sampled
-                    is_derived  :   Flag indicating if the parameter is dervied
-                    is_lookup   :   Flag indicating if the parameter is lookup                                    
-                '''
-                def __init__(self, expression = "0.0", evaluation = 0.0, value = 0.0, changed = True, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False):
-                    self.expression = expression
-                    self.evaluation = evaluation
-                    self.for_python = evaluation
-                    self.value = value
-                    self.changed = changed   
-                    self.is_scanned = is_scanned 
-                    self.is_ramped = is_ramped
-                    self.is_sampled = is_sampled     
-                    self.is_derived = is_derived
-                    self.is_lookup = is_lookup
-
-    class Experiment:
-        '''
-        An object that is used to describe the entire experimental sequence, title names and state of the GUI
-        Attributes description:
-            title_digital_tab           :   List of the String type title names used in digital tab
-            title_analog_tab            :   List of the String type title names used in analog tab
-            title_dds_tab               :   List of the String type title names used in dds tab
-            title_sampler_tab           :   List of the String type title names used in sampler tab
-            sequence                    :   List of Edge objects describing the experimental sequence at different time stamps
-            go_to_edge_num              :   Number of the edge specified to go when pressing go_to_edge button. Initialized at -1
-                                            for easy check in case none of the edges has been selected yet
-            new_variables               :   List of user defined variables. Used to build the variables tab and retieve the values 
-                                            assigned before scanning a variable
-            derived_variables           :   List of Derived_variables. Used to be able to use sampled variables in more complex functions 
-                                            to allow feedback
-            names_of_derived_variables  :   Set of the derived variables names. Useful to check if a variable is a derived variable
-            variables                   :   Dictionary of all variables. Used to look up the values of the variables in the execution of
-                                            evaluation
-            sampler_variables           :   Set of variable names used for being used in a samlper
-            do_scan                     :   Flag indicating if the scan is needed to be done
-            number_of_steps             :   Number of steps specificed in the Scan table parameters. Default value is 1
-            file_name                   :   The name of the experimental sequence. When the program is initialized the name is an empty String.
-                                            Once the save_sequence button is clicked the user needs to specify the location and name of the file.
-                                            Used to display the name of the sequence to let user know the purpose of the sequence.
-            scanned_variables           :   List of scanned variables. Used in the write_to_python.py to generate the proper iterables for the scan
-            scanned_varbiales_count     :   Number of scanned variables. Used to ignore the scan tick in case of 0 specified scanned variables.
-                                            User can create several scanning variables with None as names
-            continuously_running        :   Flag indicating if the continuous run is required
-            slow_dds                    :   List of SLOW_DDS objects that describe the state of the slow dds output
-            lookup_variables            :   List of Lookup_variables. Used to be able to use sampled variables to output a complex function using lookup list
-            names_of_lookup_variables   :   Set of the lookup variables names. Useful to check if a variable is a lookup variable
-        '''  
-        def __init__(self):
-            self.title_digital_tab = []
-            self.title_analog_tab = []
-            self.title_dds_tab = []
-            self.title_mirny_tab = []
-            self.title_sampler_tab = []
-            self.title_slow_dds_tab = []
-            self.sequence = [] 
-            self.go_to_edge_num = -1
-            self.new_variables = [] 
-            self.variables = {}
-            self.sampler_variables = set()
-            self.derived_variables = []
-            self.names_of_derived_variables = set()
-            self.do_scan = False
-            self.do_ramp = False
-            self.number_of_steps = 1
-            self.number_of_runs = 10
-            self.cam_trigger_off_runs = 5
-            self.file_name = ""
-            self.scanned_variables = [] 
-            self.scanned_variables_count = 0
-            self.ramped_variables = []
-            self.ramped_variables_count = 0
-            self.run_continuous = False
-            self.multiple_runs = False
-            self.lookup_variables = []
-            self.names_of_lookup_variables = set()
-            self.camera_enabled = False
-            self.texp_locked = False
-            
-    class SLOW_DDS:
-        '''
-        An object that is used to describe the state of the slow dds channel
-        Attributes description:
-            frequency    :   An object that is used to describe the frequency state of the dds channel
-            amplitude    :   An object that is used to describe the amplitude state of the dds channel
-            attenuation  :   An object that is used to describe the attenuation state of the dds channel
-            phase        :   An object that is used to describe the phase state of the dds channel
-            state        :   An object that is used to describe the ON/OFF state of the dds channel
-        '''
-        def __init__(self, frequency = 0.0, amplitude = 0.0, attenuation = 0.0, phase = 0.0, state = 0):
-            self.frequency = frequency
-            self.amplitude = amplitude
-            self.attenuation = attenuation
-            self.phase = phase
-            self.state = state
-
-    class ExperimentalData:
-        '''
-        An object that is used to describe the data acquired during experiment
-        Attributes description:
-            path            :   An object that is used to describe the path of the data
-            device          :   An object that is used to describe the kind of device used for acquisition
-            experiment_name :   An object that is used to describe the kind of experiment
-            comment         :   An object that is used to describe the comment on the experiment
-            experiment_id   :   An object that is used to describe the unique id of the experiment
-        '''
-
-        def __init__(self,path = '', experiment_name = '', comment = '', experiment_id = ''):
-            self.path = path
-            self.experiment_name = experiment_name
-            self.comment = comment
-            self.experiment_id = experiment_id
-
-    class Derived_variable:
-        '''
-        An object that is used to describe the derived variable parameters
-        Attributes description:
-            name        :   Name of the scanned variable
-            arguments   :   List of agruments for the function used to derive the variable
-            function    :   String of the python description of the function to derive the variable
-        ''' 
-        def __init__(self, name, arguments, edge_id, function, initial_value):
-            self.name = name
-            self.arguments = arguments
-            self.edge_id = edge_id
-            self.function = function
-            self.initial_value = initial_value 
-            
-    class Lookup_variable:
-        '''
-        An object that is used to describe the lookup variable parameters
-        Attributes description:
-            name                :   Name of the scanned variable
-            argument            :   Argument that is a sampled variable to be used to lookup the value
-            lookup_list         :   List of lookup table
-            lookup_list_name    :   Name of the lookup table
-        ''' 
-        def __init__(self, name, argument = "", lookup_list = [], lookup_list_name = ""):
-            self.name = name
-            self.argument = argument
-            self.lookup_list = lookup_list
-            self.lookup_list_name = lookup_list_name
-
-    class Scanned_variable:
-        '''
-        An object that is used to describe the scanned variable parameters
-        Attributes description:
-            name        :   Name of the scanned variable
-            min_val     :   Minimum value assigned to the scanned variable
-            max_val     :   Maximum value assigned to the scanned variable
-        ''' 
-        def __init__(self, name, min_val, max_val):
-            self.name = name
-            self.min_val = min_val
-            self.max_val = max_val
-
-    class Ramped_variable: 
-        '''
-        An object that is used to describe the ramped variable parameters
-        Attributes description:
-            name        :   Name of the ramped variable
-            Start ID     :   from which ID the ramp up should start
-            End ID     :   where the ramp up will end
-            Functionramp  :  function by which ramped variable is changed
-            Stepsramp :  steps for the for loop
-        ''' 
-        def __init__(self, name, start_ID, end_ID, functionramp, stepsramp):
-            self.name = name
-            self.start_ID = start_ID 
-            self.end_ID = end_ID 
-            self.functionramp = functionramp 
-            self.stepsramp = stepsramp 
-
-    class Variable: 
-        '''
-        An object that is used to describe all variables in self.experiment.variables decitionary
-        Attributes description:
-            name        :   Name of the variable
-            value       :   Values of the variable. In case the variable is scanned its minimum values is assigned as its value
-            is_scanned  :   Flag indicating if the variable is scanned
-            for_python  :   The version of the variable description that is used in the python like experimental sequence
-                            generation. It is only used in write_to_python.py and only updated when the run_experiment_button_clicked
-            is_scanned  :   Flag indicatinf if the variable is a scanned variable                
-            is_ramped  :   Flag indicating if the digital channel is ramped 
-            is_sampled  :   Flag indicating if the variable is a sampled variable
-            is_derived  :   Flag indicating if the variable is a derived variable
-            is_lookup   :   Flag indicating if the variable is a lookup variable
-            argument    :   Argument used for the lookup variables
-        '''         
-        def __init__(self, name, value, for_python, is_scanned = False, is_ramped = False, is_sampled = False, is_derived = False, is_lookup = False): 
-            self.name = name
-            self.value = value
-            self.for_python = for_python
-            self.is_scanned = is_scanned
-            self.is_sampled = is_sampled
-            self.is_ramped = is_ramped
-            self.is_derived = is_derived
-            self.is_lookup = is_lookup
-            self.argument = ""
-            
-    class CustomThread(threading.Thread):
-        '''
-        An object that is used to initialize parallel threads
-        '''    
-        def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=None):
-            super().__init__(group, target, name, args, kwargs, daemon=daemon)        
-            self._return = None
-
-            
-        def run(self):
-            try:
-                if self._target:
-                    self._return = self._target(*self._args, **self._kwargs)
-            finally:
-                # Avoid a refcycle if the thread is running a function with
-                # an argument that has a member that points to the thread.
-                del self._target, self._args, self._kwargs                
-            
-    class Camera:
-        '''
-        
-        '''
-        def __init__(self,device_kind = 'camera', gain_db = 0, format_name = '', exposure_time = 350, serial_number = '', camera_name = ''):
-            self.device_kind = device_kind
-            self.gain_db = gain_db
-            self.format_name = format_name
-            self.exposure_time = exposure_time
-            self.serial_number = serial_number
-            self.camera_name = camera_name
-
-
+    
     def __init__(self):
         super().__init__()
 
@@ -481,7 +107,7 @@ class MainWindow(QMainWindow):
         
 
 
-        self.experiment = self.Experiment()
+        self.experiment = Experiment()
         self.sequence_num_rows = 1
         self.setting_dict = {0:"frequency", 1:"amplitude", 2:"attenuation", 3:"phase", 4:"state"}
         self.max_dict_dds = {0: 500,
@@ -533,13 +159,11 @@ class MainWindow(QMainWindow):
         self._openpyxl_missing_warned = False
 
 
-        self.experiment.variables['id0'] = self.Variable(name = "id0", value = 0.0, for_python = 0.0)
-        self.experiment.variables[''] = self.Variable(name = '', value = 0.0, for_python = 0.0)   #in order to be able to process expressions like -5 we need to have it as first item in decode will be "" that should be 0    
-        if config.slow_dds_channels_number > 0:
-            self.experiment.slow_dds = [self.SLOW_DDS() for i in range(config.slow_dds_channels_number)]
-        self.experiment.experimental_data = self.ExperimentalData()
-        self.experiment.experimental_data.camera = self.Camera()
-        self.experiment.sequence = [self.Edge("Default")]
+        self.experiment.variables['id0'] = Variable(name = "id0", value = 0.0, for_python = 0.0)
+        self.experiment.variables[''] = Variable(name = '', value = 0.0, for_python = 0.0)   #in order to be able to process expressions like -5 we need to have it as first item in decode will be "" that should be 0    
+        self.experiment.experimental_data = ExperimentalData()
+        self.experiment.experimental_data.camera = Camera()
+        self.experiment.sequence = [Edge("Default")]
         
         self.init_default_values() #Reads the default state file and initializes the values
         self._ensure_title_lengths()
@@ -697,7 +321,7 @@ class MainWindow(QMainWindow):
                 incompatible = True
         
         if file_not_found or incompatible:
-            self.experiment.sequence[0] = self.Edge(name="Default")
+            self.experiment.sequence[0] = Edge(name="Default")
             if config.digital_channels_number > 0:
                 self.experiment.title_digital_tab = ["#", "Name", "Time (ms)", ""] + [f"D{i}" for i in range(config.digital_channels_number)]
             if config.analog_channels_number > 0:
@@ -751,7 +375,7 @@ class MainWindow(QMainWindow):
                 value = candidate.get('value', 0.0)
                 for_python = candidate.get('for_python', value)
                 normalized_variables.append(
-                    self.Variable(
+                    Variable(
                         name=name,
                         value=value,
                         for_python=for_python,
@@ -769,7 +393,7 @@ class MainWindow(QMainWindow):
             value = getattr(candidate, 'value', 0.0)
             for_python = getattr(candidate, 'for_python', value)
             normalized_variables.append(
-                self.Variable(
+                Variable(
                     name=name,
                     value=value,
                     for_python=for_python,
@@ -790,10 +414,10 @@ class MainWindow(QMainWindow):
 
         for variable in self.experiment.new_variables:
             existing_entry = self.experiment.variables.get(variable.name)
-            if isinstance(existing_entry, self.Variable):
+            if isinstance(existing_entry, Variable):
                 continue
             if isinstance(existing_entry, dict):
-                self.experiment.variables[variable.name] = self.Variable(
+                self.experiment.variables[variable.name] = Variable(
                     name=existing_entry.get('name', variable.name),
                     value=existing_entry.get('value', variable.value),
                     for_python=existing_entry.get('for_python', variable.for_python),
@@ -804,7 +428,7 @@ class MainWindow(QMainWindow):
                     is_lookup=existing_entry.get('is_lookup', variable.is_lookup),
                 )
             else:
-                self.experiment.variables[variable.name] = self.Variable(
+                self.experiment.variables[variable.name] = Variable(
                     name=variable.name,
                     value=getattr(existing_entry, 'value', variable.value),
                     for_python=getattr(existing_entry, 'for_python', variable.for_python),
@@ -816,9 +440,9 @@ class MainWindow(QMainWindow):
                 )
 
         if 'id0' not in self.experiment.variables:
-            self.experiment.variables['id0'] = self.Variable(name='id0', value=0.0, for_python=0.0)
+            self.experiment.variables['id0'] = Variable(name='id0', value=0.0, for_python=0.0)
         if '' not in self.experiment.variables:
-            self.experiment.variables[''] = self.Variable(name='', value=0.0, for_python=0.0)
+            self.experiment.variables[''] = Variable(name='', value=0.0, for_python=0.0)
 
 
     def _adjust_edge_channel_list(self, edge, attr_name, expected_count, factory, factory_kwargs=None, source_items=None):
@@ -934,7 +558,7 @@ class MainWindow(QMainWindow):
                 missing = expected_count - len(working)
                 # Populate newly available slots with default slow DDS objects
                 for _ in range(missing):
-                    working.append(self.SLOW_DDS())
+                    working.append(SlowDDS())
                 added = missing
 
         self.experiment.slow_dds = working
@@ -1084,96 +708,24 @@ class MainWindow(QMainWindow):
         '''
         Function that takes text and title and creates an error pop up message with the provided title and text
         '''
-        msg = QMessageBox()
-        msg.setFont(QFont('Arial', 14))
-        msg.setIcon(QMessageBox.Critical)
-        msg.setText("Error")
-        msg.setInformativeText(text)
-        msg.setWindowTitle(title)
-        msg.exec_()
+        show_error_message(text, title)
  
-
 
     def decode_input(self, text):
         '''
         Function is used to decode the user input in a form of a simple mathematical expression. It interprets chunks of text 
         until the next mathematical operator or the end of the text.
         '''
-        index = 0
-        output_eval = ""
-        output_expression = ""
-        output_for_python = ""
-        current = ""
-        is_scanned = False
-        is_ramped = False
-        is_sampled = False
-        is_derived = False
-        is_lookup = False
-        text = text.replace(" ", "") # removing spaces
-        text += "+" #Adding a plus in the end of the text in order to avoid typing additional operation for the last element
-        while index < len(text):
-            #Adding the next character
-            current += text[index]
-            index += 1
-            if text[index] == "-" or text[index] == "+" or text[index] == "/" or text[index] == "*":
-                current.replace(" ", "")
-                try: #If the current convertible to float type of value
-                    # float_current = float(current)
-                    float_current = float(int(float(current)*1e6)/1e6) # rounding numbers down to 6 decimal places
-                    output_expression += str(float_current) + text[index]
-                    output_eval += str(float_current) + text[index]
-                    output_for_python += str(float_current) + text[index]
-                except: #If the current is a variable name
-                    output_expression += current + text[index]
-                    output_eval += "self.experiment.variables['" + current + "'].value" + text[index]
-                    variable = self.experiment.variables[current]
-                    if self.experiment.do_scan and variable.is_scanned:#if scanned assign the python form else assign the value
-                        is_scanned = True
-                        output_for_python += str(self.experiment.variables[current].for_python) + text[index]
-                    elif self.experiment.do_ramp and variable.is_ramped: #if ramped assign the python form else assign the value
-                        is_ramped = True 
-                        output_for_python += str(self.experiment.variables[current].for_python) + text[index] 
-                    elif current in self.experiment.sampler_variables: #if sampled assign the name itself
-                        output_for_python += "%s" %current + text[index]
-                        is_sampled = True
-                    elif variable.is_derived: #if derived assign the name itself
-                        output_for_python += "%s" %current + text[index]
-                        is_derived = True
-                    elif variable.is_lookup: #if lookup assign the self.name[argument] 
-                        output_for_python += "self.%s[(%s-1)/0.1]"%(current, self.experiment.variables[current].argument) + text[index]
-                        is_lookup = True
-                    else:
-                        output_for_python += str(variable.value) + text[index]
-                current = ""
-                index += 1
-        # Removing all additional characters in the end. Making a+2+ into a+2
-        output_eval = output_eval[:-1]
-        output_for_python = output_for_python[:-1]
-        output_expression = output_expression[:-1]
-        # If for_python can be evaluated, then just store the value. Otherwise we keep the original form
-        try:
-            exec("self.temp =" + output_for_python)
-            output_for_python = str(float(self.temp))
-        except:
-            pass
-        # If evaluation can be evaluated, then store the value. Otherwise we keep the original form
-        try:
-            output_eval = str(float(output_eval))
-        except:
-            pass
-        return (output_expression, output_eval, output_for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup)
-
+        parser = ExpressionParser(self.experiment, self.experiment.do_scan, self.experiment.do_ramp)
+        return parser.decode_input(text)
 
 
     def remove_restricted_characters(self, text):
         '''
         Function is used to remove the restricted characters from the variable names.
-        It takes the initial name as a String input and returns the Sring of the modified text
+        It takes the initial name as a String input and returns the String of the modified text
         '''
-        to_remove = "~!@#$%^&*()-=/*+.?[]{;}:\|<>` "
-        for character in to_remove:
-            text = text.replace(character, "")
-        return text
+        return remove_restricted_characters(text)
     
 
     
@@ -1292,7 +844,7 @@ class MainWindow(QMainWindow):
                             edge.for_python = for_python
                             edge.is_scanned = is_scanned
                             edge.is_ramped = is_ramped
-                            self.experiment.variables[edge.id] = self.Variable(name = edge.id, value = edge.value, for_python = edge.for_python, is_scanned = edge.is_scanned, is_ramped = edge.is_ramped)
+                            self.experiment.variables[edge.id] = Variable(name = edge.id, value = edge.value, for_python = edge.for_python, is_scanned = edge.is_scanned, is_ramped = edge.is_ramped)
                             update.sequence_tab(self) 
                             update.from_object(self)
                     except:
@@ -1310,26 +862,21 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to save the sequence. In there is no file corresponsing to the sequence displayed the 
         user needs to specify its location and name. Otherwise it will orverwrite the sequence that was opened
         '''
-        # Save camera state before pickling
-        if hasattr(self, "camera_box"):
-            self.experiment.camera_enabled = self.camera_box.isChecked()
-        if hasattr(self, "_texp_locked"):
-            self.experiment.texp_locked = self._texp_locked
+        # Prepare experiment for saving (capture UI state)
+        camera_box = self.camera_box if hasattr(self, "camera_box") else None
+        texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
+        file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
         
         if self.experiment.file_name == "":
             self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0]
             if self.experiment.file_name != "": #happens when no file name was given (canceled)
-                try:
-                    with open(self.experiment.file_name, 'wb') as file:
-                        pickle.dump(self.experiment, file)
+                success, message, _ = file_io.save_experiment(self.experiment)
+                if success:
                     self.create_file_name_label()
-                    self.message_to_logger("Sequence saved at %s" %self.experiment.file_name)
-                except:
-                    self.message_to_logger("Saving attempt was not successful")                
+                self.message_to_logger(message)
         else:
-            with open(self.experiment.file_name, 'wb') as file:
-                pickle.dump(self.experiment, file)
-            self.message_to_logger("Sequence saved at %s" %self.experiment.file_name)
+            success, message, _ = file_io.save_experiment(self.experiment)
+            self.message_to_logger(message)
 
 
 
@@ -1340,113 +887,109 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to load the sequence. It triggers the folder explorer and lets the user choose 
         the file to open.
         '''
-        sequences_dir = self.repo_path / "sequences"
-        sequences_dir.mkdir(exist_ok=True)
+        sequences_dir = file_io.get_default_directory(self.repo_path)
         loaded_file_name = QFileDialog.getOpenFileName(
             self,
             "Open File",
             str(sequences_dir),
         )[0]
-        if loaded_file_name != "": #happens when no file name was given (canceled)
-            try:
-                with open(loaded_file_name, 'rb') as file:
-                    self.experiment = pickle.load(file)
-                #this was only created to avoid crushing when the old versions of experiments are loaded without the skip_images attribute
-                if hasattr(self.experiment, 'skip_images'):
-                    pass
-                else:
-                    self.experiment.skip_images = False
+        
+        if loaded_file_name == "":
+            return
+            
+        success, message, loaded_experiment = file_io.load_experiment(loaded_file_name)
+        
+        if not success:
+            self.error_message(message, 'Error')
+            return
+            
+        try:
+            self.experiment = loaded_experiment
+            
+            # Ensure backward compatibility
+            compat_notes = file_io.ensure_backward_compatibility(self.experiment)
+            
+            # Update UI button styles based on loaded settings
+            if hasattr(self, 'skip_images_button'):
+                if not self.experiment.skip_images:
                     self.skip_images_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
-                #this was only created to avoid crushing when the old versions of experiments are loaded without the cam_trigger_off attribute
-                if hasattr(self.experiment, 'cam_trigger_off'):
-                    pass
-                else:
-                    self.experiment.cam_trigger_off = False
+            
+            if hasattr(self, 'cam_trigger_off_button'):
+                if not self.experiment.cam_trigger_off:
                     self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
-                #this was only created to avoid crushing when the old versions of experiments are loaded without the cont_run_after_exp attribute
-                if not hasattr(self.experiment, 'cont_run_after_exp'):
-                    self.experiment.cont_run_after_exp = False
-
+            
+            if hasattr(self, 'cont_run_after_exp_button'):
                 if self.experiment.cont_run_after_exp:
                     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
                 else:
                     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
-                #this was only created to avoid crushing when the old versions of experiments are loaded without the camera_enabled attribute
-                if hasattr(self.experiment, 'camera_enabled'):
-                    pass
-                else:
-                    self.experiment.camera_enabled = False
-                #this was only created to avoid crushing when the old versions of experiments are loaded without the texp_locked attribute
-                if hasattr(self.experiment, 'texp_locked'):
-                    pass
-                else:
-                    self.experiment.texp_locked = False
 
-                self._ensure_title_lengths()
-                self._ensure_variable_structures()
-                # Trim/extend per-channel arrays so partially compatible sequences still load
-                adjustment_notes = self._reconcile_loaded_sequence_layout()
-                self.sequence_num_rows = len(self.experiment.sequence)
-                self.update_off()
-                #update the state of the checkbox for doing the scan
-                self.scan_table.setChecked(self.experiment.do_scan)
-                #update the state of the checkbox for doing the ramp
-                self.ramp_table.setChecked(self.experiment.do_ramp) 
-                #update the label showing the sequence that is being modified 
-                self.experiment.file_name = loaded_file_name
-                self.create_file_name_label()
-                update.from_object(self)
+            self._ensure_title_lengths()
+            self._ensure_variable_structures()
+            
+            # Trim/extend per-channel arrays so partially compatible sequences still load
+            adjustment_notes = self._reconcile_loaded_sequence_layout()
+            self.sequence_num_rows = len(self.experiment.sequence)
+            self.update_off()
+            
+            # Update the state of the checkbox for doing the scan
+            self.scan_table.setChecked(self.experiment.do_scan)
+            # Update the state of the checkbox for doing the ramp
+            self.ramp_table.setChecked(self.experiment.do_ramp) 
+            # Update the label showing the sequence that is being modified 
+            self.experiment.file_name = loaded_file_name
+            self.create_file_name_label()
+            update.from_object(self)
+            
+            # Restore experiment selection
+            row_int = file_io.get_experiment_selection_id(self.experiment)
+            if row_int is not None and hasattr(self, "experiment_list_list_widget"):
                 try:
-                    exp_data = getattr(self.experiment, "experimental_data", None)
-                    row = getattr(exp_data, "experiment_id", None) if exp_data else None
-                    row_int = None
-                    if isinstance(row, int):
-                        row_int = row
-                    elif isinstance(row, str):
-                        row_stripped = row.strip()
-                        if row_stripped.isdigit():
-                            row_int = int(row_stripped)
-                    if row_int is not None and hasattr(self, "experiment_list_list_widget"):
-                        if 0 <= row_int < self.experiment_list_list_widget.count():
-                            self.experiment_list_list_widget.setCurrentRow(row_int)
-                        else:
-                            self.experiment_list_list_widget.clearSelection()
+                    if 0 <= row_int < self.experiment_list_list_widget.count():
+                        self.experiment_list_list_widget.setCurrentRow(row_int)
+                    else:
+                        self.experiment_list_list_widget.clearSelection()
                 except Exception as restore_exc:
                     self.message_to_logger(f"Could not restore experiment selection: {restore_exc}")
-                self.message_to_logger("Sequence loaded from %s" %self.experiment.file_name)
-                if adjustment_notes:
-                    self.message_to_logger(
-                        "Adjusted loaded sequence to match available hardware: " + "; ".join(adjustment_notes)
-                    )
-                
-                #restore camera box state and parameters after successful load
-                try:
-                    if hasattr(self, "camera_box"):
-                        self.camera_box.setChecked(self.experiment.camera_enabled)
-                        # Restore camera parameters
-                        if hasattr(self.experiment.experimental_data, 'camera'):
-                            cam = self.experiment.experimental_data.camera
-                            if hasattr(cam, 'camera_name') and cam.camera_name:
-                                index = self.which_cam_combo.findText(cam.camera_name)
-                                if index >= 0:
-                                    self.which_cam_combo.setCurrentIndex(index)
-                            if hasattr(cam, 'gain_db'):
-                                self.gain_edit.setText(str(cam.gain_db))
-                            if hasattr(cam, 'exposure_time'):
-                                self.exposure_edit.setText(str(cam.exposure_time))
-                            if hasattr(cam, 'format_name') and cam.format_name:
-                                index = self.format_combo.findText(cam.format_name)
-                                if index >= 0:
-                                    self.format_combo.setCurrentIndex(index)
-                    # Restore T_exp_ lock state
-                    if hasattr(self, "lock_cb"):
-                        self.lock_cb.setChecked(self.experiment.texp_locked)
-                        self._texp_locked = self.experiment.texp_locked
-                        self._update_texp_lock_presentation()
-                except Exception as e:
-                    self.message_to_logger(f"Could not restore camera settings: {e}")
+            
+            self.message_to_logger(f"Sequence loaded from {self.experiment.file_name}")
+            if adjustment_notes:
+                self.message_to_logger(
+                    "Adjusted loaded sequence to match available hardware: " + "; ".join(adjustment_notes)
+                )
+            if compat_notes:
+                self.message_to_logger("Compatibility updates: " + "; ".join(compat_notes))
+            
+            # Restore camera box state and parameters after successful load
+            try:
+                if hasattr(self, "camera_box"):
+                    self.camera_box.setChecked(self.experiment.camera_enabled)
+                    # Restore camera parameters
+                    if hasattr(self.experiment.experimental_data, 'camera'):
+                        cam = self.experiment.experimental_data.camera
+                        if hasattr(cam, 'camera_name') and cam.camera_name:
+                            index = self.which_cam_combo.findText(cam.camera_name)
+                            if index >= 0:
+                                self.which_cam_combo.setCurrentIndex(index)
+                        if hasattr(cam, 'gain_db') and cam.gain_db is not None:
+                            self.gain_edit.setText(str(cam.gain_db))
+                        if hasattr(cam, 'exposure_time_ms') and cam.exposure_time_ms is not None:
+                            self.exposure_edit.setText(str(cam.exposure_time_ms))
+                        if hasattr(cam, 'format_name') and cam.format_name:
+                            index = self.format_combo.findText(cam.format_name)
+                            if index >= 0:
+                                self.format_combo.setCurrentIndex(index)
+                # Restore T_exp_ lock state
+                if hasattr(self, "lock_cb"):
+                    self.lock_cb.setChecked(self.experiment.texp_locked)
+                    self._texp_locked = self.experiment.texp_locked
+                    self._update_texp_lock_presentation()
             except Exception as e:
-                self.error_message(f'Could not load the file: {e}', 'Error')
+                self.message_to_logger(f"Could not restore camera settings: {e}")
+                
+        except Exception as e:
+            self.error_message(f'Error processing loaded file: {e}', 'Error')
+        finally:
             self.update_on()
 
 
@@ -1489,7 +1032,7 @@ class MainWindow(QMainWindow):
         self.experiment.sequence.append(new_edge)
         self.sequence_num_rows += 1
         #creating a corresponding variable so one can use id# as a variable
-        self.experiment.variables[new_edge.id] = self.Variable(name = new_edge.id, value = new_edge.value, for_python = new_edge.for_python)
+        self.experiment.variables[new_edge.id] = Variable(name = new_edge.id, value = new_edge.value, for_python = new_edge.for_python)
         self.update_off()
         #Setting DIGITAL table values to not changed
         for channel in self.experiment.sequence[-1].digital:
@@ -2117,18 +1660,14 @@ class MainWindow(QMainWindow):
         having a flag of self.dialog.accepted in case the window was closed by clicking the close button at the 
         right top corner, the dialog was accepted by default.
         '''
-        # Save camera state before pickling
+        # Update camera state before saving
         if hasattr(self, "camera_box"):
             self.experiment.camera_enabled = self.camera_box.isChecked()
         if hasattr(self, "_texp_locked"):
             self.experiment.texp_locked = self._texp_locked
         
-        try:
-            with open(self.repo_path / "default" / "default", 'wb') as file:
-                pickle.dump(self.experiment, file)
-            self.message_to_logger("Default saved at %s" %self.experiment.file_name)
-        except:
-            self.message_to_logger("Saving attempt was not successful")
+        success, message = file_io.save_default_settings(self.experiment, self.repo_path)
+        self.message_to_logger(message)
         self.dialog.accept()
     
 
@@ -2141,18 +1680,18 @@ class MainWindow(QMainWindow):
         to overwrite the titles and default states to the updated default values.
         '''
         self.update_off()
-        try:
-            with open(self.repo_path / "default" / "default", 'rb') as file:
-                default_experiment = pickle.load(file)
-            #Reassign the default values to the current self.experiment object
-            self.experiment.sequence[0] = deepcopy(default_experiment.sequence[0])
-            self.experiment.title_digital_tab = deepcopy(default_experiment.title_digital_tab)
-            self.experiment.title_analog_tab = deepcopy(default_experiment.title_analog_tab)
-            self.experiment.title_dds_tab = deepcopy(default_experiment.title_dds_tab)
-            update.from_object(self)
-            self.message_to_logger("Default values loaded from %s" %self.experiment.file_name)
-        except:
-            self.error_message('Could not load the file.', 'Error')
+        
+        success, message, default_experiment = file_io.load_default_settings(self.repo_path)
+        
+        if not success:
+            self.error_message(message, 'Error')
+            self.update_on()
+            return
+        
+        # Apply default settings to current experiment
+        file_io.apply_default_to_experiment(self.experiment, default_experiment)
+        update.from_object(self)
+        self.message_to_logger(f"Default values loaded from {self.experiment.file_name}")
         self.update_on()
 
 
@@ -2196,7 +1735,7 @@ class MainWindow(QMainWindow):
         Function is used when the user wants to add a scanned variable. It adds a variable with the name "None" and updates the 
         scan_table to display the changes
         '''
-        self.experiment.scanned_variables.append(self.Scanned_variable("None", 0.0, 0.0))
+        self.experiment.scanned_variables.append(ScannedVariable("None", 0.0, 0.0))
         update.scan_table(self)
         update.digital_analog_dds_mirny_tabs(self)
         update.variable_tables(self)
@@ -2508,7 +2047,7 @@ class MainWindow(QMainWindow):
         '''
         analog to add_scanned_variable_button_pressed
         '''
-        self.experiment.ramped_variables.append(self.Ramped_variable("None", 0, 0, 0.0, 0)) 
+        self.experiment.ramped_variables.append(RampedVariable("None", 0, 0, 0.0, 0)) 
         update.ramp_table(self)
         update.digital_analog_dds_mirny_tabs(self)
         update.variable_tables(self)
@@ -3239,8 +2778,8 @@ class MainWindow(QMainWindow):
         creates it with initial value of 0.0. It also creates the corresponding Variable objects  in new_variables and variables.
         '''
         variable_name = self.find_new_variable_name_unused()
-        self.experiment.new_variables.append(self.Variable(variable_name, 0.0, 0.0))
-        self.experiment.variables[variable_name] = self.Variable(variable_name, 0.0, 0.0)
+        self.experiment.new_variables.append(Variable(variable_name, 0.0, 0.0))
+        self.experiment.variables[variable_name] = Variable(variable_name, 0.0, 0.0)
         # update.all_tabs(self,derived_variables = False)
         update.variable_tables(self)
 
@@ -3455,8 +2994,8 @@ class MainWindow(QMainWindow):
         '''
         variable_name = self.find_derived_variable_name_unused()
         self.experiment.names_of_derived_variables.add(variable_name)
-        self.experiment.derived_variables.append(self.Derived_variable(name = variable_name, edge_id = "", arguments = "", function = "", initial_value = ""))
-        self.experiment.variables[variable_name] = self.Variable(name = variable_name, value = 0.0, for_python = 0.0, is_derived = True)
+        self.experiment.derived_variables.append(DerivedVariable(name = variable_name, edge_id = "", arguments = "", function = "", initial_value = ""))
+        self.experiment.variables[variable_name] = Variable(name = variable_name, value = 0.0, for_python = 0.0, is_derived = True)
         update.variables_tab(self, new_variables = False, lookup_variables = False)
 
 
@@ -3483,8 +3022,8 @@ class MainWindow(QMainWindow):
         '''
         variable_name = self.find_lookup_variable_name_unused()
         self.experiment.names_of_lookup_variables.add(variable_name)
-        self.experiment.lookup_variables.append(self.Lookup_variable(name = variable_name))
-        self.experiment.variables[variable_name] = self.Variable(name = variable_name, value = 0.0, for_python = 0.0, is_lookup = True)
+        self.experiment.lookup_variables.append(LookupVariable(name = variable_name))
+        self.experiment.variables[variable_name] = Variable(name = variable_name, value = 0.0, for_python = 0.0, is_lookup = True)
         update.variables_tab(self, new_variables = False, derived_variables = False)
 
 
@@ -5035,7 +4574,7 @@ class MainWindow(QMainWindow):
 
             index = self._get_texp_variable_index()
             if index is None:
-                variable = self.Variable(texp_key, texp_, texp_)
+                variable = Variable(texp_key, texp_, texp_)
                 self.experiment.variables[texp_key] = variable
                 self.experiment.new_variables.append(variable)
             else:
