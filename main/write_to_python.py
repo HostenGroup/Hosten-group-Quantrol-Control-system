@@ -66,18 +66,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "inputs = [0.0]*8\n")
     file.write(indentation + "delay(1*s)\n") # this delay is added since our reference clock is 1GHz and self.core.break_realtime moves it forward by 15000 clock cycles
     
-    # Skip-image runs: trigger camera warm-up shots without saving
-    if config.allow_skipping_images == True and self.experiment.skip_images:
-        skip_count = getattr(config, "skip_images_trigger_count", 10)
-        file.write(indentation + f"# Trigger camera {skip_count} times without saving images\n")
-        file.write(indentation + "self.core.break_realtime()\n")
-        file.write(indentation + f"for _ in range({skip_count}):\n")
-        indentation += "    "
-        for val in config.camera_trigger_ttl:
-            file.write(indentation + "self.ttl" + str(val) + ".pulse(10*ms)\n")
-        file.write(indentation + "delay(100*ms)\n")
-        indentation = indentation[:-4]
-    
     # for inital value of derived variables 
     arguments = self.experiment.derived_variables
     for argument in arguments:
@@ -115,15 +103,32 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if run_continuous:
         file.write(indentation + "while True:\n")
         indentation += "    "
+        file.write(indentation + "self.core.break_realtime()\n")
         if warmup_runs > 0:
             file.write(indentation + "if not hasattr(self, '_cam_warmup_remaining'):\n")
             indentation += "    "
             file.write(indentation + "self._cam_warmup_remaining = %d\n" % warmup_runs)
+            file.write(indentation + "self._cam_warmup_triggered = False\n")
             indentation = indentation[:-4]
             file.write(indentation + "if self._cam_warmup_remaining > 0:\n")
             indentation += "    "
             file.write(indentation + "camera_enabled = False   # warm-up run\n")
             file.write(indentation + "self._cam_warmup_remaining -= 1\n")
+            indentation = indentation[:-4]
+            file.write(indentation + "elif not self._cam_warmup_triggered:\n")
+            indentation += "    "
+            file.write(indentation + "# Camera warm-up trigger: execute once after cam_trigger_off runs\n")
+            
+            if config.allow_skipping_images == True and self.experiment.skip_images:
+                skip_count = getattr(config, "skip_images_trigger_count", 10)
+                file.write(indentation + f"for _ in range({skip_count}):\n")
+                indentation += "    "
+                for val in config.camera_trigger_ttl:
+                    file.write(indentation + "self.ttl" + str(val) + ".pulse(10*ms)\n")
+                file.write(indentation + "delay(100*ms)\n")
+                indentation = indentation[:-4]
+            file.write(indentation + "self._cam_warmup_triggered = True\n")
+            file.write(indentation + "camera_enabled = True\n")
             indentation = indentation[:-4]
             file.write(indentation + "else:\n")
             indentation += "    "
@@ -137,8 +142,22 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up\n" % total_runs)
             indentation += "    "
             run_loop_added = True
+            file.write(indentation + "self.core.break_realtime()\n")
             if warmup_runs > 0:
                 file.write(indentation + "camera_enabled = (run_index >= %d)   # warm-up run check\n" % warmup_runs)
+                file.write(indentation + "# Camera warm-up trigger: execute once after cam_trigger_off runs\n")
+                file.write(indentation + "if run_index == %d:   # right after last cam_trigger_off run\n" % warmup_runs)
+                indentation += "    "
+                
+                if config.allow_skipping_images == True and self.experiment.skip_images:
+                    skip_count = getattr(config, "skip_images_trigger_count", 10)
+                    file.write(indentation + f"for _ in range({skip_count}):\n")
+                    indentation += "    "
+                    for val in config.camera_trigger_ttl:
+                        file.write(indentation + "self.ttl" + str(val) + ".pulse(10*ms)\n")
+                    file.write(indentation + "delay(100*ms)\n")
+                    indentation = indentation[:-4]
+                indentation = indentation[:-4]
             else:
                 file.write(indentation + "camera_enabled = True\n")
         else:
