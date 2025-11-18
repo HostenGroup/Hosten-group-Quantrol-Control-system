@@ -1536,450 +1536,31 @@ class MainWindow(QMainWindow):
 
     def _record_experiment_run(self, metadata_dir, *, is_multiple_run=False):
         """Append the latest run metadata to the experiment spreadsheet when possible."""
-        db_path = getattr(config, "experiment_database_path", "")
-        if not db_path:
-            return
-        try:
-            openpyxl_module = importlib.import_module("openpyxl")
-        except ImportError:
-            if not self._openpyxl_missing_warned:
-                self.message_to_logger("openpyxl not installed - experiment log will not be updated.")
-                self._openpyxl_missing_warned = True
-            return
-
-        Workbook = getattr(openpyxl_module, "Workbook", None)
-        load_workbook = getattr(openpyxl_module, "load_workbook", None)
-        if Workbook is None or load_workbook is None:
-            if not self._openpyxl_missing_warned:
-                self.message_to_logger("openpyxl is missing workbook support - experiment log updates disabled.")
-                self._openpyxl_missing_warned = True
-            return
-
-        try:
-            data_validation_module = importlib.import_module("openpyxl.worksheet.datavalidation")
-            DataValidation = getattr(data_validation_module, "DataValidation", None)
-        except ImportError:
-            DataValidation = None
-
-        try:
-            utils_module = importlib.import_module("openpyxl.utils")
-            get_column_letter = getattr(utils_module, "get_column_letter", None)
-        except ImportError:
-            get_column_letter = None
-
-        try:
-            styles_module = importlib.import_module("openpyxl.styles")
-            PatternFill = getattr(styles_module, "PatternFill", None)
-            Font = getattr(styles_module, "Font", None)
-            Alignment = getattr(styles_module, "Alignment", None)
-            Border = getattr(styles_module, "Border", None)
-            Side = getattr(styles_module, "Side", None)
-        except ImportError:
-            PatternFill = None
-            Font = None
-            Alignment = None
-            Border = None
-            Side = None
-        if Border is None or Side is None:
-            try:
-                borders_module = importlib.import_module("openpyxl.styles.borders")
-                Border = getattr(borders_module, "Border", Border)
-                Side = getattr(borders_module, "Side", Side)
-            except ImportError:
-                Border = Border or None
-                Side = Side or None
-
-        desired_headers = [
-            "Date\n(dd.mm.yyyy)",
-            "Experiment",
-            "Time",
-            "Scanned variable",
-            "Scan range",
-            "Scan steps",
-            "Number of runs",
-            "Good data\n(Y/N)",
-            "Data path",
-            "Comment"
-        ]
-        default_column_width = 25
-        row_height = 20
-        header_row_height = 30
-        header_aliases = {
-            "Scanned variables": "Scanned variable",
-            "Scan ranges": "Scan range",
-            "Comments": "Comment",
-            "Date (dd.mm.yyyy)": "Date\n(dd.mm.yyyy)",
-            "Good data (Y/N)": "Good data\n(Y/N)"
-        }
-
-        metadata_path = Path(metadata_dir)
-        db_file = Path(db_path)
-        try:
-            db_file.parent.mkdir(parents=True, exist_ok=True)
-            if db_file.exists():
-                workbook = load_workbook(db_file)
-                sheet = workbook.active
-            else:
-                workbook = Workbook()
-                sheet = workbook.active
-                sheet.title = "Experiments"
-
-        except Exception as exc:
-            self.message_to_logger(f"Could not update experiment log: {exc}")
-            return
-
-        def restructure_sheet_if_needed():
-            existing_headers = []
-            if sheet.max_row >= 1:
-                existing_headers = [cell.value if cell.value is not None else "" for cell in sheet[1]]
-            if not any(existing_headers):
-                if sheet.max_row:
-                    sheet.delete_rows(1, sheet.max_row)
-                sheet.append(desired_headers)
-                return
-            if existing_headers == desired_headers:
-                return
-            rows_snapshot = []
-            for row in sheet.iter_rows(min_row=2):
-                info = {}
-                for idx, cell in enumerate(row):
-                    header_key = existing_headers[idx] if idx < len(existing_headers) else f"__extra_{idx}"
-                    canonical_key = header_aliases.get(header_key, header_key)
-                    info[canonical_key] = (cell.value, cell.hyperlink.target if cell.hyperlink else None)
-                rows_snapshot.append(info)
-            sheet.delete_rows(1, sheet.max_row)
-            sheet.append(desired_headers)
-
-            def get_value(info, key, default=""):
-                packed = info.get(key)
-                if packed is None:
-                    return default
-                value, _ = packed
-                return value if value is not None else default
-
-            def get_link(info, key):
-                packed = info.get(key)
-                if packed is None:
-                    return None
-                _, link = packed
-                return link
-
-            for stored in rows_snapshot:
-                row_values = [
-                    get_value(stored, "Date\n(dd.mm.yyyy)"),
-                    get_value(stored, "Experiment"),
-                    get_value(stored, "Time"),
-                    get_value(stored, "Scanned variable"),
-                    get_value(stored, "Scan range"),
-                    get_value(stored, "Scan steps"),
-                    get_value(stored, "Number of runs"),
-                    get_value(stored, "Good data\n(Y/N)"),
-                    "path",
-                    get_value(stored, "Comment")
-                ]
-                sheet.append(row_values)
-                current_row = sheet.max_row
-                date_cell_snapshot = sheet.cell(row=current_row, column=1)
-                if isinstance(date_cell_snapshot.value, (datetime, date)):
-                    date_cell_snapshot.number_format = "dd.mm.yyyy"
-                link_target = get_link(stored, "Data path")
-                if not link_target:
-                    link_target = get_value(stored, "Data path")
-                if link_target:
-                    data_cell = sheet.cell(row=current_row, column=9)
-                    data_cell.value = "path"
-                    data_cell.hyperlink = link_target
-                    data_cell.style = "Hyperlink"
-                sheet.row_dimensions[current_row].height = row_height
-
-        restructure_sheet_if_needed()
-
-        header_fill = PatternFill(fill_type="solid", fgColor="D9D9D9") if PatternFill else None
-        header_font = Font(bold=True) if Font else None
-        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True) if Alignment else None
-        header_border_side = Side(style="thin", color="000000") if Side else None
-
-        for idx, header in enumerate(desired_headers, start=1):
-            cell = sheet.cell(row=1, column=idx, value=header)
-            if header_font:
-                cell.font = header_font
-            if header_fill:
-                cell.fill = header_fill
-            if header_alignment:
-                cell.alignment = header_alignment
-            if Border and header_border_side:
-                cell.border = Border(
-                    left=header_border_side,
-                    right=header_border_side,
-                    top=header_border_side,
-                    bottom=header_border_side
-                )
-
-        if get_column_letter is not None:
-            width_map = {
-                1: 14,  # Date
-                3: 10,  # Time
-                5: 20,  # Scan range
-                6: 16,  # Scan points number
-                7: 16,  # Number of runs
-                8: 10,  # Good data
-                9: 10,  # Data path
-                10: 40  # Comment
-            }
-            for col_idx in range(1, len(desired_headers) + 1):
-                column_letter = get_column_letter(col_idx)
-                width = width_map.get(col_idx, default_column_width)
-                sheet.column_dimensions[column_letter].width = width
-
-        sheet.row_dimensions[1].height = header_row_height
-        sheet.freeze_panes = "A2"
-
-        timestamp_iso = getattr(self.experiment.experimental_data, "current_run_timestamp", "")
-        try:
-            run_ts = datetime.fromisoformat(timestamp_iso) if timestamp_iso else datetime.now()
-        except ValueError:
-            run_ts = datetime.now()
-
-        experiment_name = getattr(self.experiment.experimental_data, "experiment_name", "") or ""
-        date_value = run_ts.date()
-        time_value = run_ts.time().replace(microsecond=0)
-
-        scanned_variables = []
-        scan_ranges = []
-        for variable in getattr(self.experiment, "scanned_variables", []):
-            name = getattr(variable, "name", "")
-            if name and name != "None":
-                scanned_variables.append(str(name))
-                min_val = getattr(variable, "min_val", "")
-                max_val = getattr(variable, "max_val", "")
-                scan_ranges.append(f"{min_val} -> {max_val}")
-
-        scan_points = 1
-        if getattr(self.experiment, "do_scan", False) and getattr(self.experiment, "scanned_variables_count", 0) > 0:
-            try:
-                scan_points = int(getattr(self.experiment, "number_of_steps", 1))
-            except (TypeError, ValueError):
-                scan_points = 1
-            if scan_points <= 0:
-                scan_points = 1
-
-        number_of_runs_value = getattr(self.experiment, "number_of_runs", 1)
-        try:
-            number_of_runs_value = int(number_of_runs_value)
-        except (TypeError, ValueError):
-            number_of_runs_value = 1
-        if number_of_runs_value <= 0:
-            number_of_runs_value = 1
-        if not is_multiple_run:
-            number_of_runs_value = 1
-
-        pending_entries = self._load_pending_log_entries()
-
-        current_entry = {
-            "date": date_value.isoformat(),
-            "experiment": experiment_name,
-            "time": time_value.strftime("%H:%M:%S"),
-            "scanned_variables": scanned_variables,
-            "scan_ranges": scan_ranges,
-            "scan_points": int(scan_points),
-            "number_of_runs": int(number_of_runs_value),
-            "good_data": "",
-            "metadata_path": str(metadata_path),
-            "comment": ""
-        }
-
-        entries_to_write = list(pending_entries)
-        entries_to_write.append(current_entry)
-
-        def append_entry_to_sheet(entry_dict):
-            date_field = entry_dict.get("date")
-            if isinstance(date_field, date):
-                date_obj = date_field
-            elif isinstance(date_field, datetime):
-                date_obj = date_field.date()
-            elif isinstance(date_field, str):
-                try:
-                    date_obj = date.fromisoformat(date_field)
-                except ValueError:
-                    try:
-                        date_obj = datetime.fromisoformat(date_field).date()
-                    except ValueError:
-                        date_obj = datetime.now().date()
-            else:
-                date_obj = datetime.now().date()
-
-            time_field = entry_dict.get("time")
-            if isinstance(time_field, datetime):
-                time_obj = time_field.time().replace(microsecond=0)
-            elif isinstance(time_field, str):
-                try:
-                    time_obj = datetime.strptime(time_field, "%H:%M:%S").time()
-                except ValueError:
-                    try:
-                        time_obj = datetime.fromisoformat(time_field).time()
-                    except ValueError:
-                        time_obj = time_field
-            else:
-                time_obj = time_field if time_field else datetime.now().time().replace(microsecond=0)
-
-            scanned_field = entry_dict.get("scanned_variables", [])
-            if isinstance(scanned_field, (list, tuple)):
-                scanned_str = "; ".join(str(item) for item in scanned_field if item not in (None, ""))
-            else:
-                scanned_str = str(scanned_field) if scanned_field is not None else ""
-
-            range_field = entry_dict.get("scan_ranges", [])
-            if isinstance(range_field, (list, tuple)):
-                ranges_str = "; ".join(str(item) for item in range_field if item not in (None, ""))
-            else:
-                ranges_str = str(range_field) if range_field is not None else ""
-
-            scan_points_field = entry_dict.get("scan_points", 1)
-            try:
-                scan_points_value = int(scan_points_field)
-            except (TypeError, ValueError):
-                scan_points_value = 1
-            if scan_points_value <= 0:
-                scan_points_value = 1
-
-            number_of_runs_field = entry_dict.get("number_of_runs", 1)
-            try:
-                number_of_runs_int = int(number_of_runs_field)
-            except (TypeError, ValueError):
-                number_of_runs_int = 1
-            if number_of_runs_int <= 0:
-                number_of_runs_int = 1
-
-            good_data_value = entry_dict.get("good_data", "") or ""
-            comment_value = entry_dict.get("comment", "") or ""
-            metadata_value = entry_dict.get("metadata_path", "")
-
-            row_values_local = [
-                date_obj,
-                entry_dict.get("experiment", ""),
-                time_obj,
-                scanned_str,
-                ranges_str,
-                scan_points_value,
-                number_of_runs_int,
-                good_data_value,
-                "path" if metadata_value else "",
-                comment_value
-            ]
-
-            sheet.append(row_values_local)
-            row_index = sheet.max_row
-            date_cell_local = sheet.cell(row=row_index, column=1)
-            if isinstance(date_cell_local.value, (datetime, date)):
-                date_cell_local.number_format = "d.m.yyyy"
-            if metadata_value:
-                data_cell_local = sheet.cell(row=row_index, column=9)
-                data_cell_local.value = "path"
-                data_cell_local.hyperlink = metadata_value
-                data_cell_local.style = "Hyperlink"
-            sheet.row_dimensions[row_index].height = row_height
-
-        for entry_dict in entries_to_write:
-            append_entry_to_sheet(entry_dict)
-
-        if DataValidation is not None:
-            target_range = "H2:H1048576"
-            existing_range = False
-            if hasattr(sheet, "data_validations"):
-                for dv in sheet.data_validations.dataValidation:
-                    if any(str(rng) == target_range for rng in dv.ranges):
-                        existing_range = True
-                        break
-            if not existing_range:
-                dv = DataValidation(type="list", formula1='"[ ],[x]"', allow_blank=True)
-                dv.error = "Select [x] once the dataset is validated."
-                dv.prompt = "Switch to [x] when the run produced good data."
-                sheet.add_data_validation(dv)
-                dv.add(target_range)
-
-        for row_idx in range(2, sheet.max_row + 1):
-            sheet.row_dimensions[row_idx].height = row_height
-
-        try:
-            workbook.save(db_file)
-        except PermissionError:
-            self._set_pending_log_entries(entries_to_write)
-            self.message_to_logger("Experiment log update deferred: close the Excel workbook to allow writing. Pending entries will be retried automatically.")
-            return
-        except Exception as exc:
-            self._set_pending_log_entries(entries_to_write)
-            self.message_to_logger(f"Could not update experiment log (will retry later): {exc}")
-            return
-
-        if pending_entries:
-            self.message_to_logger("Previously pending experiment log entries were written to the log file.")
-        self._set_pending_log_entries([])
+        cache_dict = {"_pending_log_entries_cache": getattr(self, "_pending_log_entries_cache", None)}
+        openpyxl_warned = getattr(self, "_openpyxl_missing_warned", False)
+        
+        success, message, openpyxl_warned = file_io.record_experiment_run(
+            self.experiment, 
+            self.repo_path, 
+            metadata_dir,
+            is_multiple_run=is_multiple_run,
+            cache_dict=cache_dict,
+            openpyxl_missing_warned=openpyxl_warned
+        )
+        
+        self._openpyxl_missing_warned = openpyxl_warned
+        if "_pending_log_entries_cache" in cache_dict:
+            self._pending_log_entries_cache = cache_dict["_pending_log_entries_cache"]
+        
+        if message:
+            self.message_to_logger(message)
 
 
     def _remove_experiment_log_rows(self, experiment_name):
         """Remove rows in the experiment log workbook that match the given experiment name."""
-        db_path = getattr(config, "experiment_database_path", "")
-        if not db_path or not experiment_name:
-            return
-
-        try:
-            openpyxl_module = importlib.import_module("openpyxl")
-        except ImportError:
-            self.message_to_logger("openpyxl not installed - experiment log cleanup skipped.")
-            return
-
-        load_workbook = getattr(openpyxl_module, "load_workbook", None)
-        if load_workbook is None:
-            self.message_to_logger("openpyxl missing load_workbook - experiment log cleanup skipped.")
-            return
-
-        try:
-            workbook = load_workbook(db_path)
-        except FileNotFoundError:
-            return
-        except PermissionError:
-            self.message_to_logger("Experiment log cleanup skipped: close the Excel workbook and retry.")
-            return
-        except Exception as exc:
-            self.message_to_logger(f"Could not load experiment log for cleanup: {exc}")
-            return
-
-        try:
-            sheet = workbook.active
-            if sheet.max_row <= 1:
-                return
-
-            rows_to_delete = []
-            for row_idx in range(2, sheet.max_row + 1):
-                cell_value = sheet.cell(row=row_idx, column=2).value
-                match = False
-                if isinstance(cell_value, str):
-                    match = cell_value.strip() == experiment_name
-                elif cell_value is not None:
-                    try:
-                        match = str(cell_value).strip() == experiment_name
-                    except Exception:
-                        match = False
-                if match:
-                    rows_to_delete.append(row_idx)
-
-            if not rows_to_delete:
-                return
-
-            for row_idx in reversed(rows_to_delete):
-                sheet.delete_rows(row_idx)
-
-            try:
-                workbook.save(db_path)
-            except PermissionError:
-                self.message_to_logger("Experiment log cleanup could not save: close the Excel workbook and retry.")
-            except Exception as exc:
-                self.message_to_logger(f"Could not save experiment log after cleanup: {exc}")
-        finally:
-            try:
-                workbook.close()
-            except Exception:
-                pass
+        success, message = file_io.remove_experiment_log_rows(experiment_name, self.repo_path)
+        if message:
+            self.message_to_logger(message)
 
 
     def _normalize_experiment_name_keys(self, mapping):
@@ -1998,45 +1579,23 @@ class MainWindow(QMainWindow):
         return normalized
 
 
-    def _pending_log_entries_path(self):
-        """Return the path used to store deferred experiment log entries."""
-        return self.repo_path / "logs" / "pending_experiment_log_entries.json"
-
-
     def _load_pending_log_entries(self):
         """Retrieve any deferred experiment log entries from disk into memory."""
-        if hasattr(self, "_pending_log_entries_cache"):
-            return list(self._pending_log_entries_cache)
-
-        path = self._pending_log_entries_path()
-        entries = []
-        if path.exists():
-            try:
-                with open(path, "r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-                    if isinstance(data, list):
-                        entries = data
-            except Exception as exc:
-                self.message_to_logger(f"Could not read pending experiment log entries: {exc}")
-        self._pending_log_entries_cache = entries
-        return list(entries)
+        cache_dict = {"_pending_log_entries_cache": getattr(self, "_pending_log_entries_cache", None)} if hasattr(self, "_pending_log_entries_cache") else {}
+        entries = file_io.load_pending_log_entries(self.repo_path, cache_dict)
+        if "_pending_log_entries_cache" in cache_dict:
+            self._pending_log_entries_cache = cache_dict["_pending_log_entries_cache"]
+        return entries
 
 
     def _set_pending_log_entries(self, entries):
         """Persist the supplied pending log entries and refresh the cache."""
-        entries_list = list(entries)
-        self._pending_log_entries_cache = entries_list
-        path = self._pending_log_entries_path()
-        try:
-            if entries_list:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                with open(path, "w", encoding="utf-8") as handle:
-                    json.dump(entries_list, handle, indent=2)
-            else:
-                if path.exists():
-                    path.unlink()
-        except Exception as exc:
-            self.message_to_logger(f"Could not update pending experiment log file: {exc}")
+        cache_dict = {"_pending_log_entries_cache": getattr(self, "_pending_log_entries_cache", None)} if hasattr(self, "_pending_log_entries_cache") else {}
+        error_msg = file_io.set_pending_log_entries(self.repo_path, entries, cache_dict)
+        if "_pending_log_entries_cache" in cache_dict:
+            self._pending_log_entries_cache = cache_dict["_pending_log_entries_cache"]
+        if error_msg:
+            self.message_to_logger(error_msg)
 
 
     def _get_texp_variable_index(self):
