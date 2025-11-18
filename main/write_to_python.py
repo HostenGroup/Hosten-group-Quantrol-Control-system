@@ -158,19 +158,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 indentation = indentation[:-4]
             if warmup_runs > 0:
                 file.write(indentation + "camera_enabled = (run_index >= %d)   # warm-up run check\n" % warmup_runs)
-                file.write(indentation + "# Camera warm-up trigger: execute once after cam_trigger_off runs\n")
-                file.write(indentation + "if run_index == %d:   # right after last cam_trigger_off run\n" % warmup_runs)
-                indentation += "    "
-                
-                if config.allow_skipping_images == True and self.experiment.skip_images:
-                    skip_count = getattr(config, "skip_images_trigger_count", 10)
-                    file.write(indentation + f"for _ in range({skip_count}):\n")
-                    indentation += "    "
-                    for val in config.camera_trigger_ttl:
-                        file.write(indentation + "self.ttl" + str(val) + ".pulse(10*ms)\n")
-                    file.write(indentation + "delay(100*ms)\n")
-                    indentation = indentation[:-4]
-                indentation = indentation[:-4]
             else:
                 file.write(indentation + "camera_enabled = True\n")
         else:
