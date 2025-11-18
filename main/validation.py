@@ -12,6 +12,9 @@ Version :   2.3.3
 Contact :   https://hostenlab.pages.ist.ac.at/contact/
 '''
 
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtGui import QFont
+
 
 def show_error_message(text: str, title: str):
     '''
@@ -21,9 +24,6 @@ def show_error_message(text: str, title: str):
         text: The error message text to display
         title: The window title for the error dialog
     '''
-    from PyQt5.QtWidgets import QMessageBox
-    from PyQt5.QtGui import QFont
-    
     msg = QMessageBox()
     msg.setFont(QFont('Arial', 14))
     msg.setIcon(QMessageBox.Critical)

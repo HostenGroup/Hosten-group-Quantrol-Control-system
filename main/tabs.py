@@ -4,6 +4,9 @@ from PyQt5.QtGui import *
 from datetime import datetime
 import config  
 import json
+import other_handlers
+import button_handlers
+import change_handlers
 
 
 class ReadOnlyDelegate(QStyledItemDelegate):
@@ -131,7 +134,7 @@ def variables_sidebar_build(self,tab):
     variables_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
     # variables_table.setColumnWidth(1,int(self.SCALE_W*(99)))
     #when table contents are changed
-    variables_table.itemChanged.connect(self.variables_table_changed)
+    variables_table.itemChanged.connect(lambda item: change_handlers.handle_variables_table_changed(self, item))
 
     #button to create new variable
     self.create_new_variable = QPushButton(tab)
@@ -139,14 +142,14 @@ def variables_sidebar_build(self,tab):
     self.create_new_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + self.sep, self.button_w, self.button_h))
     self.create_new_variable.setText("Create variable")
     self.create_new_variable.setToolTip("Button that is used to create a new variable.")
-    self.create_new_variable.clicked.connect(self.create_new_variable_button_clicked)
+    self.create_new_variable.clicked.connect(lambda: button_handlers.handle_create_new_variable_button_clicked(self))
     #button to delete a variable
     delete_variable = QPushButton(tab)
     delete_variable.setFont(QFont('Arial', self.scale_font(14)))
     delete_variable.setGeometry(*self.scale_geom(x_val, self.top_margin + height_of_table_variables + 2*self.sep + self.button_h, self.button_w, self.button_h))
     delete_variable.setText("Delete variable")
     delete_variable.setToolTip("Button that is used to delete a new variable. First choose the new varibles by right clicking it in the variables table.")
-    delete_variable.clicked.connect(self.delete_variable_button_clicked)
+    delete_variable.clicked.connect(lambda: button_handlers.handle_delete_variable_button_clicked(self))
     return (variables_table,delete_variable)
 
 
@@ -158,7 +161,7 @@ def bottom_buttons_build(self,tab):
     self.stop_continuous_run_button.setFont(QFont('Arial', self.scale_font(14)))
     self.stop_continuous_run_button.setGeometry(*self.scale_geom(10, y_val, self.button_w, self.button_h))
     self.stop_continuous_run_button.setText("Stop experiment")
-    self.stop_continuous_run_button.clicked.connect(self.stop_continuous_run_button_clicked)
+    self.stop_continuous_run_button.clicked.connect(lambda: button_handlers.handle_stop_continuous_run_button_clicked(self))
     self.stop_continuous_run_button.setToolTip("Stop continuous run button stops whatever experiment was running before. It generates the init_hardware.py according to the latest default edge values and sets the hardware to that state. Again, it does not only stop continuous run, it stops any experiment and can be used to interrupt whatever was running.")
    
     #button to start continuous run
@@ -166,7 +169,7 @@ def bottom_buttons_build(self,tab):
     self.continuous_run_button.setFont(QFont('Arial', self.scale_font(14)))
     self.continuous_run_button.setGeometry(*self.scale_geom(self.button_w + 20, y_val, self.button_w, self.button_h))
     self.continuous_run_button.setText("Continuous run")
-    self.continuous_run_button.clicked.connect(self.continuous_run_button_clicked)
+    self.continuous_run_button.clicked.connect(lambda: button_handlers.handle_continuous_run_button_clicked(self))
     self.continuous_run_button.setToolTip("Continuous run button generates the experimental sequence description according to the current state of the Quatnrol as a run_experiment.py file and then runs that experimental sequence indefinitely.")
  
     #run experiment
@@ -174,7 +177,7 @@ def bottom_buttons_build(self,tab):
     self.run_experiment_button.setFont(QFont('Arial', self.scale_font(14)))
     self.run_experiment_button.setGeometry(*self.scale_geom(2*self.button_w + 30, y_val, self.button_w, self.button_h))
     self.run_experiment_button.setText("Run experiment")
-    self.run_experiment_button.clicked.connect(self.run_experiment_button_clicked) 
+    self.run_experiment_button.clicked.connect(lambda: button_handlers.handle_run_experiment_button_clicked(self)) 
     self.run_experiment_button.setToolTip("Run experiment button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence once.")
     
     #go to edge
@@ -182,7 +185,7 @@ def bottom_buttons_build(self,tab):
     self.go_to_edge_button.setFont(QFont('Arial', self.scale_font(14)))
     self.go_to_edge_button.setGeometry(*self.scale_geom(3*self.button_w + 40, y_val, self.button_w, self.button_h))
     self.go_to_edge_button.setText("Go to Edge")
-    self.go_to_edge_button.clicked.connect(self.go_to_edge_button_clicked)
+    self.go_to_edge_button.clicked.connect(lambda: button_handlers.handle_go_to_edge_button_clicked(self))
     self.go_to_edge_button.setToolTip("Go to Edge button is used to set the state of the hardware to a specific state at a particular edge. The user first needs to choose the edge to go by right clicking the sequence table on the left")
 
     #multiple runs
@@ -190,7 +193,7 @@ def bottom_buttons_build(self,tab):
     self.multiple_runs_button.setFont(QFont('Arial', self.scale_font(14)))
     self.multiple_runs_button.setGeometry(*self.scale_geom(4*self.button_w + 50, y_val, self.button_w, self.button_h))
     self.multiple_runs_button.setText("Multiple runs")
-    self.multiple_runs_button.clicked.connect(self.multiple_runs_button_clicked)
+    self.multiple_runs_button.clicked.connect(lambda: button_handlers.handle_multiple_runs_button_clicked(self))
     self.multiple_runs_button.setToolTip("Multiple runs button generates the experimental sequence description accodring to the current state of the Quantrol as a run_experiment.py file and then runs that experimental sequence multiple times.")
 
      
@@ -202,7 +205,7 @@ def bottom_buttons_build(self,tab):
     self.number_of_runs_input = QLineEdit(tab)
     self.number_of_runs_input.setGeometry(*self.scale_geom(5*self.button_w + 60 + int(0.7*self.button_w), y_val, int(0.3*self.button_w), self.button_h))
     self.number_of_runs_input.setFont(QFont('Arial', self.scale_font(14)))
-    self.number_of_runs_input.editingFinished.connect(self.number_of_runs_input_changed)
+    self.number_of_runs_input.editingFinished.connect(lambda: change_handlers.handle_number_of_runs_input_changed(self))
     self.number_of_runs_input.setText("10")
     return self.number_of_runs_input
 
@@ -214,7 +217,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.save_sequence_button.setFont(QFont('Arial', self.scale_font(14)))
     self.save_sequence_button.setGeometry(*self.scale_geom(width_of_table + 20, 30, 200, 30))
     self.save_sequence_button.setText("Save sequence")
-    self.save_sequence_button.clicked.connect(self.save_sequence_button_clicked)
+    self.save_sequence_button.clicked.connect(lambda: button_handlers.handle_save_sequence_button_clicked(self))
     self.save_sequence_button.setToolTip("Save sequence button saves the experimental description to a file. Everything in the user interface will be saved including the title names, states of scanning table, and all tabs. The only difference will be the logger. It will not be saved. If a sequence was saved or loaded, it will overwrite the open sequence file! Therefore, be careful when pressing this button or you risk loosing the previous state of the experiment.")
     
     #button to save current sequence as
@@ -222,7 +225,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.save_sequence_as_button.setFont(QFont('Arial', self.scale_font(14)))
     self.save_sequence_as_button.setGeometry(*self.scale_geom(width_of_table + 20, 80, 200, 30))
     self.save_sequence_as_button.setText("Save sequence as")
-    self.save_sequence_as_button.clicked.connect(self.save_sequence_as_button_clicked)
+    self.save_sequence_as_button.clicked.connect(lambda: button_handlers.handle_save_sequence_as_button_clicked(self))
     self.save_sequence_as_button.setToolTip("Save sequence as button allows the user to save sequences as a separate files. The currently open file will not be altered.")
 
     #button to load new sequence
@@ -230,21 +233,21 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.load_sequence_button.setFont(QFont('Arial', self.scale_font(14)))
     self.load_sequence_button.setGeometry(*self.scale_geom(width_of_table + 20, 130, 200, 30))
     self.load_sequence_button.setText("Load sequence")
-    self.load_sequence_button.clicked.connect(self.load_sequence_button_clicked)
+    self.load_sequence_button.clicked.connect(lambda: button_handlers.handle_load_sequence_button_clicked(self))
     self.load_sequence_button.setToolTip("Load sequence button allows user to load the presaved sequences. It will load the full state of the experimental sequence leaving the logger at the same state as before loading the sequence. Do save your sequences before loading new ones in order to not lose them. The newly loaded sequence file will be linked with the current state of the Quantrol. By pressing the save sequence button the user can overwrite the loaded sequence!")
     #button to insert edge
     self.insert_edge_button = QPushButton(self.sequence_tab_widget)
     self.insert_edge_button.setFont(QFont('Arial', self.scale_font(14)))
     self.insert_edge_button.setGeometry(*self.scale_geom(width_of_table + 20, 200, 200, 30))
     self.insert_edge_button.setText("Insert Edge")
-    self.insert_edge_button.clicked.connect(self.insert_edge_button_clicked)
+    self.insert_edge_button.clicked.connect(lambda: button_handlers.handle_insert_edge_button_clicked(self))
     self.insert_edge_button.setToolTip("Insert edge button inserts an edge in the edge of the sequence with a blank name and time expression exactly the same as the leading edge. All channels parameters will be not be user entered and therefore will display the previously set states. In other words, their changed parameters will be False meaning that they do not require the update of the hardware states at the newly inserted Edge.")
     #button to delete edge
     self.delete_edge_button = QPushButton(self.sequence_tab_widget)
     self.delete_edge_button.setFont(QFont('Arial', self.scale_font(14)))
     self.delete_edge_button.setGeometry(*self.scale_geom(width_of_table + 20, 250, 200, 30))
     self.delete_edge_button.setText("Delete Edge")
-    self.delete_edge_button.clicked.connect(self.delete_edge_button_clicked)
+    self.delete_edge_button.clicked.connect(lambda: button_handlers.handle_delete_edge_button_clicked(self))
     self.delete_edge_button.setToolTip("Delete edge button requires the user to choose the edge that needs to be deleted by right clicking it in the Timing Sequence table. It checks if the corresponding ID variable of the edge that needs to be deleted is used anywhere and will not allow deletion in case it is used by showing the first instance it was found to be used at. Otherwise, it deletes the selected edge and updates the Timing Sequence table.")
     
    
@@ -254,7 +257,7 @@ def sequence_tab_buttons_build(self,width_of_table):
         self.skip_images_button.setFont(QFont('Arial', self.scale_font(14)))
         self.skip_images_button.setGeometry(*self.scale_geom(width_of_table + 20, 310, 200, 30))
         self.skip_images_button.setText("Skip images")
-        self.skip_images_button.clicked.connect(self.skip_images_button_clicked)
+        self.skip_images_button.clicked.connect(lambda: button_handlers.handle_skip_images_button_clicked(self))
         self.skip_images_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""") 
         self.skip_images_button.setToolTip("Skip images button allows on demand triggering the camera acquisition 10 times in the beginning of experiment. Button's color represents current state where green indicates that the image triggering should be done, and red, when it should be avoided. Modify the write_to_python.py in order to change the triggering digital channels. The option of removing the button is in the config.py file. If not needed, set the allow_skipping_images to False")
         self.experiment.skip_images = True
@@ -264,7 +267,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.cam_trigger_off_button.setFont(QFont('Arial', self.scale_font(14)))
     self.cam_trigger_off_button.setGeometry(*self.scale_geom(width_of_table + 20, 350, 160, 30))
     self.cam_trigger_off_button.setText("Cam. trigger off")
-    self.cam_trigger_off_button.clicked.connect(self.cam_trigger_off_button_clicked)
+    self.cam_trigger_off_button.clicked.connect(lambda: button_handlers.handle_cam_trigger_off_button_clicked(self))
     self.cam_trigger_off_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
     self.cam_trigger_off_button.setToolTip("Camera trigger off button allows running the experiment without trigering the camera even when the corresponding tab is on. Button's color represents current state where green indicates that the cam triggering should be done, and red, when it should be avoided.")
     self.experiment.cam_trigger_off = False  # off at the beginning
@@ -272,7 +275,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.cam_trigger_off_input = QLineEdit(self.sequence_tab_widget)
     self.cam_trigger_off_input.setGeometry(*self.scale_geom(width_of_table + 20 + 162, 350, 38, 30))
     self.cam_trigger_off_input.setFont(QFont('Arial', self.scale_font(14)))
-    self.cam_trigger_off_input.editingFinished.connect(self.cam_trigger_off_input_changed)
+    self.cam_trigger_off_input.editingFinished.connect(lambda: change_handlers.handle_cam_trigger_off_input_changed(self))
     self.cam_trigger_off_input.setText("5")
 
     
@@ -281,7 +284,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.save_default.setFont(QFont('Arial', self.scale_font(14)))
     self.save_default.setGeometry(*self.scale_geom(width_of_table + 20, 430, 200, 30))
     self.save_default.setText("Save default")
-    self.save_default.clicked.connect(self.save_default_button_clicked)
+    self.save_default.clicked.connect(lambda: button_handlers.handle_save_default_button_clicked(self))
     self.save_default.setToolTip("Save default button allows the user to overwrite the default state which includes the Default edge, corresponding digital, analog, and dds channels values, and channels titles. Once the default is being overwritten, next time the program is initialized with the updated default values. However, when the seqeunce is being loaded it will overwrite accodring to the saved sequence definitions.")
 
 
@@ -290,7 +293,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.load_default.setFont(QFont('Arial', self.scale_font(14)))
     self.load_default.setGeometry(*self.scale_geom(width_of_table + 20, 480, 200, 30))
     self.load_default.setText("Load default")
-    self.load_default.clicked.connect(self.load_default_button_clicked)
+    self.load_default.clicked.connect(lambda: button_handlers.handle_load_default_button_clicked(self))
     self.load_default.setToolTip("Load default button allows the user to enforce the default state on the Default edge, corresponding digital, analog, and dds channels values, and channels titles. It is useful in case some older sequences are loaded and the user wants to quickly update their default edge and title names to the new default values. For example, if there is a sequence for cooling the atoms where a channel A11 was not used at all. Imagine with time the channel A11 started being used as something, for example MOT coils current voltage control. Then the user can load the old sequence, press Load default button and add whatever description was required for the A11.")
 
     #button to initialize the hardware
@@ -298,7 +301,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.init_hardware.setFont(QFont('Arial', self.scale_font(14)))
     self.init_hardware.setGeometry(*self.scale_geom(width_of_table + 20, 530, 200, 30))
     self.init_hardware.setText("Init. hardware")
-    self.init_hardware.clicked.connect(self.init_hardware_button_clicked)
+    self.init_hardware.clicked.connect(lambda: button_handlers.handle_init_hardware_button_clicked(self))
     self.init_hardware.setToolTip("Init. hardware button initializes the hardware and sets its state to the default edge values. Check the init_hardware.py file in order to explicitly see what it does. In some cases the user might want to use additional functionality of Artiq that is beyond Quantrol, then the user should modify write_to_python.py go_to_edge function to include the things that require initialization. Same goes to the set_att definitions.")
     
     #button to create the run_experiment.py without running the sequence. An option nice to have in case of troubleshooting
@@ -306,7 +309,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.generate_run_experiment_py_button.setFont(QFont('Arial', self.scale_font(14)))
     self.generate_run_experiment_py_button.setGeometry(*self.scale_geom(width_of_table + 20, 580, 200, 30))
     self.generate_run_experiment_py_button.setText("Generate experiment")
-    self.generate_run_experiment_py_button.clicked.connect(self.generate_run_experiment_py_button_clicked)
+    self.generate_run_experiment_py_button.clicked.connect(lambda: button_handlers.handle_generate_run_experiment_py_button_clicked(self))
     self.generate_run_experiment_py_button.setToolTip("Generate experiment button is used to generate the python like description of the experimental sequence that is displayed in the Quantrol. It will generate the run_experiment.py file in the same directory of the source_code.py. It is useful for debugging the experimental sequence descriptions without asking to run it. If something does not work first check if you are asking Artiq to do the correct thing by looking at the generated run_experiment.py.")
 
     #button to submit the run_experiment.py without updating it with the current experimental description. It is useful in case one needs to hard code something in the sequence and wants to just run it
@@ -314,7 +317,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.submit_run_experiment_py_button.setFont(QFont('Arial', self.scale_font(14)))
     self.submit_run_experiment_py_button.setGeometry(*self.scale_geom(width_of_table + 20, 630, 200, 30))
     self.submit_run_experiment_py_button.setText("Submit experiment")
-    self.submit_run_experiment_py_button.clicked.connect(self.submit_run_experiment_py_button_clicked)
+    self.submit_run_experiment_py_button.clicked.connect(lambda: button_handlers.handle_submit_run_experiment_py_button_clicked(self))
     self.submit_run_experiment_py_button.setToolTip("Submit experiment button runs the current state of the run_experiment.py file without updating it with the experimental description shown in the Quantrol. It is useful when the user wants to make manual changes in the experimental sequence and run the updated run_experiment.py. For example, user can generate a two variable scan and then hardcore it to make a 2D scan with different setp sizes. Such run_experiment.py files should be properly named and saved in a separate folder for future use. Otherwise, the run_experiment.py will be overwritten by the Quantrol.")
     
     #dummy button for troubleshooting 
@@ -322,7 +325,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.dummy_button.setFont(QFont('Arial', self.scale_font(14)))
     self.dummy_button.setGeometry(*self.scale_geom(width_of_table + 20, 680, 200, 30))
     self.dummy_button.setText("Dummy button")
-    self.dummy_button.clicked.connect(self.dummy_button_clicked)
+    self.dummy_button.clicked.connect(lambda: button_handlers.handle_dummy_button_clicked(self))
     self.dummy_button.setToolTip("Dummy button is used for the debugging purposes. In the source_code.py there is a dummy_button_clicked fucntion that can be used to print various parameters at different times in order to trace the reason if something is misbehaving. Commented out portions of code are good hints for how the user could use that dummy button for debugging. So in case the debugging is required modify the dummy_button_clicked function in the source_code.py and observe the values of interest in the console of the VS Code.")
     
     #continuous run after experiment
@@ -330,7 +333,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.cont_run_after_exp_button.setFont(QFont('Arial', self.scale_font(14)))
     self.cont_run_after_exp_button.setGeometry(*self.scale_geom(width_of_table + 20, 750, 200, 30))
     self.cont_run_after_exp_button.setText("Cont. run after exp.")
-    self.cont_run_after_exp_button.clicked.connect(self.cont_run_after_exp_button_clicked)
+    self.cont_run_after_exp_button.clicked.connect(lambda: button_handlers.handle_cont_run_after_exp_button_clicked(self))
     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
     self.cont_run_after_exp_button.setToolTip("Do automatic continuous run after expriment (run_experiment or multiple_runs). Button's color represents current state where green indicates that cont. run should be done, and red, when it should be avoided.")
     self.experiment.cont_run_after_exp = False  # off at the beginning
@@ -374,7 +377,7 @@ def sequence_tab_build(self):
     self.sequence_table.setColumnWidth(3,int(self.SCALE_W*210))
     self.sequence_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
     # self.sequence_table.setColumnWidth(4,int(self.SCALE_W*100))
-    self.sequence_table.itemChanged.connect(self.sequence_table_changed)
+    self.sequence_table.itemChanged.connect(lambda item: change_handlers.handle_sequence_table_changed(self, item))
     delegate = ReadOnlyDelegate(self)
     self.sequence_table.setItemDelegateForRow(0,delegate)
     self.sequence_table.setItemDelegateForColumn(0,delegate)
@@ -400,7 +403,7 @@ def sequence_tab_build(self):
     self.scan_table_parameters.setColumnWidth(0,int(self.SCALE_W*250))
     self.scan_table_parameters.setColumnWidth(1,int(self.SCALE_W*200))
     self.scan_table_parameters.setColumnWidth(2,int(self.SCALE_W*200))
-    self.scan_table_parameters.itemChanged.connect(self.scan_table_changed)
+    self.scan_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_scan_table_changed(self, item))
     
 
     #Add scanned variable button
@@ -408,21 +411,21 @@ def sequence_tab_build(self):
     self.add_scanned_variable_button.setFont(QFont('Arial', self.scale_font(14)))
     self.add_scanned_variable_button.resize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h)) 
     self.add_scanned_variable_button.setText("Add scanned variable")
-    self.add_scanned_variable_button.clicked.connect(self.add_scanned_variable_button_pressed)#this should be modified
+    self.add_scanned_variable_button.clicked.connect(lambda: button_handlers.handle_add_scanned_variable_button_pressed(self))
     self.add_scanned_variable_button.setToolTip("Add scanned variable button is used to add variables that require scanning. First the user should define the variables in the variblas tab and then add scanned variable and overwrite the name of the variable from None to the name of the variable that needs to be scanned. After that the variable value will be disabled and will display 'scanned'. The value of the scanned variable will be assigned to be the min value in order to allow sorting the time edges.")
 
     #Delete scanned variable button
     self.delete_scanned_variable_button = QPushButton()
     self.delete_scanned_variable_button.setFont(QFont('Arial', self.scale_font(14)))
     self.delete_scanned_variable_button.setText("Delete scanned variable")
-    self.delete_scanned_variable_button.clicked.connect(self.delete_scanned_variable_button_pressed)#this should be modified
+    self.delete_scanned_variable_button.clicked.connect(lambda: button_handlers.handle_delete_scanned_variable_button_pressed(self))
     self.delete_scanned_variable_button.setToolTip("Delete scanned variable button is used to delete variables from the scanning table and hence disable their scans. The user should first right click the variable that needs to be deleted. The Quantrol will set the values of the deleted scanned variables to the values that were defined before the variable was set to scan.")
     
     #Step size input
     self.number_of_steps_label = QLabel()
     self.number_of_steps_label.setText("Number of steps")
     self.number_of_steps_input = QLineEdit()
-    self.number_of_steps_input.editingFinished.connect(self.number_of_steps_input_changed)
+    self.number_of_steps_input.editingFinished.connect(lambda: change_handlers.handle_number_of_steps_input_changed(self))
     self.number_of_steps_input.setText("1")
 
     #warning for the user
@@ -451,7 +454,7 @@ def sequence_tab_build(self):
     self.scan_table.setFont(QFont('Arial', self.scale_font(14)))
     self.scan_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*20))
     self.scan_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*300))
-    self.scan_table.toggled.connect(self.scan_table_checked)
+    self.scan_table.toggled.connect(lambda: other_handlers.handle_scan_table_checked(self))
     vBox = QVBoxLayout()
     self.scan_table.setLayout(vBox)
     vBox.addWidget(temp)
@@ -471,14 +474,14 @@ def sequence_tab_build(self):
     # self.ramp_table_parameters.setColumnWidth(3,int(self.SCALE_W*400))
     self.ramp_table_parameters.setColumnWidth(4,int(self.SCALE_W*60))
     self.ramp_table_parameters.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
-    self.ramp_table_parameters.itemChanged.connect(self.ramp_table_changed)
+    self.ramp_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_ramp_table_changed(self, item))
     
     #Add ramped variable button
     self.add_ramped_variable_button = QPushButton()
     self.add_ramped_variable_button.setFont(QFont('Arial', self.scale_font(14)))
     self.add_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h))
     self.add_ramped_variable_button.setText("Add ramped variable")
-    self.add_ramped_variable_button.clicked.connect(self.add_ramped_variable_button_pressed) #this should be modified
+    self.add_ramped_variable_button.clicked.connect(lambda: button_handlers.handle_add_ramped_variable_button_pressed(self))
     self.add_ramped_variable_button.setToolTip("Ramped variables...")
 
     #Delete ramped variable button
@@ -486,7 +489,7 @@ def sequence_tab_build(self):
     self.delete_ramped_variable_button.setFont(QFont('Arial', self.scale_font(14)))
     self.delete_ramped_variable_button.setFixedSize(int(self.SCALE_W*self.button_w), int(self.SCALE_H*self.button_h))
     self.delete_ramped_variable_button.setText("Delete ramped variable")
-    self.delete_ramped_variable_button.clicked.connect(self.delete_ramped_variable_button_pressed)#this should be modified
+    self.delete_ramped_variable_button.clicked.connect(lambda: button_handlers.handle_delete_ramped_variable_button_pressed(self))
     self.delete_ramped_variable_button.setToolTip("Delete ramped variable button ...")
 
     #Explain ramped ID
@@ -510,7 +513,7 @@ def sequence_tab_build(self):
     self.ramp_table.setFont(QFont('Arial', self.scale_font(14)))
     self.ramp_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*320))
     self.ramp_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*546))
-    self.ramp_table.toggled.connect(self.ramp_table_checked)
+    self.ramp_table.toggled.connect(lambda: other_handlers.handle_ramp_table_checked(self))
     vBox = QVBoxLayout()
     self.ramp_table.setLayout(vBox)
     vBox.addWidget(temp)
@@ -536,7 +539,7 @@ def sequence_tab_build(self):
     self.clear_logger_button.setFont(QFont('Arial', self.scale_font(14)))
     self.clear_logger_button.setGeometry(*self.scale_geom(10 + width_of_table + 10, 820, self.button_w, self.button_h))
     self.clear_logger_button.setText("Clear logger")
-    self.clear_logger_button.clicked.connect(self.clear_logger_button_clicked)
+    self.clear_logger_button.clicked.connect(lambda: button_handlers.handle_clear_logger_button_clicked(self))
 
     self.number_of_runs_input_sequence = bottom_buttons_build(self,self.sequence_tab_widget)
     self.variables_table_sequence, self.delete_variable_sequence = variables_sidebar_build(self,self.sequence_tab_widget)
@@ -614,7 +617,7 @@ def digital_tab_build(self):
             self.digital_table.item(0, col).setBackground(self.red)
     
     #Binding functions
-    self.digital_table.itemChanged.connect(self.digital_table_changed)
+    self.digital_table.itemChanged.connect(lambda item: change_handlers.handle_digital_table_changed(self, item))
     self.digital_table.horizontalHeader().sectionClicked.connect(self.digital_table_header_clicked)
 
 
@@ -743,7 +746,7 @@ def analog_tab_build(self):
         else:
             self.analog_table.item(0, col).setBackground(self.red)
     
-    self.analog_table.itemChanged.connect(self.analog_table_changed)
+    self.analog_table.itemChanged.connect(lambda item: change_handlers.handle_analog_table_changed(self, item))
     self.analog_table.horizontalHeader().sectionClicked.connect(self.analog_table_header_clicked)
 
     #Dummy table that will display edge number, name and time and will be fixed
@@ -867,7 +870,7 @@ def dds_tab_build(self):
                 self.dds_table.item(0, col + setting).setBackground(self.red)
 
 
-    self.dds_table.itemChanged.connect(self.dds_table_changed)
+    self.dds_table.itemChanged.connect(lambda item: change_handlers.handle_dds_table_changed(self, item))
     
 
     #Dummy table that will display edge number, name and time and will be fixed (LEFT SIDE OF THE TABLE)
@@ -1104,7 +1107,7 @@ def variables_tab_build(self):
     self.derived_variables_table.setItem(0, 4, QTableWidgetItem("228.32"))
     self.derived_variables_table.item(0,1).setToolTip("Initial value for dyanmic variables...")
     #when table contents are changed
-    self.derived_variables_table.itemChanged.connect(self.derived_variables_table_changed)
+    self.derived_variables_table.itemChanged.connect(lambda item: change_handlers.handle_derived_variables_table_changed(self, item))
 
     #button to create new derived variable
     self.create_derived_variable = QPushButton(self.variables_tab_widget)
@@ -1112,14 +1115,14 @@ def variables_tab_build(self):
     self.create_derived_variable.setGeometry(*self.scale_geom(self.sep, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
     self.create_derived_variable.setText("Create derived var")
     self.create_derived_variable.setToolTip("Button that is used to create a new derived variable. Please input arguments and edge id before using the variable")
-    self.create_derived_variable.clicked.connect(self.create_derived_variable_button_clicked)
+    self.create_derived_variable.clicked.connect(lambda: button_handlers.handle_create_derived_variable_button_clicked(self))
     #button to delete a variable
     self.delete_derived_variable = QPushButton(self.variables_tab_widget)
     self.delete_derived_variable.setFont(QFont('Arial', self.scale_font(14)))
     self.delete_derived_variable.setGeometry(*self.scale_geom(2*self.sep + self.button_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
     self.delete_derived_variable.setText("Delete derived var")
     self.delete_derived_variable.setToolTip("Button that is used to delete a derived variable. First choose the derived variable by right clicking it in the derived variables table.")
-    self.delete_derived_variable.clicked.connect(self.delete_derived_variable_button_clicked)
+    self.delete_derived_variable.clicked.connect(lambda: button_handlers.handle_delete_derived_variable_button_clicked(self))
 
     #LOOKUP VARIABLES LABLE
     lookup_variables_lable = QLabel(self.variables_tab_widget)
@@ -1158,7 +1161,7 @@ def variables_tab_build(self):
     self.lookup_variables_table.setItem(0, 2, QTableWidgetItem("gaussian_fit"))
     self.lookup_variables_table.item(0,0).setToolTip("Name of the lookup list to remind the user the purpose of the lookup variable")
     #when table contents are changed
-    self.lookup_variables_table.itemChanged.connect(self.lookup_variables_table_changed)
+    self.lookup_variables_table.itemChanged.connect(lambda item: change_handlers.handle_lookup_variables_table_changed(self, item))
 
     #button to create new lookup variable
     self.create_lookup_variable = QPushButton(self.variables_tab_widget)
@@ -1166,21 +1169,21 @@ def variables_tab_build(self):
     self.create_lookup_variable.setGeometry(*self.scale_geom(2*self.sep + derived_variables_table_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
     self.create_lookup_variable.setText("Create lookup var")
     self.create_lookup_variable.setToolTip("Button that is used to create a new lookup variable. Please input the arguments before using the variable")
-    self.create_lookup_variable.clicked.connect(self.create_lookup_variable_button_clicked)
+    self.create_lookup_variable.clicked.connect(lambda: button_handlers.handle_create_lookup_variable_button_clicked(self))
     #button to delete a variable
     self.delete_lookup_variable = QPushButton(self.variables_tab_widget)
     self.delete_lookup_variable.setFont(QFont('Arial', self.scale_font(14)))
     self.delete_lookup_variable.setGeometry(*self.scale_geom(3*self.sep + derived_variables_table_w + self.button_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
     self.delete_lookup_variable.setText("Delete lookup var")
     self.delete_lookup_variable.setToolTip("Button that is used to delete a lookup variable. First choose the lookup variable by right clikcing it in the lookup variables table.")
-    self.delete_lookup_variable.clicked.connect(self.delete_lookup_variable_button_clicked)
+    self.delete_lookup_variable.clicked.connect(lambda: button_handlers.handle_delete_lookup_variable_button_clicked(self))
     #button to load the lookup table
     self.load_lookup_list = QPushButton(self.variables_tab_widget)
     self.load_lookup_list.setFont(QFont('Arial', self.scale_font(14)))
     self.load_lookup_list.setGeometry(*self.scale_geom(4*self.sep + derived_variables_table_w + 2*self.button_w, self.top_margin + derived_variables_table_h + self.sep, self.button_w, self.button_h))
     self.load_lookup_list.setText("Load lookup list")
     self.load_lookup_list.setToolTip("Button is used to load the lookup list for the variable. First choose the lookup variable by right clicking it in the lookup variables table. After that navigate and open the lookup variable list. It should be of the .mat format.")
-    self.load_lookup_list.clicked.connect(self.load_lookup_list_button_clicked)
+    self.load_lookup_list.clicked.connect(lambda: button_handlers.handle_load_lookup_list_button_clicked(self))
 
     self.number_of_runs_input_variables = bottom_buttons_build(self,self.variables_tab_widget)
     self.variables_table_variables, self.delete_variable_variables = variables_sidebar_build(self,self.variables_tab_widget)
@@ -1251,7 +1254,7 @@ def sampler_tab_build(self):
         else:
             self.sampler_table.item(0, col).setBackground(self.white)
     #Binding functions
-    self.sampler_table.itemChanged.connect(self.sampler_table_changed)
+    self.sampler_table.itemChanged.connect(lambda item: change_handlers.handle_sampler_table_changed(self, item))
     self.sampler_table.horizontalHeader().sectionClicked.connect(self.sampler_table_header_clicked)
 
     #Setting the left part of the SAMPLER table (edge number, name, time)
@@ -1342,7 +1345,7 @@ def mirny_tab_build(self):
                 else:
                     self.mirny_table.item(row_index, col + setting).setBackground(self.red)
 
-    self.mirny_table.itemChanged.connect(self.mirny_table_changed)
+    self.mirny_table.itemChanged.connect(lambda item: change_handlers.handle_mirny_table_changed(self, item))
 
     self.mirny_dummy = QTableWidget(self.mirny_tab_widget)
     self.mirny_dummy.setGeometry(QRect(*self.scale_geom(
@@ -1414,7 +1417,7 @@ def mirny_tab_build(self):
         self.mirny_dummy_header.setItemDelegateForColumn(base_col, delegate)
 
     self.mirny_dummy_header.setItemDelegateForRow(1, delegate)
-    self.mirny_dummy_header.itemChanged.connect(self.mirny_dummy_header_changed)
+    self.mirny_dummy_header.itemChanged.connect(lambda item: change_handlers.handle_mirny_dummy_header_changed(self, item))
 
     self.mirny_fixed = QTableWidget(self.mirny_tab_widget)
     self.mirny_fixed.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, mirny_side_w, mirny_header_h)))
@@ -1545,7 +1548,7 @@ def slow_dds_tab_build(self):
                 self.slow_dds_table.item(2, col + setting).setBackground(self.red)
                 
     self.slow_dds_table.setItemDelegateForRow(1, delegate) #making row number 2 uneditable
-    self.slow_dds_table.itemChanged.connect(self.slow_dds_table_changed)
+    self.slow_dds_table.itemChanged.connect(lambda item: change_handlers.handle_slow_dds_table_changed(self, item))
 
     #populating headers and separators
     slow_titles = getattr(self.experiment, "title_slow_dds_tab", [])
@@ -1583,7 +1586,7 @@ def slow_dds_tab_build(self):
     self.set_slow_dds_states.setFont(QFont('Arial', self.scale_font(14)))
     self.set_slow_dds_states.setGeometry(*self.scale_geom(10, 1200-40-60-5, 200, 30))
     self.set_slow_dds_states.setText("Set slow DDS states")
-    self.set_slow_dds_states.clicked.connect(self.set_slow_dds_states_button_clicked)
+    self.set_slow_dds_states.clicked.connect(lambda: button_handlers.handle_set_slow_dds_states_button_clicked(self))
     self.set_slow_dds_states.setToolTip("Set slow dds states button is used to prepare the experimental description and run it to set the states of only the slow dds channels. Any experiment that has been running at the time of pressing this button will be interrupted and might leave the experiment in a random state that might be not safe. It is a user responsibility to make sure that this button is clicked only when there is no experiment running. This should be fine since this DDSs should be used permanently and only changed quite rarely.")
 
     self.number_of_runs_input_slow_dds = bottom_buttons_build(self,self.slow_dds_tab_widget)
@@ -1634,7 +1637,7 @@ def acquisition_tab_build(self):
     self.experiment_list_list_widget = QListWidget(self.experiment_list_box)
     self.experiment_list_list_widget.setSelectionMode(QListWidget.SingleSelection)
     self.experiment_list_list_widget.setFont(QFont('Arial', self.scale_font(12)))
-    self.experiment_list_list_widget.itemSelectionChanged.connect(self.update_chosen_experiment)
+    self.experiment_list_list_widget.itemSelectionChanged.connect(lambda: change_handlers.handle_chosen_experiment_changed(self))
     
     with open(self.repo_path / "experiment_specific_files" / config.which_project / "experiment_names.json") as f:
         experiment_names_dict = json.load(f)
@@ -1655,14 +1658,14 @@ def acquisition_tab_build(self):
     self.experiment_list_btn_add = QPushButton(parent = self.experiment_list_box, text = "Add experiment name")
     self.experiment_list_btn_add.setFixedHeight(int(self.SCALE_H*self.button_h))
     self.experiment_list_btn_add.setFont(QFont('Arial', self.scale_font(14)))
-    self.experiment_list_btn_add.clicked.connect(self.add_element_experiment_list_button_clicked)
+    self.experiment_list_btn_add.clicked.connect(lambda: button_handlers.handle_add_element_experiment_list_button_clicked(self))
 
     self.experiment_list_btn_delete = QPushButton(parent = self.experiment_list_box, text = "Delete experiment name")
     self.experiment_list_btn_delete.setFixedHeight(int(self.SCALE_H*self.button_h))
     self.experiment_list_btn_delete.setFont(QFont('Arial', self.scale_font(14)))
     self.experiment_list_btn_delete.setEnabled(False)
 
-    self.experiment_list_btn_delete.clicked.connect(self.delete_element_experiment_list_button_clicked)
+    self.experiment_list_btn_delete.clicked.connect(lambda: button_handlers.handle_delete_element_experiment_list_button_clicked(self))
 
     # self.experiment_list_bottom_row = QHBoxLayout()
     # self.bottom_row.addWidget(self.new_line)
@@ -1696,13 +1699,13 @@ def acquisition_tab_build(self):
     self.which_cam_combo.lineEdit().setReadOnly(True)
     self.which_cam_combo.lineEdit().setPlaceholderText("Select camera...")  # shown until user picks
     self.which_cam_combo.setCurrentIndex(-1) 
-    self.which_cam_combo.currentTextChanged.connect(self.camera_which_cam_changed)
+    self.which_cam_combo.currentTextChanged.connect(lambda: change_handlers.handle_camera_which_cam_changed(self))
     form.addRow("Which camera", self.which_cam_combo)
 
 
     self.gain_edit = QLineEdit(self.camera_box)
     self.gain_edit.setPlaceholderText("e.g. 20")
-    self.gain_edit.editingFinished.connect(self.camera_gain_changed)
+    self.gain_edit.editingFinished.connect(lambda: change_handlers.handle_camera_gain_changed(self))
     form.addRow("Gain, dB", self.gain_edit)
 
 
@@ -1712,14 +1715,14 @@ def acquisition_tab_build(self):
 
     self.exposure_edit = QLineEdit(exp_row)
     self.exposure_edit.setPlaceholderText("e.g. 0.35")
-    self.exposure_edit.editingFinished.connect(self.camera_exposure_changed)
+    self.exposure_edit.editingFinished.connect(lambda: change_handlers.handle_camera_exposure_changed(self))
 
     self.exposure_hint_label = QLabel("Var: T_exp_", exp_row)
     self.exposure_hint_label.setStyleSheet("color: gray; font-style: italic;")
     self.exposure_hint_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
     self.lock_cb = QCheckBox("Lock", exp_row)
-    self.lock_cb.toggled.connect(self._handle_texp_lock_toggled)
+    self.lock_cb.toggled.connect(self.handle_texp_lock_toggled)
 
     h.addWidget(self.exposure_edit, 1)
     h.addWidget(self.exposure_hint_label, 0)
@@ -1733,7 +1736,7 @@ def acquisition_tab_build(self):
     self.format_combo.lineEdit().setPlaceholderText("Select image format...")  # shown until user picks
     self.format_combo.addItems(["Mono8", "Mono16"])
     self.format_combo.setCurrentIndex(-1) 
-    self.format_combo.currentTextChanged.connect(self.camera_image_format_changed)
+    self.format_combo.currentTextChanged.connect(lambda: change_handlers.handle_camera_image_format_changed(self))
     form.addRow("Image format", self.format_combo)
 
 
@@ -1744,7 +1747,7 @@ def acquisition_tab_build(self):
     self.variables_table_acquisition, self.delete_variable_acquisition = variables_sidebar_build(self,self.acquisition_tab_widget)
 
     # initialise exposure lock state
-    self._handle_texp_lock_toggled(self.lock_cb.isChecked())
+    self.handle_texp_lock_toggled(self.lock_cb.isChecked())
 
     texp_var = self.experiment.variables.get("T_exp_")
     if texp_var is not None:
