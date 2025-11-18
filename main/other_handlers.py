@@ -1,5 +1,5 @@
 '''
-Event handlers for Quantrol GUI.
+Miscellaneous (not buttons and not changes) handlers for Quantrol GUI.
 
 This module contains standalone event handler logic for the Quantrol control system.
 These are simpler handlers that don't require complex internal state manipulation.
@@ -16,13 +16,10 @@ import json
 import update
 from PyQt5.QtWidgets import QListWidgetItem, QFileDialog
 from scipy.io import loadmat
-from experiment_data import ScannedVariable, RampedVariable, DerivedVariable, LookupVariable, Variable
+from data_structures import ScannedVariable, RampedVariable, DerivedVariable, LookupVariable, Variable
 from validation import show_error_message, remove_restricted_characters
 
 
-# ==============================================================================
-# SCAN TABLE HANDLERS
-# ==============================================================================
 
 def handle_scan_table_checked(main_window):
     '''Handle scan table checkbox state change.'''
@@ -42,10 +39,6 @@ def handle_scan_table_checked(main_window):
         update.digital_analog_dds_mirny_tabs(main_window)
         update.variable_tables(main_window)
 
-
-# ==============================================================================
-# RAMP TABLE HANDLERS
-# ==============================================================================
 
 def handle_ramp_table_checked(main_window):
     '''Handle ramp table checkbox state change.'''

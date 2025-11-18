@@ -4,10 +4,9 @@ Data structures for Quantrol experimental sequences.
 This module contains all the core data classes used to represent experiments,
 time edges, channel states, variables, and hardware configurations.
 
-Author  :   Vyacheslav Li (until 2.0), Andrea Pupic, Alexei Gurchenko (later versions)
-Email   :   vyacheslav.li.1991@gmail.com, andrea.pupic@ist.ac.at, alexei.gurchenko@ist.ac.at
-Date    :   07.30.2024 (2.0)
-Update  :   11.2025 
+Author  :   Alexei Gurchenko (refactored from source_code.py)
+Email   :   alexei.gurchenko@ist.ac.at
+Date    :   11.2025
 Version :   2.3.3
 Contact :   https://hostenlab.pages.ist.ac.at/contact/
 '''

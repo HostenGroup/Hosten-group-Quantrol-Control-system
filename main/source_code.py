@@ -41,8 +41,8 @@ import json
 import importlib
 from pathlib import Path
 
-# Import data structures from experiment_data module
-from experiment_data import (
+# Import data structures from data_structures module
+from data_structures import (
     Edge, Experiment, SlowDDS, ExperimentalData,
     DerivedVariable, LookupVariable, ScannedVariable, RampedVariable,
     Variable, CustomThread, Camera, Digital, Analog, DDS
@@ -51,7 +51,7 @@ from experiment_data import (
 # Import validation functions
 from validation import (
     show_error_message, remove_restricted_characters, 
-    ExpressionParser, validate_positive_number, validate_range
+    validate_positive_number, validate_range
 )
 
 # Import file I/O functions
@@ -721,8 +721,69 @@ class MainWindow(QMainWindow):
         Function is used to decode the user input in a form of a simple mathematical expression. It interprets chunks of text 
         until the next mathematical operator or the end of the text.
         '''
-        parser = ExpressionParser(self.experiment, self.experiment.do_scan, self.experiment.do_ramp)
-        return parser.decode_input(text)
+        index = 0
+        output_eval = ""
+        output_expression = ""
+        output_for_python = ""
+        current = ""
+        is_scanned = False
+        is_ramped = False
+        is_sampled = False
+        is_derived = False
+        is_lookup = False
+        text = text.replace(" ", "") # removing spaces
+        text += "+" #Adding a plus in the end of the text in order to avoid typing additional operation for the last element
+        while index < len(text):
+            #Adding the next character
+            current += text[index]
+            index += 1
+            if text[index] == "-" or text[index] == "+" or text[index] == "/" or text[index] == "*":
+                current.replace(" ", "")
+                try: #If the current convertible to float type of value
+                    # float_current = float(current)
+                    float_current = float(int(float(current)*1e6)/1e6) # rounding numbers down to 6 decimal places
+                    output_expression += str(float_current) + text[index]
+                    output_eval += str(float_current) + text[index]
+                    output_for_python += str(float_current) + text[index]
+                except: #If the current is a variable name
+                    output_expression += current + text[index]
+                    output_eval += "self.experiment.variables['" + current + "'].value" + text[index]
+                    variable = self.experiment.variables[current]
+                    if self.experiment.do_scan and variable.is_scanned:#if scanned assign the python form else assign the value
+                        is_scanned = True
+                        output_for_python += str(self.experiment.variables[current].for_python) + text[index]
+                    elif self.experiment.do_ramp and variable.is_ramped: #if ramped assign the python form else assign the value
+                        is_ramped = True 
+                        output_for_python += str(self.experiment.variables[current].for_python) + text[index] 
+                    elif current in self.experiment.sampler_variables: #if sampled assign the name itself
+                        output_for_python += "%s" %current + text[index]
+                        is_sampled = True
+                    elif variable.is_derived: #if derived assign the name itself
+                        output_for_python += "%s" %current + text[index]
+                        is_derived = True
+                    elif variable.is_lookup: #if lookup assign the self.name[argument] 
+                        output_for_python += "self.%s[(%s-1)/0.1]"%(current, self.experiment.variables[current].argument) + text[index]
+                        is_lookup = True
+                    else:
+                        output_for_python += str(variable.value) + text[index]
+                current = ""
+                index += 1
+        # Removing all additional characters in the end. Making a+2+ into a+2
+        output_eval = output_eval[:-1]
+        output_for_python = output_for_python[:-1]
+        output_expression = output_expression[:-1]
+        # If for_python can be evaluated, then just store the value. Otherwise we keep the original form
+        try:
+            exec("self.temp =" + output_for_python)
+            output_for_python = str(float(self.temp))
+        except:
+            pass
+        # If evaluation can be evaluated, then store the value. Otherwise we keep the original form
+        try:
+            output_eval = str(float(output_eval))
+        except:
+            pass
+        return (output_expression, output_eval, output_for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup)
 
 
     def remove_restricted_characters(self, text):

@@ -1,11 +1,16 @@
-"""
-Button Handler Functions
+'''
+Button handlers for Quantrol GUI.
 
-This module contains all button click handlers extracted from the MainWindow class.
-All functions take 'self' (MainWindow instance) as their first parameter.
+This module contains handlers for input changes, text edits, combo box selections,
+and other state change events in the Quantrol control system.
 
-Author: Refactored from source_code.py
-"""
+Author  :   Alexei Gurchenko (refactored from source_code.py)
+Email   :   alexei.gurchenko@ist.ac.at
+Date    :   11.2025
+Version :   2.3.3
+Contact :   https://hostenlab.pages.ist.ac.at/contact/
+'''
+
 
 import os
 import pickle
@@ -24,9 +29,9 @@ from scipy.io import loadmat
 import write_to_python
 import update
 import file_io
-from experiment_data import Variable, ScannedVariable, RampedVariable
+from data_structures import Variable, ScannedVariable, RampedVariable, DerivedVariable, LookupVariable
 import config
-from experiment_data import Variable, DerivedVariable, LookupVariable
+
 
 
 # ============================================================================

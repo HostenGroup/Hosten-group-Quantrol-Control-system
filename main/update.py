@@ -95,7 +95,7 @@ def sequence_tab(self):
         for edge_index, edge in enumerate(self.experiment.sequence):
             #UPDATING EDGE VALUES (TIME)
             try:
-                exec("edge.value = " + str(edge.evaluation))
+                exec("edge.value = " + str(edge.evaluation), {"self": self, "edge": edge})
                 #check if any value has been changed
                 if edge.id in self.experiment.variables and self.experiment.variables[edge.id].value != edge.value:
                     something_changed = True
@@ -144,7 +144,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                 #Updating values and table
                 if update_values_and_table:
                     try:
-                        exec("channel.value = " + channel.evaluation)
+                        exec("channel.value = " + channel.evaluation, {"self": self, "channel": channel})
                     except:
                         return "digital channel %d, edge %d" %(channel_index, row)
                     #Color coding the values
@@ -259,7 +259,7 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                     if update_values_and_table:
                         #Check if the expression can be evaluated
                         try:
-                            exec("channel.value = " + channel.evaluation)
+                            exec("channel.value = " + channel.evaluation, {"self": self, "channel": channel})
                         except:
                             return "analog channel %d, edge %d" %(channel_index, row)
                         #Color coding the values
@@ -368,7 +368,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                     #Updating values and table entries
                     if update_values_and_table:
                         try:
-                            exec("channel_entry.value =" + channel_entry.evaluation)
+                            exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
                         except:
                             return "dds channel %d, edge %d" %(channel_index, row)
                         #check if the value within allowed range
@@ -504,7 +504,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                     #Updating values and table entries
                     if update_values_and_table:
                         try:
-                            exec("channel_entry.value =" + channel_entry.evaluation)
+                            exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
                         except:
                             return "mirny channel %d, edge %d" %(channel_index, row)
                         

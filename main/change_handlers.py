@@ -4,16 +4,21 @@ Change handlers for Quantrol GUI.
 This module contains handlers for input changes, text edits, combo box selections,
 and other state change events in the Quantrol control system.
 
-Author  :   Alexei Gurchenko (refactored from event_handlers.py)
+Author  :   Alexei Gurchenko (refactored from source_code.py)
 Email   :   alexei.gurchenko@ist.ac.at
 Date    :   11.2025
 Version :   2.3.3
 Contact :   https://hostenlab.pages.ist.ac.at/contact/
 '''
 
+import json
 import update
 import config
 from copy import deepcopy
+from pathlib import Path
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton
+from PyQt5.QtGui import QFont
+from data_structures import Variable
 
 
 # ==============================================================================
@@ -40,9 +45,6 @@ def handle_number_of_runs_input_changed(main_window):
 
 def handle_experiment_caption_changed(main_window):
     """Prompt the user for a replacement caption for the selected experiment."""
-    from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton
-    from PyQt5.QtGui import QFont
-    
     main_window.dialog = QDialog()
     main_window.dialog.setGeometry(*main_window.scale_geom(710, 435, 600, 200))
     main_window.dialog.setFont(QFont('Arial', main_window.scale_font(14)))
@@ -120,8 +122,6 @@ def handle_camera_gain_changed(main_window):
 
 def handle_camera_exposure_changed(main_window):
     """Update camera exposure and ensure the T_exp_ variable stays in sync."""
-    from experiment_data import Variable
-    
     if getattr(main_window, "_camera_exposure_handling", False):
         return
     main_window._camera_exposure_handling = True
@@ -209,8 +209,6 @@ def handle_sequence_table_changed(main_window, item):
                and update the table. Otherwise it will throw an error
     Function takes no inputs, item is an internal variable that has information of the row and column of the entry that has been changed
     '''
-    from experiment_data import Variable
-    
     if main_window.to_update:
         row = item.row()
         col = item.column()
@@ -234,7 +232,7 @@ def handle_sequence_table_changed(main_window, item):
                 try:
                     expression = table_item.text()
                     (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
-                    exec("main_window.value = " + str(evaluation)) # this is done here to be able to assign value of the id# type variable
+                    exec("main_window.value = " + str(evaluation), {"self": main_window, "main_window": main_window}) # this is done here to be able to assign value of the id# type variable
                     if main_window.value < 0: #restricting negative values for time
                         main_window.error_message("Negative values are not allowed", "Negative time value")
                         main_window.update_off()
@@ -450,7 +448,7 @@ def handle_digital_table_changed(main_window, item):
                 #Checking whether the expression can be evaluated and the value is within allowed range
                 expression = table_item.text()
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
-                exec("main_window.value = " + evaluation)
+                exec("main_window.value = " + evaluation, {"self": main_window, "main_window": main_window})
                 if (main_window.value == 0 or main_window.value == 1):
                     channel.changed = True
                     update.digital_tab(main_window)
@@ -496,7 +494,7 @@ def handle_analog_table_changed(main_window, item):
                 #Checking whether the expression can be evaluated and the value is within allowed range                    
                 expression = table_item.text()
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
-                exec("main_window.value =" + evaluation)
+                exec("main_window.value =" + evaluation, {"self": main_window, "main_window": main_window})
                 if (main_window.value <= 9.9 and main_window.value >= -9.9):
                     channel.expression = expression
                     channel.evaluation = evaluation
@@ -551,7 +549,7 @@ def handle_dds_table_changed(main_window, item):
                 #Checking whether the expression can be evaluated and the value is within allowed range                     
                 expression = main_window.dds_table.item(row,col).text()
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
-                exec("main_window.dummy_val =" + evaluation)
+                exec("main_window.dummy_val =" + evaluation, {"self": main_window, "main_window": main_window})
                 maximum, minimum = main_window.max_dict_dds[setting], main_window.min_dict_dds[setting]
                 if (main_window.dummy_val <= maximum and main_window.dummy_val >= minimum): 
                     exec("main_window.experiment.sequence[edge_num].dds[channel].%s.expression = expression" %main_window.setting_dict[setting])
@@ -623,7 +621,7 @@ def handle_mirny_table_changed(main_window, item):
                 #Checking whether the expression can be evaluated and the value is within allowed range                     
                 expression = main_window.mirny_table.item(row,col).text()
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
-                exec("main_window.dummy_val =" + evaluation)
+                exec("main_window.dummy_val =" + evaluation, {"self": main_window, "main_window": main_window})
                 maximum, minimum = main_window.max_dict_mirny[setting], main_window.min_dict_mirny[setting]
                 if (main_window.dummy_val <= maximum and main_window.dummy_val >= minimum): 
                     exec("main_window.experiment.sequence[edge_num].mirny[channel].%s.expression = expression" %main_window.setting_dict[setting])
@@ -849,334 +847,199 @@ def handle_variables_table_changed(main_window, item):
                     main_window.update_off()
                     table_item.setText(variable.name)
                     update.variable_tables(main_window)
+                    main_window.update_on()                          
+                    main_window.error_message("The variable is scanned or ramped. Remove it from the scan or ramp table before deleting.", "Scanned or Ramped variable")
+            else:
+                main_window.update_off()
+                table_item.setText(variable.name)
+                update.variable_tables(main_window)
+                main_window.update_on()                      
+                main_window.error_message("The variable is sampled. Remove it from the sampler tab before changing its name.", "Sampled variable")
+        elif col == 1: #variable value was changed
+            if variable.name == "T_exp_" and getattr(main_window, "_texp_locked", False):
+                main_window.update_off()
+                table_item.setText(str(variable.value))
+                main_window.update_on()
+                return
+            #variable.value is used as a back up if evaluation is not possible since we do not change main_window.experiment.new_variables to check if the variable is used or not
+            try:
+                #Checking if the new value resulting in the values allowed for each parameter it is used in
+                main_window.experiment.variables[variable.name].value = float(int(float(table_item.text())*1e6)/1e6)
+                # main_window.experiment.variables[variable.name].value = float(table_item.text())
+
+                return_value = update.digital_analog_dds_mirny_tabs(main_window) # we do not need to update expressions only update values.
+
+                if return_value == None: #The value can be updated
+                    variable.value = main_window.experiment.variables[variable.name].value
+                    main_window.experiment.variables[variable.name].for_python = variable.value
+                    variable.for_python = variable.value
+                    main_window.update_off()
+                    table_item.setText(str(variable.value))
                     main_window.update_on()
+                    # update.digital_analog_dds_mirny_tabs(main_window)
+                    update.variable_tables(main_window)
+                    update.all_values(main_window)
+                    if variable.name == "T_exp_":
+                        main_window._sync_camera_exposure_from_variable()
+                else: #The value can not be updated, reverting every evaluation done before.
+                    main_window.error_message("Evaluation is out of allowed range occured in %s. Variable value can not be assigned" %return_value, "Wrong entry")
+                    main_window.experiment.variables[variable.name].value = variable.value 
+                    main_window.experiment.variables[variable.name].for_python = variable.value
+                    main_window.update_off()
+                    table_item.setText(str(variable.value))
+                    main_window.update_on()
+                    update.variable_tables(main_window)
+                    update.all_values(main_window)
+                    if variable.name == "T_exp_":
+                        main_window._sync_camera_exposure_from_variable()
+                    
 
-
-def handle_derived_variables_table_changed(main_window, item):
-    """Handle changes to the derived variables table."""
-    row, col = item.row(), item.column()
-    
-    if col == 0:  # name changed
-        user_input_without_whitespace = item.text().replace(" ", "")
-        user_input_without_whitespace = user_input_without_whitespace.replace("_", "")
-        
-        if user_input_without_whitespace.isalpha() == False:
-            main_window.update_off()
-            derived_variable = main_window.config.derived_variables[row]
-            item.setText(derived_variable.name)
-            main_window.update_on()
-            main_window.error_message("Invalid name. Variable names can only consist of letters and underscores.", "Invalid variable name")
-        elif item.text() in main_window.config.reserved_keywords:
-            main_window.update_off()
-            derived_variable = main_window.config.derived_variables[row]
-            item.setText(derived_variable.name)
-            main_window.update_on()
-            main_window.error_message("Invalid name. " + item.text() + " is a reserved keyword.", "Reserved keyword")
-        else:
-            identical_name_exists = False
-            for derived_variable in main_window.config.derived_variables:
-                if derived_variable.name == item.text() and main_window.config.derived_variables.index(derived_variable) != row:
-                    identical_name_exists = True
-            for variable in main_window.config.variables:
-                if variable.name == item.text():
-                    identical_name_exists = True
-            for lookup_variable in main_window.config.lookup_variables:
-                if lookup_variable.name == item.text():
-                    identical_name_exists = True
-            
-            if identical_name_exists:
+            except: #Restricting the user from using anything but the integer values and floating numbers
                 main_window.update_off()
-                derived_variable = main_window.config.derived_variables[row]
-                item.setText(derived_variable.name)
+                table_item.setText(str(variable.value))
                 main_window.update_on()
-                main_window.error_message("A variable with this name already exists.", "Identical variable name")
-            else:
-                derived_variable = main_window.config.derived_variables[row]
-                derived_variable.name = item.text()
+                # update.digital_analog_dds_mirny_tabs(main_window, update_expressions_and_evaluations=False)   
                 update.variable_tables(main_window)
-                
-    elif col == 1:  # value changed
-        derived_variable = main_window.config.derived_variables[row]
-        derived_variable.value = item.text()
-        
-    elif col > 1:  # argument changed
-        i_argument = col - 2
-        derived_variable = main_window.config.derived_variables[row]
-        argument = derived_variable.arguments[i_argument]
-        
-        if item.text() == "":
-            argument.variable = None
-        else:
-            variable_found = False
-            for variable in main_window.config.variables:
-                if variable.name == item.text():
-                    variable_found = True
-                    argument.variable = variable
-            if not variable_found:
-                main_window.update_off()
-                if argument.variable != None:
-                    item.setText(argument.variable.name)
-                else:
-                    item.setText("")
-                main_window.update_on()
-                main_window.error_message("This variable does not exist.", "Unknown variable")
-
-
+                  
+                update.all_values(main_window)              
+                main_window.error_message("Only integers and floating numbers are allowed.", "Wrong entry")
+                if variable.name == "T_exp_":
+                    main_window._sync_camera_exposure_from_variable()
 def handle_lookup_variables_table_changed(main_window, item):
     """Handle changes to the lookup variables table."""
-    row, col = item.row(), item.column()
-    
-    if col == 0:  # name changed
-        user_input_without_whitespace = item.text().replace(" ", "")
-        user_input_without_whitespace = user_input_without_whitespace.replace("_", "")
+    if main_window.to_update:
+        row, col = item.row(), item.column()
+        variable = main_window.experiment.lookup_variables[row - 1]  # due to the dummy variable being 1st
+        table_item_text = main_window.lookup_variables_table.item(row, col).text().replace(" ", "")
+        main_window.update_off()
+        main_window.lookup_variables_table.item(row, col).setText(table_item_text)
+        main_window.update_on()
         
-        if user_input_without_whitespace.isalpha() == False:
-            main_window.update_off()
-            lookup_variable = main_window.config.lookup_variables[row]
-            item.setText(lookup_variable.name)
-            main_window.update_on()
-            main_window.error_message("Invalid name. Variable names can only consist of letters and underscores.", "Invalid variable name")
-        elif item.text() in main_window.config.reserved_keywords:
-            main_window.update_off()
-            lookup_variable = main_window.config.lookup_variables[row]
-            item.setText(lookup_variable.name)
-            main_window.update_on()
-            main_window.error_message("Invalid name. " + item.text() + " is a reserved keyword.", "Reserved keyword")
-        else:
-            identical_name_exists = False
-            for variable in main_window.config.variables:
-                if variable.name == item.text():
-                    identical_name_exists = True
-            for derived_variable in main_window.config.derived_variables:
-                if derived_variable.name == item.text():
-                    identical_name_exists = True
-            for lookup_variable in main_window.config.lookup_variables:
-                if lookup_variable.name == item.text() and main_window.config.lookup_variables.index(lookup_variable) != row:
-                    identical_name_exists = True
-            
-            if identical_name_exists:
-                main_window.update_off()
-                lookup_variable = main_window.config.lookup_variables[row]
-                item.setText(lookup_variable.name)
-                main_window.update_on()
-                main_window.error_message("A variable with this name already exists.", "Identical variable name")
+        if col == 0:  # Variable name was changed
+            if table_item_text not in main_window.experiment.variables:
+                backup = deepcopy(main_window.experiment.variables[variable.name])
+                del main_window.experiment.variables[variable.name]
+                return_value = update.digital_analog_dds_mirny_tabs(main_window)
+                if return_value == None:  # The previous variable was not used and the name can be changed
+                    main_window.experiment.names_of_lookup_variables.remove(variable.name)
+                    main_window.experiment.names_of_lookup_variables.add(table_item_text)
+                    backup.name = table_item_text
+                    variable.name = table_item_text
+                    main_window.experiment.variables[backup.name] = backup
+                else:  # The previous variable was used and the name can not be changed
+                    main_window.error_message("The variable is used in %s" % return_value, "Used variable")
+                    main_window.experiment.variables[backup.name] = backup
+                    main_window.update_off()
+                    main_window.lookup_variables_table.item(row, col).setText(backup.name)
+                    main_window.update_on()
             else:
-                lookup_variable = main_window.config.lookup_variables[row]
-                lookup_variable.name = item.text()
-                update.variable_tables(main_window)
-                
-    elif col == 1:  # file changed
-        lookup_variable = main_window.config.lookup_variables[row]
-        lookup_variable.file = item.text()
-        
-    elif col > 1:  # argument changed
-        i_argument = col - 2
-        lookup_variable = main_window.config.lookup_variables[row]
-        argument = lookup_variable.arguments[i_argument]
-        
-        if item.text() == "":
-            argument.variable = None
-        else:
-            variable_found = False
-            for variable in main_window.config.variables:
-                if variable.name == item.text():
-                    variable_found = True
-                    argument.variable = variable
-            if not variable_found:
+                main_window.error_message("Variable name is already used", "Wrong variable name")
                 main_window.update_off()
-                if argument.variable != None:
-                    item.setText(argument.variable.name)
-                else:
-                    item.setText("")
+                main_window.lookup_variables_table.item(row, col).setText(main_window.experiment.lookup_variables[row - 1].name)
                 main_window.update_on()
-                main_window.error_message("This variable does not exist.", "Unknown variable")
-
-
-def handle_sampler_table_changed(main_window, item):
-    """Handle changes to the sampler table."""
-    row, col = item.row(), item.column()
-    
-    if col == 0:  # sampler channel changed
-        try:
-            sampler_channel = int(item.text())
-            if sampler_channel < 0 or sampler_channel > 31:
-                raise ValueError
-            
-            for i_sampler in range(main_window.config.sampler_table.rowCount()):
-                if i_sampler != row:
-                    table_item = main_window.config.sampler_table.item(i_sampler, 0)
-                    if table_item != None and table_item.text() != "":
-                        if int(table_item.text()) == sampler_channel:
-                            main_window.update_off()
-                            sampler = main_window.config.samplers[row]
-                            item.setText(str(sampler.channel))
-                            main_window.update_on()
-                            main_window.error_message("This Sampler channel is already assigned.", "Sampler channel already assigned")
-                            return
-            
-            sampler = main_window.config.samplers[row]
-            sampler.channel = sampler_channel
-            
-        except ValueError:
-            main_window.update_off()
-            sampler = main_window.config.samplers[row]
-            item.setText(str(sampler.channel))
-            main_window.update_on()
-            main_window.error_message("Invalid Sampler channel. Must be an integer between 0 and 31.", "Invalid Sampler channel")
-            
-    elif col == 1:  # variable changed
-        sampler = main_window.config.samplers[row]
         
-        if item.text() == "":
-            sampler.variable = None
-        else:
-            variable_found = False
-            for variable in main_window.config.variables:
-                if variable.name == item.text():
-                    variable_found = True
-                    sampler.variable = variable
-            if not variable_found:
+        if col == 1:  # Variable argument was changed
+            if table_item_text and table_item_text not in main_window.experiment.variables and table_item_text not in main_window.experiment.names_of_derived_variables:
+                main_window.error_message(
+                    "Argument must reference an existing variable or derived variable.",
+                    "Invalid argument",
+                )
                 main_window.update_off()
-                if sampler.variable != None:
-                    item.setText(sampler.variable.name)
-                else:
-                    item.setText("")
+                main_window.lookup_variables_table.item(row, col).setText(main_window.experiment.lookup_variables[row - 1].argument)
                 main_window.update_on()
-                main_window.error_message("This variable does not exist.", "Unknown variable")
+            else:
+                variable.argument = table_item_text
+                main_window.experiment.variables[variable.name].argument = table_item_text
 
 
 def handle_derived_variables_table_changed(main_window, item):
     """Handle changes to the derived variables table."""
-    row, col = item.row(), item.column()
-    variable = main_window.experiment.derived_variables[row - 1]  # due to the dummy variable being 1st
-    table_item_text = main_window.derived_variables_table.item(row, col).text().replace(" ", "")
-    main_window.update_off()
-    main_window.derived_variables_table.item(row, col).setText(table_item_text)
-    main_window.update_on()
-    
-    if col == 0:  # Variable name was changed
-        if table_item_text not in main_window.experiment.variables:
-            backup = deepcopy(main_window.experiment.variables[variable.name])
-            del main_window.experiment.variables[variable.name]
-            return_value = update.digital_analog_dds_mirny_tabs(main_window)
-            if return_value == None:  # The previous variable was not used and the name can be changed
-                main_window.experiment.names_of_derived_variables.remove(variable.name)
-                main_window.experiment.names_of_derived_variables.add(table_item_text)
-                backup.name = table_item_text
-                variable.name = table_item_text
-                main_window.experiment.variables[backup.name] = backup
-            else:  # The previous variable was used and the name can not be changed
-                main_window.error_message("The variable is used in %s" % return_value, "Used variable")
-                main_window.experiment.variables[backup.name] = backup
+    if main_window.to_update:
+        row, col = item.row(), item.column()
+        variable = main_window.experiment.derived_variables[row - 1]  # due to the dummy variable being 1st
+        table_item_text = main_window.derived_variables_table.item(row, col).text().replace(" ", "")
+        main_window.update_off()
+        main_window.derived_variables_table.item(row, col).setText(table_item_text)
+        main_window.update_on()
+        
+        if col == 0:  # Variable name was changed
+            if table_item_text not in main_window.experiment.variables:
+                backup = deepcopy(main_window.experiment.variables[variable.name])
+                del main_window.experiment.variables[variable.name]
+                return_value = update.digital_analog_dds_mirny_tabs(main_window)
+                if return_value == None:  # The previous variable was not used and the name can be changed
+                    main_window.experiment.names_of_derived_variables.remove(variable.name)
+                    main_window.experiment.names_of_derived_variables.add(table_item_text)
+                    backup.name = table_item_text
+                    variable.name = table_item_text
+                    main_window.experiment.variables[backup.name] = backup
+                else:  # The previous variable was used and the name can not be changed
+                    main_window.error_message("The variable is used in %s" % return_value, "Used variable")
+                    main_window.experiment.variables[backup.name] = backup
+                    main_window.update_off()
+                    main_window.derived_variables_table.item(row, col).setText(backup.name)
+                    main_window.update_on()
+            else:
+                main_window.error_message("Variable name is already used", "Wrong variable name")
                 main_window.update_off()
-                main_window.derived_variables_table.item(row, col).setText(backup.name)
+                main_window.derived_variables_table.item(row, col).setText(main_window.experiment.derived_variables[row - 1].name)
                 main_window.update_on()
-        else:
-            main_window.error_message("Variable name is already used", "Wrong variable name")
-            main_window.update_off()
-            main_window.derived_variables_table.item(row, col).setText(main_window.experiment.derived_variables[row - 1].name)
-            main_window.update_on()
-    if col == 1:  # Variable arguments were changed
-        arguments = [arg for arg in table_item_text.split(",") if arg]
-        invalid_arguments = []
-        for argument in arguments:
-            if argument in main_window.experiment.names_of_derived_variables:
-                continue
-            if argument not in main_window.experiment.variables:
-                invalid_arguments.append(argument)
-        if invalid_arguments:
-            invalid_list = ", ".join(invalid_arguments)
-            main_window.error_message(
-                f"Arguments must reference existing variables or derived variables. Unknown: {invalid_list}",
-                "Invalid arguments",
-            )
-            main_window.update_off()
-            main_window.derived_variables_table.item(row, col).setText(main_window.experiment.derived_variables[row - 1].arguments)
-            main_window.update_on()
-        else:
-            normalized_arguments = ",".join(arguments)
-            variable.arguments = normalized_arguments
-            if normalized_arguments != table_item_text:
+        if col == 1:  # Variable arguments were changed
+            arguments = [arg for arg in table_item_text.split(",") if arg]
+            invalid_arguments = []
+            for argument in arguments:
+                if argument in main_window.experiment.names_of_derived_variables:
+                    continue
+                if argument not in main_window.experiment.variables:
+                    invalid_arguments.append(argument)
+            if invalid_arguments:
+                invalid_list = ", ".join(invalid_arguments)
+                main_window.error_message(
+                    f"Arguments must reference existing variables or derived variables. Unknown: {invalid_list}",
+                    "Invalid arguments",
+                )
                 main_window.update_off()
-                main_window.derived_variables_table.item(row, col).setText(normalized_arguments)
+                main_window.derived_variables_table.item(row, col).setText(main_window.experiment.derived_variables[row - 1].arguments)
                 main_window.update_on()
-    if col == 2:  # Variable execution edge was changed
-        new_edge_id = table_item_text
-        if main_window.find_edge_index_by_id(new_edge_id) == None:
-            main_window.error_message("The edge id was not found. Please enter correct id value", "Wrong id entered")
-            main_window.update_off()
-            main_window.derived_variables_table.item(row, col).setText(variable.edge_id)
-            main_window.update_on()
-        elif new_edge_id == "id0":
-            main_window.error_message("User is restricted from using id0 for requesting derivation of variable. All other edges are allowed.", "Default edge!")
-            main_window.update_off()
-            main_window.derived_variables_table.item(row, col).setText(variable.edge_id)
-            main_window.update_on()
-        else:
-            if variable.edge_id != "":  # In case it was another id before we need to make that edge.derived_variable_requested to 0 which means that it is not requested
+            else:
+                normalized_arguments = ",".join(arguments)
+                variable.arguments = normalized_arguments
+                if normalized_arguments != table_item_text:
+                    main_window.update_off()
+                    main_window.derived_variables_table.item(row, col).setText(normalized_arguments)
+                    main_window.update_on()
+        if col == 2:  # Variable execution edge was changed
+            new_edge_id = table_item_text
+            if main_window.find_edge_index_by_id(new_edge_id) == None:
+                main_window.error_message("The edge id was not found. Please enter correct id value", "Wrong id entered")
+                main_window.update_off()
+                main_window.derived_variables_table.item(row, col).setText(variable.edge_id)
+                main_window.update_on()
+            elif new_edge_id == "id0":
+                main_window.error_message("User is restricted from using id0 for requesting derivation of variable. All other edges are allowed.", "Default edge!")
+                main_window.update_off()
+                main_window.derived_variables_table.item(row, col).setText(variable.edge_id)
+                main_window.update_on()
+            else:
+                if variable.edge_id != "":  # In case it was another id before we need to make that edge.derived_variable_requested to 0 which means that it is not requested
+                    edge_index = main_window.find_edge_index_by_id(variable.edge_id)
+                    main_window.experiment.sequence[edge_index].derived_variable_requested = -1
+                # Assigning the edge.derived_variable_requested value
+                variable.edge_id = table_item_text
                 edge_index = main_window.find_edge_index_by_id(variable.edge_id)
-                main_window.experiment.sequence[edge_index].derived_variable_requested = -1
-            # Assigning the edge.derived_variable_requested value
-            variable.edge_id = table_item_text
-            edge_index = main_window.find_edge_index_by_id(variable.edge_id)
-            main_window.experiment.sequence[edge_index].derived_variable_requested = row - 1  # -1 because the dummy variable is the first one
-    if col == 3:  # Variable function was changed
-        variable.function = table_item_text
-    if col == 4:
-        variable.initial_value = table_item_text
-        if variable.name in main_window.experiment.variables:
-            main_window.update_off()
-            if variable.initial_value == "":
-                main_window.experiment.variables[variable.name].value = (variable.initial_value)
-                main_window.update_on()
-            else:
-                main_window.experiment.variables[variable.name].value = float(variable.initial_value)
-                main_window.update_on()
-
-
-def handle_lookup_variables_table_changed(main_window, item):
-    """Handle changes to the lookup variables table."""
-    row, col = item.row(), item.column()
-    variable = main_window.experiment.lookup_variables[row - 1]  # due to the dummy variable being 1st
-    table_item_text = main_window.lookup_variables_table.item(row, col).text().replace(" ", "")
-    main_window.update_off()
-    main_window.lookup_variables_table.item(row, col).setText(table_item_text)
-    main_window.update_on()
-    
-    if col == 0:  # Variable name was changed
-        if table_item_text not in main_window.experiment.variables:
-            backup = deepcopy(main_window.experiment.variables[variable.name])
-            del main_window.experiment.variables[variable.name]
-            return_value = update.digital_analog_dds_mirny_tabs(main_window)
-            if return_value == None:  # The previous variable was not used and the name can be changed
-                main_window.experiment.names_of_lookup_variables.remove(variable.name)
-                main_window.experiment.names_of_lookup_variables.add(table_item_text)
-                backup.name = table_item_text
-                variable.name = table_item_text
-                main_window.experiment.variables[backup.name] = backup
-            else:  # The previous variable was used and the name can not be changed
-                main_window.error_message("The variable is used in %s" % return_value, "Used variable")
-                main_window.experiment.variables[backup.name] = backup
+                main_window.experiment.sequence[edge_index].derived_variable_requested = row - 1  # -1 because the dummy variable is the first one
+        if col == 3:  # Variable function was changed
+            variable.function = table_item_text
+        if col == 4:
+            variable.initial_value = table_item_text
+            if variable.name in main_window.experiment.variables:
                 main_window.update_off()
-                main_window.lookup_variables_table.item(row, col).setText(backup.name)
-                main_window.update_on()
-        else:
-            main_window.error_message("Variable name is already used", "Wrong variable name")
-            main_window.update_off()
-            main_window.lookup_variables_table.item(row, col).setText(main_window.experiment.lookup_variables[row - 1].name)
-            main_window.update_on()
-    if col == 1:  # Variable argument was changed
-        if table_item_text and table_item_text not in main_window.experiment.variables and table_item_text not in main_window.experiment.names_of_derived_variables:
-            main_window.error_message(
-                "Argument must reference an existing variable or derived variable.",
-                "Invalid argument",
-            )
-            main_window.update_off()
-            main_window.lookup_variables_table.item(row, col).setText(main_window.experiment.lookup_variables[row - 1].argument)
-            main_window.update_on()
-        else:
-            variable.argument = table_item_text
-            main_window.experiment.variables[variable.name].argument = table_item_text
+                if variable.initial_value == "":
+                    main_window.experiment.variables[variable.name].value = (variable.initial_value)
+                    main_window.update_on()
+                else:
+                    main_window.experiment.variables[variable.name].value = float(variable.initial_value)
+                    main_window.update_on()
 
 
 def handle_sampler_table_changed(main_window, item):
@@ -1251,9 +1114,6 @@ def handle_sampler_table_changed(main_window, item):
 
 def handle_chosen_experiment_changed(main_window):
     """Handle changes to the chosen experiment selection."""
-    import json
-    from pathlib import Path
-    
     row = main_window.experiment_list_list_widget.currentRow()
     
     if row < 0:
