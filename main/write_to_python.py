@@ -25,8 +25,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "from scipy.io import loadmat\n")
     
     #Creating functions to calculate derived variables
-    derived_variables = getattr(self.experiment, 'derived_variables', None) or []
-    for variable in derived_variables:
+    for variable in self.experiment.derived_variables:
         file.write(indentation + "def calculate_%s(%s):\n"%(variable.name, variable.arguments))
         indentation += "    "
         file.write(indentation + "return %s \n\n" %variable.function)
@@ -41,8 +40,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "self.setattr_device('%s')\n" %device)
 
     # If lookup variables are requested create and load them
-    lookup_variables = getattr(self.experiment, 'lookup_variables', None) or []
-    for index, lookup_variable in enumerate(lookup_variables):
+    for index, lookup_variable in enumerate(self.experiment.lookup_variables):
         # We first save the lookup list and then load it from the python description of the experiment
         if lookup_variable.lookup_list_name != "":
             temp_lookup_list_path = "./temp lookup variables/temp_%d_"%index +lookup_variable.lookup_list_name
@@ -53,8 +51,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
         #iterating over valid (not "None") scanned variables and creating an array to be used as a collection of names
         var_names = ""
-        scanned_variables = getattr(self.experiment, 'scanned_variables', None) or []
-        for variable in scanned_variables:
+        for variable in self.experiment.scanned_variables:
             if variable.name != "None":
                 file.write(indentation + "self.%s = list(np.linspace(%f, %f, %d))\n"%(variable.name, variable.min_val, variable.max_val, self.experiment.number_of_steps))
                 var_names += variable.name + ", "
@@ -70,7 +67,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "delay(1*s)\n") # this delay is added since our reference clock is 1GHz and self.core.break_realtime moves it forward by 15000 clock cycles
     
     # for inital value of derived variables 
-    arguments = getattr(self.experiment, 'derived_variables', None) or []
+    arguments = self.experiment.derived_variables
     for argument in arguments:
         file.write(indentation + argument.name + " = " + "float("+ argument.initial_value + ")" + "\n")
 
@@ -174,8 +171,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "#Beginning of the Scan\n")
         file.write(indentation + "for step in range(%d):\n" %(self.experiment.number_of_steps))
         indentation += "    "
-        scanned_variables_loop = getattr(self.experiment, 'scanned_variables', None) or []
-        for variable in scanned_variables_loop:
+        for variable in self.experiment.scanned_variables:
             if variable.name != "None":
                 file.write(indentation + f"{variable.name} = self.{variable.name}[step]\n")
     self.delta_t = 0 
@@ -206,8 +202,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         flag_ramp_up_delay = False
         # ADDING FOR LOOP FOR RAMP
         count_indent = 0
-        ramped_variables = getattr(self.experiment, 'ramped_variables', None) or []
-        for variable in ramped_variables:
+        for variable in self.experiment.ramped_variables:
             if self.experiment.do_ramp == True and self.experiment.ramped_variables_count > 0:
                 if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False:
                     if edge_index != 0:
@@ -229,8 +224,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
         #DIGITAL CHANNEL CHANGES
         if config.dds_channels_number > 0:
-            digital_channels = getattr(self.experiment.sequence[edge_index], 'digital', None) or []
-            for index, channel in enumerate(digital_channels):
+            for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
                 if edge_index == 0 and index % 8 == 0: #adding a 5 ms delay to make changes into TTL channels
                     file.write(indentation + "delay(5*ms)\n")
 
@@ -261,8 +255,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             #Assigning zotino card values
             if config.analog_card == "zotino":
                 flag_zotino_change_needed = False      
-                analog_channels_zotino = getattr(self.experiment.sequence[edge_index], 'analog', None) or []
-                for index, channel in enumerate(analog_channels_zotino):
+                for index, channel in enumerate(self.experiment.sequence[edge_index].analog):
                     if channel.changed == True:
                         flag_zotino_change_needed = True
                         file.write(indentation + "self.zotino0.write_dac(%d, %s)\n" %(index, channel.for_python)) 
@@ -286,8 +279,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             
         #DDS CHANNEL CHANGES
         if config.dds_channels_number > 0:
-            dds_channels = getattr(self.experiment.sequence[edge_index], 'dds', None) or []
-            for index, channel in enumerate(dds_channels):
+            for index, channel in enumerate(self.experiment.sequence[edge_index].dds):
                 if channel.changed == True:
                     urukul_num = int(index // 4)
                     channel_num = int(index % 4)
@@ -300,8 +292,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
         #MIRNY CHANNEL CHANGES
         if config.mirny_channels_number > 0:
-            mirny_channels = getattr(self.experiment.sequence[edge_index], 'mirny', None) or []
-            for index, channel in enumerate(mirny_channels):
+            for index, channel in enumerate(self.experiment.sequence[edge_index].mirny):
                 if channel.changed == True:
                     mirny_num = int(index // 4)
                     channel_num = int(index % 4)
@@ -317,15 +308,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         #SAMPLER CHANNELS
         if config.sampler_channels_number > 0:
             input_readout_is_requested = False
-            sampler_channels_1 = getattr(self.experiment.sequence[edge_index], 'sampler', None) or []
-            for index, channel in enumerate(sampler_channels_1):
+            for index, channel in enumerate(self.experiment.sequence[edge_index].sampler):
                 if channel != "0":
                     input_readout_is_requested = True
             if input_readout_is_requested == True:
                 file.write(indentation + "# Sampler input readout\n")
                 file.write(indentation + "self.sampler0.sample(inputs)\n")
-                sampler_channels_2 = getattr(self.experiment.sequence[edge_index], 'sampler', None) or []
-                for index, channel in enumerate(sampler_channels_2):
+                for index, channel in enumerate(self.experiment.sequence[edge_index].sampler):
                     if channel != "0":
                         file.write(indentation + "%s = inputs[%d]\n" %(channel, index))
         
@@ -401,8 +390,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             flag_ramp_up_delay = False
             # ADDING FOR LOOP FOR RAMP
             count_indent = 0
-            ramped_variables = getattr(self.experiment, 'ramped_variables', None) or []
-            for variable in ramped_variables:
+            for variable in self.experiment.ramped_variables:
                 if self.experiment.do_ramp == True and self.experiment.ramped_variables_count > 0:
                     if variable.start_ID == self.experiment.sequence[edge_index].id and already_loop_for_edge[edge_index] == False:
                         if edge_index != 0:
@@ -424,8 +412,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
             #DIGITAL CHANNEL CHANGES
             if config.dds_channels_number > 0:
-                digital_channels_cont = getattr(self.experiment.sequence[edge_index], 'digital', None) or []
-                for index, channel in enumerate(digital_channels_cont):
+                for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
                     if edge_index == 0 and index % 8 == 0: #adding a 5 ms delay to make changes into TTL channels
                         file.write(indentation + "delay(5*ms)\n")
 
@@ -456,8 +443,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 #Assigning zotino card values
                 if config.analog_card == "zotino":
                     flag_zotino_change_needed = False      
-                    analog_channels_zotino_cont = getattr(self.experiment.sequence[edge_index], 'analog', None) or []
-                    for index, channel in enumerate(analog_channels_zotino_cont):
+                    for index, channel in enumerate(self.experiment.sequence[edge_index].analog):
                         if channel.changed == True:
                             flag_zotino_change_needed = True
                             file.write(indentation + "self.zotino0.write_dac(%d, %s)\n" %(index, channel.for_python)) 
@@ -481,8 +467,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 
             #DDS CHANNEL CHANGES
             if config.dds_channels_number > 0:
-                dds_channels_cont = getattr(self.experiment.sequence[edge_index], 'dds', None) or []
-                for index, channel in enumerate(dds_channels_cont):
+                for index, channel in enumerate(self.experiment.sequence[edge_index].dds):
                     if channel.changed == True:
                         urukul_num = int(index // 4)
                         channel_num = int(index % 4)
@@ -495,8 +480,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
             #MIRNY CHANNEL CHANGES
             if config.mirny_channels_number > 0:
-                mirny_channels_cont = getattr(self.experiment.sequence[edge_index], 'mirny', None) or []
-                for index, channel in enumerate(mirny_channels_cont):
+                for index, channel in enumerate(self.experiment.sequence[edge_index].mirny):
                     if channel.changed == True:
                         mirny_num = int(index // 4)
                         channel_num = int(index % 4)
@@ -512,15 +496,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             #SAMPLER CHANNELS
             if config.sampler_channels_number > 0:
                 input_readout_is_requested = False
-                sampler_channels_cont_1 = getattr(self.experiment.sequence[edge_index], 'sampler', None) or []
-                for index, channel in enumerate(sampler_channels_cont_1):
+                for index, channel in enumerate(self.experiment.sequence[edge_index].sampler):
                     if channel != "0":
                         input_readout_is_requested = True
                 if input_readout_is_requested == True:
                     file.write(indentation + "# Sampler input readout\n")
                     file.write(indentation + "self.sampler0.sample(inputs)\n")
-                    sampler_channels_cont_2 = getattr(self.experiment.sequence[edge_index], 'sampler', None) or []
-                    for index, channel in enumerate(sampler_channels_cont_2):
+                    for index, channel in enumerate(self.experiment.sequence[edge_index].sampler):
                         if channel != "0":
                             file.write(indentation + "%s = inputs[%d]\n" %(channel, index))
             
@@ -592,8 +574,7 @@ def create_go_to_edge(self, edge_num, to_default = False):
     
     # DIGITAL CHANNEL CHANGES
     if config.digital_channels_number > 0:
-        digital_channels_goto = getattr(self.experiment.sequence[edge], 'digital', None) or []
-        for index, channel in enumerate(digital_channels_goto):
+        for index, channel in enumerate(self.experiment.sequence[edge].digital):
             if index % 8 == 0: #adding a 5 ms delay to make changes for more than 8 TTL channels. There is a limit of the buffer size
                 file.write(indentation + "delay(5*ms)\n")
             if channel.value == 0:
@@ -606,23 +587,20 @@ def create_go_to_edge(self, edge_num, to_default = False):
     if config.analog_channels_number > 0:
         # Assigning zotino card changes
         if config.analog_card == "zotino":
-            analog_channels_goto_zotino = getattr(self.experiment.sequence[edge], 'analog', None) or []
-            for index, channel in enumerate(analog_channels_goto_zotino):
+            for index, channel in enumerate(self.experiment.sequence[edge].analog):
                 file.write(indentation + "self.zotino0.write_dac(%d, %.6f)\n" %(index, channel.value))
             file.write(indentation + "self.zotino0.load()\n")
             
         # Assigning fastino card changes
-        if config.analog_card == "fastino":
-            analog_channels_goto_fastino = getattr(self.experiment.sequence[edge], 'analog', None) or []
+        elif config.analog_card == "fastino":
             #Since we do not care about timing here we can add a redundant delay of 10 ns
-            for index, channel in enumerate(analog_channels_goto_fastino):
+            for index, channel in enumerate(self.experiment.sequence[edge].analog):
                 file.write(indentation + "delay(10*ns)\n")    
                 file.write(indentation + "self.fastino0.set_dac(%d, %.6f)\n" %(index, channel.value))         
 
     # DDS CHANNEL CHANGES
     if config.dds_channels_number > 0:
-        dds_channels_goto = getattr(self.experiment.sequence[edge], 'dds', None) or []
-        for index, channel in enumerate(dds_channels_goto):
+        for index, channel in enumerate(self.experiment.sequence[edge].dds):
             urukul_num = int(index // 4)
             channel_num = int(index % 4)
             file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set_att(" + str(channel.attenuation.value) + "*dB) \n")    
@@ -634,8 +612,7 @@ def create_go_to_edge(self, edge_num, to_default = False):
 
     # MIRNY CHANNEL CHANGES
     if config.mirny_channels_number > 0:
-        mirny_channels_goto = getattr(self.experiment.sequence[edge], 'mirny', None) or []
-        for index, channel in enumerate(mirny_channels_goto):
+        for index, channel in enumerate(self.experiment.sequence[edge].mirny):
             mirny_num = int(index // 4)
             channel_num = int(index % 4)
             file.write(indentation + "self.mirny" + str(mirny_num) + "_ch" + str(channel_num) + ".set_att(" + str(channel.attenuation.value) + "*dB) \n")    

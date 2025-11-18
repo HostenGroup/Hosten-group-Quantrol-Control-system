@@ -239,7 +239,9 @@ def load_pending_log_entries(repo_path: Path, cache_dict: dict = None) -> list:
         List of pending log entry dictionaries
     """
     if cache_dict is not None and "_pending_log_entries_cache" in cache_dict:
-        return list(cache_dict["_pending_log_entries_cache"])
+        cached_value = cache_dict["_pending_log_entries_cache"]
+        if cached_value is not None:
+            return list(cached_value)
 
     path = repo_path / "logs" / "pending_experiment_log_entries.json"
     entries = []
