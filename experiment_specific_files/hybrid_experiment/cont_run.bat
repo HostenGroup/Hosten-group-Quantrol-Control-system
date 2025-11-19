@@ -17,15 +17,15 @@ set "ret=%ERRORLEVEL%"
 
 
 ::look for the specific failure
-findstr /I /C:"WinError 10054" /C:"forcibly closed by the remote host" ../../logs/cont_run_out.txt >nul
+findstr /I /C:"WinError 10054" /C:"forcibly closed by the remote host" ..\..\logs\cont_run_out.txt >nul
 if %ERRORLEVEL%==0 (
   echo [%date% %time%] WinError 10054 detected. Relaunching...
-  echo [%date% %time%] WinError 10054 detected. Relaunching... >> ../../logs/cont_run_out.txt
+  echo [%date% %time%] WinError 10054 detected. Relaunching... >> ..\..\logs\cont_run_out.txt
   goto loop
 )
 
 echo [%date% %time%] Finished. Exit code %ret%. Not relaunching.
-echo [%date% %time%] Finished. Exit code %ret%. Not relaunching. >> ../../logs/cont_run_out.txt
+echo [%date% %time%] Finished. Exit code %ret%. Not relaunching. >> ..\..\logs\cont_run_out.txt
 
 timeout /t 3 >nul
 

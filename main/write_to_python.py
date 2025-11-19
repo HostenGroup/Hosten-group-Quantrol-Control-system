@@ -103,39 +103,40 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if run_continuous:
         file.write(indentation + "while True:\n")
         indentation += "    "
-        file.write(indentation + "self.core.break_realtime()\n")
-        if warmup_runs > 0:
-            file.write(indentation + "if not hasattr(self, '_cam_warmup_remaining'):\n")
-            indentation += "    "
-            file.write(indentation + "self._cam_warmup_remaining = %d\n" % warmup_runs)
-            file.write(indentation + "self._cam_warmup_triggered = False\n")
-            indentation = indentation[:-4]
-            file.write(indentation + "if self._cam_warmup_remaining > 0:\n")
-            indentation += "    "
-            file.write(indentation + "camera_enabled = False   # warm-up run\n")
-            file.write(indentation + "self._cam_warmup_remaining -= 1\n")
-            indentation = indentation[:-4]
-            file.write(indentation + "elif not self._cam_warmup_triggered:\n")
-            indentation += "    "
-            file.write(indentation + "# Camera warm-up trigger: execute once after cam_trigger_off runs\n")
+        file.write(indentation + "camera_enabled = True   # continuous run\n")
+        # file.write(indentation + "self.core.break_realtime()\n")
+        # if warmup_runs > 0:
+        #     file.write(indentation + "if not hasattr(self, '_cam_warmup_remaining'):\n")
+        #     indentation += "    "
+        #     file.write(indentation + "self._cam_warmup_remaining = %d\n" % warmup_runs)
+        #     file.write(indentation + "self._cam_warmup_triggered = False\n")
+        #     indentation = indentation[:-4]
+        #     file.write(indentation + "if self._cam_warmup_remaining > 0:\n")
+        #     indentation += "    "
+        #     file.write(indentation + "camera_enabled = False   # warm-up run\n")
+        #     file.write(indentation + "self._cam_warmup_remaining -= 1\n")
+        #     indentation = indentation[:-4]
+        #     file.write(indentation + "elif not self._cam_warmup_triggered:\n")
+        #     indentation += "    "
+        #     file.write(indentation + "# Camera warm-up trigger: execute once after cam_trigger_off runs\n")
             
-            if config.allow_skipping_images == True and self.experiment.skip_images:
-                skip_count = getattr(config, "skip_images_trigger_count", 10)
-                file.write(indentation + f"for _ in range({skip_count}):\n")
-                indentation += "    "
-                for val in config.camera_trigger_ttl:
-                    file.write(indentation + "self.ttl" + str(val) + ".pulse(10*ms)\n")
-                file.write(indentation + "delay(100*ms)\n")
-                indentation = indentation[:-4]
-            file.write(indentation + "self._cam_warmup_triggered = True\n")
-            file.write(indentation + "camera_enabled = True\n")
-            indentation = indentation[:-4]
-            file.write(indentation + "else:\n")
-            indentation += "    "
-            file.write(indentation + "camera_enabled = True\n")
-            indentation = indentation[:-4]
-        else:
-            file.write(indentation + "camera_enabled = True\n")
+        #     if config.allow_skipping_images == True and self.experiment.skip_images:
+        #         skip_count = getattr(config, "skip_images_trigger_count", 10)
+        #         file.write(indentation + f"for _ in range({skip_count}):\n")
+        #         indentation += "    "
+        #         for val in config.camera_trigger_ttl:
+        #             file.write(indentation + "self.ttl" + str(val) + ".pulse(10*ms)\n")
+        #         file.write(indentation + "delay(100*ms)\n")
+        #         indentation = indentation[:-4]
+        #     file.write(indentation + "self._cam_warmup_triggered = True\n")
+        #     file.write(indentation + "camera_enabled = True\n")
+        #     indentation = indentation[:-4]
+        #     file.write(indentation + "else:\n")
+        #     indentation += "    "
+        #     file.write(indentation + "camera_enabled = True\n")
+        #     indentation = indentation[:-4]
+        # else:
+        #     file.write(indentation + "camera_enabled = True\n")
 
     if not run_continuous:
         if total_runs > 1:
@@ -337,12 +338,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     ############################# for continuous run AFTER experiment #############################
     ###############################################################################################
 
-    if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
+    if self.experiment.do_scan and self.experiment.scanned_variables_count > 0:
         indentation = indentation[:-4]
     if not run_continuous and run_loop_added:
         indentation = indentation[:-4]
 
-    if self.experiment.cont_run_after_exp == True:
+    if self.experiment.cont_run_after_exp and not run_continuous:
         # self.function_to_write_cont_run_after_experiment(file)
 
         # Create an infinite while loop if needs to run continuously
