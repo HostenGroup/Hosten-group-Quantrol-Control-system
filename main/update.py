@@ -61,6 +61,47 @@ def _format_derived_tooltip(expression, base_label, constant_values):
 
     return f"{base_label}: {', '.join(matches)}"
 
+
+def _is_plain_numeric(text):
+    """Return True when text is a simple numeric literal without identifiers."""
+    if text is None:
+        return False
+    stripped = str(text).strip()
+    if stripped == "":
+        return False
+    if any(char.isalpha() for char in stripped):
+        return False
+    try:
+        float(stripped)
+    except ValueError:
+        return False
+    return True
+
+
+def _enforce_binary_state(channel_entry, channel_index, row, table_label):
+    """Ensure DDS/Mirny state entries evaluate to a binary value."""
+    value = channel_entry.value
+    if isinstance(value, bool):
+        coerced = int(value)
+    elif isinstance(value, (int, float)):
+        if abs(value - 0) < 1e-9:
+            coerced = 0
+        elif abs(value - 1) < 1e-9:
+            coerced = 1
+        else:
+            return f"{table_label} channel {channel_index} state, edge {row}"
+    else:
+        return f"{table_label} channel {channel_index} state, edge {row}"
+
+    channel_entry.value = coerced
+    expression_text = str(channel_entry.expression).strip() if channel_entry.expression is not None else ""
+    if expression_text == "" or _is_plain_numeric(expression_text):
+        literal = str(coerced)
+        channel_entry.expression = literal
+        channel_entry.evaluation = literal
+        channel_entry.for_python = literal
+    return None
+
 def sequence_tab(self):
     self.update_off()
     #Update expressions and evaluations   
@@ -371,6 +412,10 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                             exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
                         except:
                             return "dds channel %d, edge %d" %(channel_index, row)
+                        if setting == 4:
+                            state_error = _enforce_binary_state(channel_entry, channel_index, row, "dds")
+                            if state_error is not None:
+                                return state_error
                         #check if the value within allowed range
                         if channel_entry.value >= self.min_dict_dds[setting] and channel_entry.value <= self.max_dict_dds[setting]:
                             #Color coding the values and updating tooltips
@@ -507,6 +552,10 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                             exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
                         except:
                             return "mirny channel %d, edge %d" %(channel_index, row)
+                        if setting == 4:
+                            state_error = _enforce_binary_state(channel_entry, channel_index, row, "mirny")
+                            if state_error is not None:
+                                return state_error
                         
                         #check if the value within allowed range
                         if channel_entry.value >= self.min_dict_mirny[setting] and channel_entry.value <= self.max_dict_mirny[setting]:
