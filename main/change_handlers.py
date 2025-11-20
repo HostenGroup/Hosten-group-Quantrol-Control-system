@@ -29,18 +29,58 @@ def handle_number_of_steps_input_changed(main_window):
     '''Update number of steps for scanning.'''
     if main_window.to_update:
         try:
-            main_window.experiment.number_of_steps = int(main_window.number_of_steps_input.text())
-        except:
-            main_window.error_message('Number of steps must be an integer.', 'Error')
+            expression = main_window.number_of_steps_input.text()
+            (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
+            exec("main_window.value = " + str(evaluation), {"main_window": main_window})
+            if main_window.value > 0:
+                main_window.experiment.number_of_steps = int(main_window.value)
+            else:
+                main_window.error_message("Only positive integers larger than 0 are allowed", "Wrong entry")
+        except Exception:
+            main_window.error_message("Expression can not be evaluated", "Wrong entry")
+        main_window.update_off()
+        main_window.number_of_steps_input.setText(str(main_window.experiment.number_of_steps))
+        main_window.update_on()
 
 
 def handle_number_of_runs_input_changed(main_window):
     '''Update number of runs for multiple run mode.'''
     if main_window.to_update:
         try:
-            main_window.experiment.number_of_runs = int(main_window.number_of_runs_input.text())
-        except:
-            main_window.error_message('Number of runs must be an integer.', 'Error')
+            tab_names = [
+                "number_of_runs_input",
+                "number_of_runs_input_sequence",
+                "number_of_runs_input_analog",
+                "number_of_runs_input_digital",
+                "number_of_runs_input_dds",
+                "number_of_runs_input_mirny",
+                "number_of_runs_input_sampler",
+                "number_of_runs_input_variables",
+                "number_of_runs_input_acquisition",
+                "number_of_runs_input_slow_dds",
+            ]
+            var_table_names = [name for name in tab_names if hasattr(main_window, name)]
+            for var_table_name in var_table_names:
+                getattr(main_window, var_table_name).blockSignals(True)
+
+            line = main_window.sender() if hasattr(main_window, "sender") else None
+            active_line = line if hasattr(line, "text") else main_window.number_of_runs_input
+            expression = active_line.text()
+            (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
+            exec("main_window.value = " + str(evaluation), {"main_window": main_window})
+            if main_window.value > 0:
+                main_window.experiment.number_of_runs = int(main_window.value)
+            else:
+                main_window.error_message("Only positive integers larger than 0 are allowed", "Wrong entry")
+        except Exception:
+            main_window.error_message("Expression can not be evaluated", "Wrong entry")
+        finally:
+            main_window.update_off()
+            for var_table_name in var_table_names:
+                getattr(main_window, var_table_name).setText(str(main_window.experiment.number_of_runs))
+            main_window.update_on()
+            for var_table_name in var_table_names:
+                getattr(main_window, var_table_name).blockSignals(False)
 
 
 def handle_experiment_caption_changed(main_window):

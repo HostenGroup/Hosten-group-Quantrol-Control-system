@@ -430,7 +430,7 @@ def handle_submit_run_experiment_py_button_clicked(self):
             self.ttl0(self.a[index_a])
             self.ttl1(self.b[index_b])
     '''
-    file_name = "../ARTIQ_scripts/run_experiment.py"
+    file_name = str(self.repo_path / "ARTIQ_scripts" / 'run_experiment.py')
     if os.path.exists(file_name):
         try:
             #initialize environment and submit the experiment to the scheduler
