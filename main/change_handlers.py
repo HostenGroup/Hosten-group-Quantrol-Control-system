@@ -911,8 +911,10 @@ def handle_variables_table_changed(main_window, item):
 
                 if return_value == None: #The value can be updated
                     variable.value = main_window.experiment.variables[variable.name].value
-                    main_window.experiment.variables[variable.name].for_python = variable.value
-                    variable.for_python = variable.value
+                    # Preserve scan/ramp expressions; only overwrite for_python for plain variables
+                    if not (variable.is_scanned or variable.is_ramped or variable.is_sampled or variable.is_derived or variable.is_lookup):
+                        variable.for_python = variable.value
+                        main_window.experiment.variables[variable.name].for_python = variable.value
                     main_window.update_off()
                     table_item.setText(str(variable.value))
                     main_window.update_on()

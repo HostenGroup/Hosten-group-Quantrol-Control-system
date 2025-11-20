@@ -226,8 +226,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         #DIGITAL CHANNEL CHANGES
         if config.dds_channels_number > 0:
             for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
-                if edge_index == 0 and index % 8 == 0: #adding a 5 ms delay to make changes into TTL channels
-                    file.write(indentation + "delay(5*ms)\n")
+                if edge_index == 0 and index % 8 == 0: #adding a 100 ns delay to make changes into TTL channels
+                    file.write(indentation + "delay(100*ns)\n")
 
                 if channel.changed == True:
                     if index in config.camera_trigger_ttl:
@@ -414,8 +414,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             #DIGITAL CHANNEL CHANGES
             if config.dds_channels_number > 0:
                 for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
-                    if edge_index == 0 and index % 8 == 0: #adding a 5 ms delay to make changes into TTL channels
-                        file.write(indentation + "delay(5*ms)\n")
+                    if edge_index == 0 and index % 8 == 0: #adding a 100 ns delay to make changes into TTL channels
+                        file.write(indentation + "delay(100*ns)\n")
 
                     if channel.changed == True:
                         if index in config.camera_trigger_ttl:
@@ -576,8 +576,8 @@ def create_go_to_edge(self, edge_num, to_default = False):
     # DIGITAL CHANNEL CHANGES
     if config.digital_channels_number > 0:
         for index, channel in enumerate(self.experiment.sequence[edge].digital):
-            if index % 8 == 0: #adding a 5 ms delay to make changes for more than 8 TTL channels. There is a limit of the buffer size
-                file.write(indentation + "delay(5*ms)\n")
+            if index % 8 == 0: #adding a 100 ns delay to make changes for more than 8 TTL channels. There is a limit of the buffer size
+                file.write(indentation + "delay(100*ns)\n")
             if channel.value == 0:
                 file.write(indentation + "self.ttl" + str(index) + ".off()\n")
             elif channel.value == 1:

@@ -778,23 +778,12 @@ def handle_delete_derived_variable_button_clicked(self):
             name = self.derived_variables_table.item(row,0).text()
             backup = deepcopy(self.experiment.variables[name])
 
-            print("\n", "Deleting variable:", name)  
-            print("==== DERIVED VARIABLE NAMES SET ====")
-            print(self.experiment.names_of_derived_variables)
-            print("==== CURRENT DERIVED VARIABLES AND EDGE REFERENCES ====")
             for i, dv in enumerate(self.experiment.derived_variables):
-                print(f"[{i}] name: {dv.name}, edge_id: {dv.edge_id}, arguments: {dv.arguments}, function: {dv.function}, initial_value: {dv.initial_value}")
                 edge_index = self.find_edge_index_by_id(dv.edge_id)
                 if edge_index is not None:
                     edge = self.experiment.sequence[edge_index]
                     drv_idx = edge.derived_variable_requested
-                    print(f"     → Edge index: {edge_index},      → derived_variable_requested: {drv_idx}")
-                    # Optional check for consistency
-                    if drv_idx != i:
-                        print(f"  Mismatch: edge points to index {drv_idx}, but variable is at index {i}")
-                else:
-                    print("     → Edge not found")
-            print("==== ALL EDGES AND THEIR DERIVED VARIABLE REFERENCES ====")
+
             for i, edge in enumerate(self.experiment.sequence):
                 edge_id = getattr(edge, 'id', f"index_{i}")  # fallback if edge has no `id` field
                 drv_idx = edge.derived_variable_requested
@@ -804,8 +793,7 @@ def handle_delete_derived_variable_button_clicked(self):
                     variable_name = "(none)"
                 else:
                     variable_name = "(invalid index)"
-                print(f"[{i}] edge_id: {edge_id}, derived_variable_requested: {drv_idx}, → variable: {variable_name}")
-            print("\n", "\n")
+
 
 
             del self.experiment.variables[name]
