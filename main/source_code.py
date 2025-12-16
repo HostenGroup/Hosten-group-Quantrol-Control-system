@@ -892,9 +892,9 @@ class MainWindow(QMainWindow):
         self.analog_dummy.item(edge_num,0).setBackground(set_color)
         self.analog_dummy.item(edge_num,1).setBackground(set_color)
         self.analog_dummy.item(edge_num,2).setBackground(set_color)
-        self.dds_seq.item(edge_num+2,0).setBackground(set_color)
-        self.dds_seq.item(edge_num+2,1).setBackground(set_color)
-        self.dds_seq.item(edge_num+2,2).setBackground(set_color)
+        self.dds_seq.item(edge_num,0).setBackground(set_color)
+        self.dds_seq.item(edge_num,1).setBackground(set_color)
+        self.dds_seq.item(edge_num,2).setBackground(set_color)
         self.to_update = True        
     
     
@@ -932,7 +932,7 @@ class MainWindow(QMainWindow):
             self.message_to_logger("init_hardware.py file generated")
             try:
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/init_hardware.py"%config.artiq_environment_name])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'init_hardware.py')])
                 elif config.package_manager == "clang64":
                     submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
@@ -1504,7 +1504,7 @@ class MainWindow(QMainWindow):
         delay_seconds = float(delay_s) if delay_s else 0.0
 
         if config.package_manager == "conda":
-            command = f"conda activate {config.artiq_environment_name} && artiq_run ../ARTIQ_scripts/run_experiment.py"
+            command = "conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'run_experiment.py')
 
             def runner():
                 if delay_seconds > 0:

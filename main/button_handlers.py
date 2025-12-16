@@ -279,7 +279,7 @@ def handle_go_to_edge_button_clicked(self):
         self.message_to_logger("Go to edge file generated")
         try:
             if config.package_manager == "conda":
-                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/go_to_edge.py"%config.artiq_environment_name])
+                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'go_to_edge.py')])
             elif config.package_manager == "clang64":
                 #coprint("Current directory:", os.getcwd()) #env_test
                 submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'go_to_edge.bat')])
@@ -382,7 +382,7 @@ def handle_init_hardware_button_clicked(self):
         try:
             #initialize environment and submit the experiment to the scheduler
             if config.package_manager == "conda":
-                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/init_hardware.py"%config.artiq_environment_name])
+                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'init_hardware.py')])
             elif config.package_manager == "clang64":
                 # submit_experiment_thread = threading.Thread(target=os.system, args=["init_hardware.bat"])
                 submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
@@ -435,7 +435,7 @@ def handle_submit_run_experiment_py_button_clicked(self):
         try:
             #initialize environment and submit the experiment to the scheduler
             if config.package_manager == "conda":
-                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
+                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'run_experiment.py')])
             elif config.package_manager == "clang64":
                 # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
                 submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
@@ -477,7 +477,7 @@ def handle_continuous_run_button_clicked(self):
         try:
             #initialize environment and submit the experiment to run continuously unless it is stopped
             if config.package_manager == "conda":
-                submit_run_continuously_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/run_experiment.py"%config.artiq_environment_name])
+                submit_run_continuously_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'run_experiment.py')])
             elif config.package_manager == "clang64":
                 # submit_run_continuously_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
                 submit_run_continuously_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'cont_run.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
@@ -649,7 +649,7 @@ def handle_set_slow_dds_states_button_clicked(self):
         try:
             #initialize environment and submit the experiment to the scheduler
             if config.package_manager == "conda":
-                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate %s && artiq_run ../ARTIQ_scripts/set_slow_dds_states.py"%config.artiq_environment_name])
+                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'set_slow_dds_states.py')])
             elif config.package_manager == "clang64":
                 print(str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'set_slow_dds_states.bat'))
                 submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'set_slow_dds_states.bat')])

@@ -163,8 +163,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 file.write(indentation + "camera_enabled = True\n")
         else:
             file.write(indentation + "camera_enabled = True\n")
-    # 10 ns delay to avoid collision of the last edge assignment of digital channels as there is at most camera_trigger_ttl channel changes at a given time stamp
-    file.write(indentation + "delay(10*ns)\n")
+    # 100 ns delay to avoid collision of the last edge assignment of digital channels as there is at most camera_trigger_ttl channel changes at a given time stamp
+    file.write(indentation + "delay(100*ns)\n")
     # If scan is needed 
     if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
         #making a scanning loop 
@@ -226,8 +226,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         #DIGITAL CHANNEL CHANGES
         if config.dds_channels_number > 0:
             for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
-                if edge_index == 0 and index % 8 == 0: #adding a 100 ns delay to make changes into TTL channels
-                    file.write(indentation + "delay(100*ns)\n")
+                if edge_index == 0 and index % 8 == 0: #adding a 1000 ns delay to make changes into TTL channels
+                    file.write(indentation + "delay(1000*ns)\n")
 
                 if channel.changed == True:
                     if index in config.camera_trigger_ttl:
@@ -248,8 +248,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                         else:
                             file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
             
-            if edge_index == 0: #adding a 10 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
-                file.write(indentation + "delay(10*ns)\n")
+            if edge_index == 0: #adding a 1000 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
+                file.write(indentation + "delay(1000*ns)\n")
        
         #ANALOG CHANNEL CHANGES
         if config.analog_channels_number > 0:
@@ -351,8 +351,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation += "    "
         file.write(indentation + "camera_enabled = False  # Camera disabled during post-experiment continuous run\n")
 
-        # 10 ns delay to avoid collision of the last edge assignment of digital channels as there is at most 8 channel changes at a given time stamp
-        file.write(indentation + "delay(10*ns)\n")
+        # 1000 ns delay to avoid collision of the last edge assignment of digital channels as there is at most 8 channel changes at a given time stamp
+        file.write(indentation + "delay(1000*ns)\n")
         # If scan is needed 
         if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
             #making a scanning loop 
@@ -414,8 +414,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             #DIGITAL CHANNEL CHANGES
             if config.dds_channels_number > 0:
                 for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
-                    if edge_index == 0 and index % 8 == 0: #adding a 100 ns delay to make changes into TTL channels
-                        file.write(indentation + "delay(100*ns)\n")
+                    if edge_index == 0 and index % 8 == 0: #adding a 1000 ns delay to make changes into TTL channels
+                        file.write(indentation + "delay(1000*ns)\n")
 
                     if channel.changed == True:
                         if index in config.camera_trigger_ttl:
@@ -436,8 +436,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                             else:
                                 file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
                 
-                if edge_index == 0: #adding a 10 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
-                    file.write(indentation + "delay(10*ns)\n")
+                if edge_index == 0: #adding a 1000 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
+                    file.write(indentation + "delay(1000*ns)\n")
         
             #ANALOG CHANNEL CHANGES
             if config.analog_channels_number > 0:
@@ -576,13 +576,13 @@ def create_go_to_edge(self, edge_num, to_default = False):
     # DIGITAL CHANNEL CHANGES
     if config.digital_channels_number > 0:
         for index, channel in enumerate(self.experiment.sequence[edge].digital):
-            if index % 8 == 0: #adding a 100 ns delay to make changes for more than 8 TTL channels. There is a limit of the buffer size
-                file.write(indentation + "delay(100*ns)\n")
+            if index % 8 == 0: #adding a 1 ms delay to make changes for more than 8 TTL channels. There is a limit of the buffer size
+                file.write(indentation + "delay(1*ms)\n")
             if channel.value == 0:
                 file.write(indentation + "self.ttl" + str(index) + ".off()\n")
             elif channel.value == 1:
                 file.write(indentation + "self.ttl" + str(index) + ".on()\n")        
-        file.write(indentation + "delay(10*ns)\n")
+        file.write(indentation + "delay(1*ms)\n")
 
     # ANALOG CHANNEL CHANGES
     if config.analog_channels_number > 0:

@@ -9,24 +9,57 @@ camera as we observed that first several images might probabilistically be fault
 For the list_of_devices_for_initialization you can have a look at your device_db.py file to see what options do you have
 '''
 
+
+import sys
+from pathlib import Path
+
 digital_channels_number = 16
 analog_channels_number = 16
 dds_channels_number = 12
 mirny_channels_number = 0
 slow_dds_channels_number = 0
+sampler_channels_number = 8
+
+# which_project = 'hybrid_experiment'
+which_project = 'cold_atoms'
+
+package_manager = "conda" #it can be either conda or clang64
+artiq_environment_name = "artiq_5" # it can be either artiq or artiq_5 for Hosten lab systems
+analog_card = "zotino" # it can be either fastino or zotino for Hosten lab systems
+research_group_name = "Hosten"
+camera_trigger_ttl = [0,1]
+camera_serial_numbers_dict = {
+    'X':'22433340',
+    'Y':'22433344'
+}
+experiment_data_root = r"G:\Experimental Data\Atoms\MOT_images"
+
+experiment_database_path = str(Path(experiment_data_root).parent / "Atoms_exp_db.xlsx")
+
+# Construct camera_env_python path based on current Python environment
+
+_current_python = Path(sys.executable)
+
+_python_envs_path = Path(str(_current_python).split('python_envs')[0]) / 'python_envs'
+
+camera_env_python = str(_python_envs_path / 'camera_env' / 'Scripts' / 'python.exe')
+
+camera_gain_minmax = [0.00,47.98]
+camera_exp_us_minmax = [19.0,30000000]
+
+camera_launch_delay_s = 5
+allow_skipping_images = True
+skip_images_trigger_count = 10
+
+
 slow_dds_channels = [
     "urukul3_ch0",
     "urukul3_ch1",
     "urukul3_ch2",
     "urukul3_ch3"
 ] # The sequence of the channels should be corresponding to the sequence in the slow DDS tab. The first one in the slow_dds_channels list will be the slow_DDS0 and so on
-sampler_channels_number = 8
-package_manager = "conda" #it can be either conda or clang64
-artiq_environment_name = "artiq_5" # it can be either artiq or artiq_5 for Hosten lab systems
-analog_card = "zotino" # it can be either fastino or zotino for Hosten lab systems
-research_group_name = "Hosten"
-allow_skipping_images = True
-skip_images_trigger_count = 10
+
+
 list_of_devices_for_initialization = [
     "urukul0_cpld",
     "urukul0_ch0",
