@@ -1175,10 +1175,10 @@ class MainWindow(QMainWindow):
     def update_dds_table_header(self, index, name):
         """Rename a DDS channel header while keeping the default prefix numbering."""
         if name != "":
-            self.experiment.title_dds_tab[index] = "DDS%d"%(index) + " " + name
+            self.experiment.title_dds_tab[index+4] = "DDS%d"%(index) + " " + name
         else:
-            self.experiment.title_dds_tab[index] = "DDS%d"%(index)
-        self.dds_table_header.item(0,6*index+1).setText(self.experiment.title_dds_tab[index])
+            self.experiment.title_dds_tab[index+4] = "DDS%d"%(index)
+        self.dds_table_header.item(0,6*index+1).setText(self.experiment.title_dds_tab[index+4])
         self.dialog.accept()
 
 

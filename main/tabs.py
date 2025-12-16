@@ -925,6 +925,7 @@ def dds_tab_build(self):
 
 
     self.dds_table_header.cellClicked.connect(self.dds_table_header_clicked)
+    
     #SHAPING THE TABLE
     for i in range(config.dds_channels_number):
         self.dds_table_header.setSpan(0,1 + 6*i, 1, 5) # stretching the title of the channel
