@@ -333,6 +333,11 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             #file.write(indentation + "print('%s %s = ', %s)\n" %(("Value of ramped variable: "), str(flag_ramp_variable.name), flag_ramp_variable.functionramp))
             for indent in range(count_indent):
                 indentation = indentation[:-4] 
+    file.write(indentation + "#exiting the scan at the first step if camera is not enabled \n")            
+    file.write(indentation + "if not camera_enabled: \n")
+    indentation += '    '
+    file.write(indentation + "break \n")
+    indentation = indentation[:-4]
             
     ###############################################################################################
     ############################# for continuous run AFTER experiment #############################

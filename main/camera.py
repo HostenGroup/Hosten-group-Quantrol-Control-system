@@ -413,6 +413,8 @@ def run_acquisition(args: argparse.Namespace) -> None:
                     image.Save(str(filename))
                     saved_images += 1
                     print(f"Saved image number: {saved_images}")
+                    time_el = dt.datetime.now() - time_start
+                    print(f"{time_el.total_seconds()}")
                     print("Use hardware to trigger image acquisition. Press Ctrl+C to interrupt.")
             finally:
                 image.Release()

@@ -27,10 +27,10 @@ package_manager = "conda" #it can be either conda or clang64
 artiq_environment_name = "artiq_5" # it can be either artiq or artiq_5 for Hosten lab systems
 analog_card = "zotino" # it can be either fastino or zotino for Hosten lab systems
 research_group_name = "Hosten"
-camera_trigger_ttl = [0,1]
+camera_trigger_ttl = [8,9]
 camera_serial_numbers_dict = {
-    'X':'22433340',
-    'Y':'22433344'
+    'XY':'22114656',
+    'Z':'22114732'
 }
 experiment_data_root = r"G:\Experimental Data\Atoms\MOT_images"
 
@@ -39,10 +39,11 @@ experiment_database_path = str(Path(experiment_data_root).parent / "Atoms_exp_db
 # Construct camera_env_python path based on current Python environment
 
 _current_python = Path(sys.executable)
+repository_path = Path(__file__).resolve().parent.parent
 
 _python_envs_path = Path(str(_current_python).split('python_envs')[0]) / 'python_envs'
 
-camera_env_python = str(_python_envs_path / 'camera_env' / 'Scripts' / 'python.exe')
+camera_env_python = str(repository_path.parent.parent / 'Documents' / 'python_envs' / 'camera_env' / 'Scripts' / 'python.exe')
 
 camera_gain_minmax = [0.00,47.98]
 camera_exp_us_minmax = [19.0,30000000]

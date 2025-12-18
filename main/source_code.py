@@ -1494,7 +1494,7 @@ class MainWindow(QMainWindow):
                 # Avoid GUI calls from worker threads; log via stdout for troubleshooting.
                 print(f"Failed to start camera acquisition: {exc}")
 
-        thread = threading.Thread(target=runner, daemon=True)
+        thread = threading.Thread(target=runner)
         thread.start()
         return thread
 
@@ -1529,7 +1529,7 @@ class MainWindow(QMainWindow):
         else:
             raise RuntimeError(f"Unsupported package manager: {config.package_manager}")
 
-        thread = threading.Thread(target=runner, daemon=True)
+        thread = threading.Thread(target=runner)
         thread.start()
         return thread
 
