@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import shutil
 import sys
 import traceback
 from pathlib import Path
@@ -310,6 +311,25 @@ def run_acquisition(args: argparse.Namespace) -> None:
         timestamp = dt.datetime.now()
         directory = output_root / timestamp.strftime("%Y_%m_%d") / timestamp.strftime("%H_%M_%S") / args.camera
 
+    # Optional: stage images to a local directory for fast saving, then move to the final directory at the end.
+    final_directory = directory
+    stage_local = bool(getattr(args, "stage_local", False)) or bool(getattr(config, "camera_stage_locally", False))
+    stage_dir_raw = getattr(args, "stage_dir", None) or getattr(config, "camera_stage_dir", None)
+    stage_base = Path(stage_dir_raw).resolve() if stage_dir_raw else (repo_root / "temp_images").resolve()
+    stage_directory: Optional[Path] = None
+    if stage_local:
+        try:
+            # Preserve the run folder structure (<date>/<time>/<camera>) where possible.
+            date_part = directory.parents[1].name if len(directory.parents) >= 2 else dt.datetime.now().strftime("%Y_%m_%d")
+            time_part = directory.parent.name if directory.parent else dt.datetime.now().strftime("%H_%M_%S")
+        except Exception:
+            date_part = dt.datetime.now().strftime("%Y_%m_%d")
+            time_part = dt.datetime.now().strftime("%H_%M_%S")
+        stage_directory = stage_base / str(experiment_name) / date_part / time_part / args.camera
+        directory = stage_directory
+        print(f"Staging enabled: saving locally to {stage_directory}")
+        print(f"Final destination: {final_directory}")
+
     # Parameters you want to put to the info file (ALL VALUES IN SI)
     # Legacy reference (kept for clarity):
     # {
@@ -345,6 +365,7 @@ def run_acquisition(args: argparse.Namespace) -> None:
     camera_dict: Dict[str, PySpin.Camera] = {}
     cam: Optional[PySpin.Camera] = None
     file_directory: Optional[Path] = None
+    final_file_directory: Optional[Path] = None
     info: Optional[Dict[str, object]] = None
     saved_images = 0
     time_start: Optional[dt.datetime] = None
@@ -373,6 +394,7 @@ def run_acquisition(args: argparse.Namespace) -> None:
         configure_camera(cam, exposure_us, args.gain_db, args.format, info)
 
         file_directory = directory
+        final_file_directory = final_directory
         file_directory.mkdir(parents=True, exist_ok=True)
 
         cam.BeginAcquisition()
@@ -478,29 +500,61 @@ def run_acquisition(args: argparse.Namespace) -> None:
             info["skipped_images"] = drop_initial
 
         if not interrupted and file_directory is not None and info is not None and saved_images >= 1:
+            destination_dir = final_file_directory or file_directory
+            staging_used = stage_local and stage_directory is not None and destination_dir != file_directory
+
+            if staging_used:
+                destination_dir.mkdir(parents=True, exist_ok=True)
+                print(f"Moving staged images to final destination: {destination_dir}")
+                try:
+                    moved = 0
+                    for source_path in sorted(file_directory.iterdir()):
+                        if not source_path.is_file():
+                            continue
+                        shutil.move(str(source_path), str(destination_dir / source_path.name))
+                        moved += 1
+                    print(f"Moved {moved} file(s) from staging.")
+
+                    # Remove the now-empty staging folder for this run (and prune empty parents up to stage_base).
+                    shutil.rmtree(file_directory, ignore_errors=True)
+                    parent = (file_directory.parent if file_directory is not None else None)
+                    while parent is not None and parent != stage_base and parent.exists():
+                        try:
+                            next_parent = parent.parent
+                            parent.rmdir()
+                            parent = next_parent
+                        except OSError:
+                            break
+                except Exception as exc:
+                    print(f"Warning: failed to move staged images: {exc}")
+                    print(f"Images remain in staging directory: {file_directory}")
+                    destination_dir = file_directory
+
             # info["image_number"] = saved_images
             # file_directory.mkdir(parents=True, exist_ok=True)
             # with (file_directory / "info.json").open("w", encoding="utf-8") as file:
             #     json.dump(info, file, indent=4)
-            print(rf"Files saved at {file_directory}")
+            print(rf"Files saved at {destination_dir}")
 
             if time_start is not None:
                 time_elapsed = dt.datetime.now() - time_start
                 print(f"Elapsed time: {time_elapsed.total_seconds():.1f} s")
 
             try:
-                last_path_file = Path(config.experiment_data_root / "last_path.txt")
+                data_root = Path(getattr(config, "experiment_data_root", "")).resolve()
+                last_path_file = data_root / "last_path.txt"
                 last_path_file.parent.mkdir(parents=True, exist_ok=True)
-                last_path_file.write_text(str(file_directory))
-                path_list_file = Path(config.experiment_data_root / "path_list.txt")
+                last_path_file.write_text(str(destination_dir))
+                path_list_file = data_root / "path_list.txt"
                 with path_list_file.open("a", encoding="utf-8") as file:
-                    file.write(str(file_directory) + "\n")
+                    file.write(str(destination_dir) + "\n")
             except Exception:
                 print("Warning: unable to update last_path.txt or path_list.txt")
 
             if args.process_images:
                 try:
-                    processing_script = Path(config.experiment_data_root.parent / "image_processing.py")
+                    data_root = Path(getattr(config, "experiment_data_root", "")).resolve()
+                    processing_script = data_root.parent / "image_processing.py"
                     if processing_script.exists():
                         exec(processing_script.read_text(encoding="utf-8"), {})
                 except Exception:
@@ -545,6 +599,8 @@ def main() -> None:
     parser.add_argument("--drop-initial-count", type=int, default=0, help="Number of initial hardware triggers to ignore when saving")
     parser.add_argument("--profile", action="store_true", help="Print per-frame timing breakdown for acquisition vs save")
     parser.add_argument("--no-save", action="store_true", help="Acquire frames but skip saving to disk (for debugging)")
+    parser.add_argument("--stage-local", action="store_true", help="Save images to a local staging directory and move to the target at the end")
+    parser.add_argument("--stage-dir", type=str, default=None, help="Base directory for staging when --stage-local is enabled")
     args = parser.parse_args()
     try:
         run_acquisition(args)

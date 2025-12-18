@@ -1464,6 +1464,13 @@ class MainWindow(QMainWindow):
             if skip_count > 0:
                 argv.extend(["--drop-initial-count", str(int(skip_count))])
 
+        # Optional: stage image saving to a local directory for speed, then copy to the final target dir at the end.
+        if getattr(config, "camera_stage_locally", False):
+            argv.append("--stage-local")
+            stage_dir = getattr(config, "camera_stage_dir", "")
+            if isinstance(stage_dir, str) and stage_dir.strip():
+                argv.extend(["--stage-dir", stage_dir.strip()])
+
         return {
             "argv": argv,
             "cwd": str(camera_script.parent),
