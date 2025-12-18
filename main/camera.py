@@ -12,6 +12,7 @@ import json
 import sys
 import traceback
 from pathlib import Path
+from time import perf_counter
 from typing import Dict, Optional
 
 import PySpin
@@ -347,6 +348,7 @@ def run_acquisition(args: argparse.Namespace) -> None:
     info: Optional[Dict[str, object]] = None
     saved_images = 0
     time_start: Optional[dt.datetime] = None
+    last_saved_at: Optional[float] = None
     drop_initial = 0
     interrupted = False
     try:
@@ -388,7 +390,9 @@ def run_acquisition(args: argparse.Namespace) -> None:
                 raise RuntimeError("Camera timeout. Acquisition finished successfully.")
 
             try:
+                t_get_start = perf_counter()
                 image = cam.GetNextImage(short_timeout)
+                t_get_end = perf_counter()
             except PySpin.SpinnakerException as ex:
                 if "[-1011]" in str(ex):
                     timeout_counter += 1
@@ -401,20 +405,50 @@ def run_acquisition(args: argparse.Namespace) -> None:
 
                 if time_start is None:
                     time_start = dt.datetime.now()
+                    last_saved_at = perf_counter()
 
                 timeout_counter = 0
+
+                get_ms = (t_get_end - t_get_start) * 1000.0
 
                 if remaining_warmup > 0:
                     remaining_warmup -= 1
                     skipped = drop_initial - remaining_warmup
-                    print(f"Discarded warm-up image {skipped}/{drop_initial}")
+                    print(f"Discarded warm-up image {skipped}/{drop_initial} | GetNextImage={get_ms:.1f} ms")
                 else:
                     filename = file_directory / f"{args.camera}_{saved_images}.tif"
-                    image.Save(str(filename))
+                    t_save_start = perf_counter()
+                    if not getattr(args, "no_save", False):
+                        image.Save(str(filename))
+                    t_save_end = perf_counter()
+                    save_ms = (t_save_end - t_save_start) * 1000.0
+
                     saved_images += 1
-                    print(f"Saved image number: {saved_images}")
+
+                    now = perf_counter()
+                    since_last_s = (now - last_saved_at) if last_saved_at is not None else float("nan")
+                    last_saved_at = now
+
+                    output_note = "skipped save" if getattr(args, "no_save", False) else "saved"
+
+                    # Always print timing breakdown (this is what varies strongly between machines).
+                    if getattr(args, "profile", False):
+                        total_ms = get_ms + save_ms
+                        print(
+                            f"#{saved_images:05d} {output_note} | "
+                            f"GetNextImage={get_ms:7.1f} ms | Save={save_ms:7.1f} ms | "
+                            f"Loop~{total_ms:7.1f} ms | since_last={since_last_s*1000.0:7.1f} ms | "
+                            f"{filename}"
+                        )
+                    else:
+                        print(
+                            f"Saved image {saved_images} ({output_note}) | "
+                            f"GetNextImage={get_ms:.1f} ms | Save={save_ms:.1f} ms | "
+                            f"since_last={since_last_s*1000.0:.1f} ms"
+                        )
+
                     time_el = dt.datetime.now() - time_start
-                    print(f"{time_el.total_seconds()}")
+                    print(f"Elapsed since first frame: {time_el.total_seconds():.3f} s")
                     print("Use hardware to trigger image acquisition. Press Ctrl+C to interrupt.")
             finally:
                 image.Release()
@@ -455,10 +489,10 @@ def run_acquisition(args: argparse.Namespace) -> None:
                 print(f"Elapsed time: {time_elapsed.total_seconds():.1f} s")
 
             try:
-                last_path_file = Path(r"G:/Experimental Data/Hybrid/MOT_images/last_path.txt")
+                last_path_file = Path(config.experiment_data_root / "last_path.txt")
                 last_path_file.parent.mkdir(parents=True, exist_ok=True)
                 last_path_file.write_text(str(file_directory))
-                path_list_file = Path(r"G:/Experimental Data/Hybrid/MOT_images/path_list.txt")
+                path_list_file = Path(config.experiment_data_root / "path_list.txt")
                 with path_list_file.open("a", encoding="utf-8") as file:
                     file.write(str(file_directory) + "\n")
             except Exception:
@@ -466,7 +500,7 @@ def run_acquisition(args: argparse.Namespace) -> None:
 
             if args.process_images:
                 try:
-                    processing_script = Path(r"G:/Experimental Data/Hybrid/image_processing.py")
+                    processing_script = Path(config.experiment_data_root.parent / "image_processing.py")
                     if processing_script.exists():
                         exec(processing_script.read_text(encoding="utf-8"), {})
                 except Exception:
@@ -509,6 +543,8 @@ def main() -> None:
     parser.add_argument("--info-text", type=str, default="", help="Optional comment stored in info.json")
     parser.add_argument("--process-images", action="store_true", help="Run legacy post-processing once acquisition finishes")
     parser.add_argument("--drop-initial-count", type=int, default=0, help="Number of initial hardware triggers to ignore when saving")
+    parser.add_argument("--profile", action="store_true", help="Print per-frame timing breakdown for acquisition vs save")
+    parser.add_argument("--no-save", action="store_true", help="Acquire frames but skip saving to disk (for debugging)")
     args = parser.parse_args()
     try:
         run_acquisition(args)
@@ -520,5 +556,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

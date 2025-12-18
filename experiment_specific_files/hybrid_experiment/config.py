@@ -9,6 +9,9 @@ camera as we observed that first several images might probabilistically be fault
 For the list_of_devices_for_initialization you can have a look at your device_db.py file to see what options do you have
 '''
 
+import sys
+from pathlib import Path
+
 digital_channels_number = 16
 analog_channels_number = 16
 dds_channels_number = 12
@@ -28,8 +31,28 @@ camera_serial_numbers_dict = {
     'X':'22433340',
     'Y':'22433344'
 }
+experiment_data_root = r"G:\Experimental Data\Hybrid\MOT_images"
+
+experiment_database_path = str(Path(experiment_data_root).parent / "Hybrid_exp_db.xlsx")
+
+# Construct camera_env_python path based on current Python environment
+
+_current_python = Path(sys.executable)
+repository_path = Path(__file__).resolve().parent.parent
+
+_python_envs_path = Path(str(_current_python).split('python_envs')[0]) / 'python_envs'
+
+camera_env_python = str(repository_path.parent.parent.parent / 'Documents' / 'python_envs' / 'camera_env' / 'Scripts' / 'python.exe')
+
+camera_gain_minmax = [0.00,47.98]
+camera_exp_us_minmax = [19.0,30000000]
+
+camera_launch_delay_s = 5
 allow_skipping_images = True
 skip_images_trigger_count = 10
+
+
+
 slow_dds_channels = [
     "urukul3_ch0",
     "urukul3_ch1",
