@@ -51,6 +51,12 @@ camera_launch_delay_s = 5
 allow_skipping_images = True
 skip_images_trigger_count = 10
 
+# Camera saving performance:
+# If your experiment output directory is on a network drive (e.g. G:\) or is slow because of antivirus scanning,
+# enabling local staging will save images to a local folder first and copy them to the final directory after
+# acquisition finishes.
+camera_stage_locally = True
+camera_stage_dir = str(repository_path / "temp_images")
 
 
 slow_dds_channels = [
