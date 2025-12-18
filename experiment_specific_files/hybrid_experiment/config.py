@@ -55,7 +55,7 @@ skip_images_trigger_count = 10
 # If your experiment output directory is on a network drive (e.g. G:\) or is slow because of antivirus scanning,
 # enabling local staging will save images to a local folder first and copy them to the final directory after
 # acquisition finishes.
-camera_stage_locally = True
+camera_stage_locally = False
 camera_stage_dir = str(repository_path / "temp_images")
 
 
