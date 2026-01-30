@@ -32,9 +32,9 @@ camera_serial_numbers_dict = {
     'XY':'22114656',
     'Z':'22114732'
 }
-experiment_data_root = r"G:\Experimental Data\Atoms\MOT_images"
+experiment_data_root = r"G:\Experimental Data\Atom Interferometer experiment\Raman"
 
-experiment_database_path = str(Path(experiment_data_root).parent / "Atoms_exp_db.xlsx")
+experiment_database_path = str(Path(experiment_data_root) / "Raman_exp_db.xlsx")
 
 # Construct camera_env_python path based on current Python environment
 
