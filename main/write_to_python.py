@@ -98,6 +98,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         actual_runs = 1
     total_runs = warmup_runs + actual_runs
     run_loop_added = False
+    # file.write(f"#warmup = {warmup_runs}, actual = {actual_runs}, total = {total_runs}\n")
 
     # Create an infinite while loop if needs to run continuously
     if run_continuous:

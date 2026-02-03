@@ -430,31 +430,55 @@ def handle_submit_run_experiment_py_button_clicked(self):
             self.ttl0(self.a[index_a])
             self.ttl1(self.b[index_b])
     '''
-    file_name = str(self.repo_path / "ARTIQ_scripts" / 'run_experiment.py')
-    if os.path.exists(file_name):
+    if not self._ensure_camera_experiment_selected():
+        self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
+        return
+    self.count_scanned_variables()
+    self.count_ramped_variables()
+    update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
+    
+    camera_launch_info = None
+    delay_before_artiq = 0.0
+    if hasattr(self, "camera_box") and self.camera_box.isChecked():
         try:
-            #initialize environment and submit the experiment to the scheduler
-            if config.package_manager == "conda":
-                submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'run_experiment.py')])
-            elif config.package_manager == "clang64":
-                # submit_experiment_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'run_experiment.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
-            submit_experiment_thread.start()
-            #unhighlighting the previously highlighted edge
-            if self.experiment.go_to_edge_num != -1:
-                self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
-                self.experiment.go_to_edge_num = -1
-            try:
-                if self.experiment.do_ramp == True:
-                    self.update_sequence_edge_colors()
-            except:
-                pass
-            #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
-            self.message_to_logger("Experiment started")
+            camera_launch_info = self._prepare_camera_launch()
+            delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+
+    try:
+        if camera_launch_info and camera_launch_info.get("metadata_dir"):
+            metadata_dir = Path(camera_launch_info["metadata_dir"])
+        else:
+            metadata_dir = self.repo_path / 'logs'
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+        if not getattr(self.experiment.experimental_data, "current_run_timestamp", ""):
+            self.experiment.experimental_data.current_run_timestamp = datetime.now().isoformat()
+        self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
+        with open(metadata_dir / 'metadata.json', "w") as outfile:
+            json.dump(self.to_dict(self.experiment),outfile,indent=4)
+        self._record_experiment_run(metadata_dir, is_multiple_run=False)
+        if camera_launch_info:
+            self._start_camera_subprocess(camera_launch_info)
+            self.message_to_logger("Camera acquisition started")
+
+        submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
+        #unhighlighting the previously highlighted edge
+        if self.experiment.go_to_edge_num != -1:
+            self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
+            self.experiment.go_to_edge_num = -1
+        try:
+            if self.experiment.do_ramp == True:
+                self.update_sequence_edge_colors()
         except:
-            self.message_to_logger("Was not able to start experiment")        
-    else:
-        self.message_to_logger("The file run_experiment.py is not found")
+            pass
+        #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
+        self.message_to_logger("Experiment started")
+    except Exception as exc:
+        self.message_to_logger(f"Was not able to start experiment: {exc}")
+
 
 
 def handle_continuous_run_button_clicked(self):
