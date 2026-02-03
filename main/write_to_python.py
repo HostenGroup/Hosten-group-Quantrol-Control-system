@@ -140,30 +140,29 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         #     file.write(indentation + "camera_enabled = True\n")
 
     if not run_continuous:
-        if total_runs > 1:
-            file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up\n" % total_runs)
+        
+        file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up\n" % total_runs)
+        indentation += "    "
+        run_loop_added = True
+        # Skip-image runs: trigger camera warm-up shots without saving
+        if config.allow_skipping_images == True and self.experiment.skip_images:
+            skip_count = getattr(config, "skip_images_trigger_count", 10)
+            file.write(indentation + f"# Trigger camera {skip_count} times without saving images\n")
+            # file.write(indentation + "self.core.break_realtime()\n")
+            file.write(indentation + f"if run_index == {warmup_runs}:\n")
             indentation += "    "
-            run_loop_added = True
-            # Skip-image runs: trigger camera warm-up shots without saving
-            if config.allow_skipping_images == True and self.experiment.skip_images:
-                skip_count = getattr(config, "skip_images_trigger_count", 10)
-                file.write(indentation + f"# Trigger camera {skip_count} times without saving images\n")
-                # file.write(indentation + "self.core.break_realtime()\n")
-                file.write(indentation + f"if run_index == {warmup_runs}:\n")
-                indentation += "    "
-                file.write(indentation + f"for _ in range({skip_count}):\n")
-                indentation += "    "
-                for val in config.camera_trigger_ttl:
-                    file.write(indentation + "self.ttl" + str(val) + ".pulse(1*ms)\n")
-                file.write(indentation + "delay(200*ms)\n")
-                indentation = indentation[:-4]
-                indentation = indentation[:-4]
-            if warmup_runs > 0:
-                file.write(indentation + "camera_enabled = (run_index >= %d)   # warm-up run check\n" % warmup_runs)
-            else:
-                file.write(indentation + "camera_enabled = True\n")
+            file.write(indentation + f"for _ in range({skip_count}):\n")
+            indentation += "    "
+            for val in config.camera_trigger_ttl:
+                file.write(indentation + "self.ttl" + str(val) + ".pulse(1*ms)\n")
+            file.write(indentation + "delay(200*ms)\n")
+            indentation = indentation[:-4]
+            indentation = indentation[:-4]
+        if warmup_runs > 0:
+            file.write(indentation + "camera_enabled = (run_index >= %d)   # warm-up run check\n" % warmup_runs)
         else:
             file.write(indentation + "camera_enabled = True\n")
+
     # 100 ns delay to avoid collision of the last edge assignment of digital channels as there is at most camera_trigger_ttl channel changes at a given time stamp
     file.write(indentation + "delay(100*ns)\n")
     # If scan is needed 
