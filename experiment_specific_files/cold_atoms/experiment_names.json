@@ -42,5 +42,9 @@
     "10": {
         "name": "test",
         "plot_x_caption": "test"
+    },
+    "11": {
+        "name": "Population test",
+        "plot_x_caption": "Pop, ratio"
     }
 }
