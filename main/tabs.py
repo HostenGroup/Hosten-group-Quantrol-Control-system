@@ -1060,7 +1060,7 @@ def dds_tab_build(self):
 #VARIABLES TAB
 def variables_tab_build(self):
     
-    derived_variables_table_w = 2*self.sep + 3*self.button_w
+    derived_variables_table_w = 2*self.sep + 3*self.button_w + int(self.SCALE_W * 250) #increase width to have more space for function
     lookup_variables_table_w = 2*self.sep + 3*self.button_w
     derived_variables_table_h = self.bottom_buttons_y_val - self.top_margin - 2*self.sep - self.button_h
 
