@@ -216,12 +216,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                         count_indent = count_indent + 1
 
         
-        # RPC for derived variable calculation
+        # RPC for derived variable calculation: handle multiple derived variables per edge
         if edge_index > 0:
-            index_of_derived_variable = self.experiment.sequence[edge_index].derived_variable_requested
-            if index_of_derived_variable != -1:
-                variable = self.experiment.derived_variables[index_of_derived_variable]
-                file.write(indentation + "%s = calculate_%s(%s)\n"%(variable.name, variable.name, variable.arguments))
+            edge_id = getattr(self.experiment.sequence[edge_index], 'id', '')
+            if edge_id:
+                for variable in self.experiment.derived_variables:
+                    if getattr(variable, 'edge_id', '') == edge_id:
+                        file.write(indentation + "%s = calculate_%s(%s)\n" % (variable.name, variable.name, variable.arguments))
 
         #DIGITAL CHANNEL CHANGES
         if config.dds_channels_number > 0:
@@ -419,12 +420,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                             count_indent = count_indent + 1
 
             
-            #RPC for derived variable calculation
+            #RPC for derived variable calculation: handle multiple derived variables per edge
             if edge_index > 0:
-                index_of_derived_variable = self.experiment.sequence[edge_index].derived_variable_requested
-                if index_of_derived_variable != -1:
-                    variable = self.experiment.derived_variables[index_of_derived_variable]
-                    file.write(indentation + "%s = calculate_%s(%s)\n"%(variable.name, variable.name, variable.arguments))
+                edge_id = getattr(self.experiment.sequence[edge_index], 'id', '')
+                if edge_id:
+                    for variable in self.experiment.derived_variables:
+                        if getattr(variable, 'edge_id', '') == edge_id:
+                            file.write(indentation + "%s = calculate_%s(%s)\n" % (variable.name, variable.name, variable.arguments))
 
             #DIGITAL CHANNEL CHANGES
             if config.dds_channels_number > 0:

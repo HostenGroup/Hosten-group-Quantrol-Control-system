@@ -624,7 +624,7 @@ def digital_tab_build(self):
 
     #Dummy table that will display edge number, name and time and will be fixed
     self.digital_dummy = QTableWidget(self.digital_tab_widget)
-    self.digital_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1020)))
+    self.digital_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1050)))
     self.digital_dummy.setColumnCount(3)
     self.digital_dummy.setRowCount(1)
     self.digital_dummy.setHorizontalHeaderLabels(self.experiment.title_digital_tab[0:3])
@@ -647,7 +647,7 @@ def digital_tab_build(self):
         exec("self.digital_dummy.setItemDelegateForColumn(%d,delegate)" %_)
         
     self.digital_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.digital_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.digital_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
     separator_height = max(2, int(round(self.SCALE_H)))
     digital_table_geom = self.digital_table.geometry()
@@ -751,7 +751,7 @@ def analog_tab_build(self):
 
     #Dummy table that will display edge number, name and time and will be fixed
     self.analog_dummy = QTableWidget(self.analog_tab_widget)
-    self.analog_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1003)))
+    self.analog_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1050)))
     self.analog_dummy.setColumnCount(3)
     self.analog_dummy.setRowCount(1)
     self.analog_dummy.setHorizontalHeaderLabels(self.experiment.title_analog_tab[0:3])
@@ -774,7 +774,7 @@ def analog_tab_build(self):
         exec("self.analog_dummy.setItemDelegateForColumn(%d,delegate)" %_)
 
     self.analog_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.analog_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.analog_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
     separator_height = max(2, int(round(self.SCALE_H)))
     analog_table_geom = self.analog_table.geometry()
@@ -994,10 +994,12 @@ def dds_tab_build(self):
     # self.dds_seq_header.item(0,3).setBackground(self.grey)
 
     #populating edge number, name and time
+    # Always use fixed labels for the first three columns
+    fixed_labels = ["#", "Name", "Time (ms)"]
     for i in range(3):
-        title_text = str(dds_titles[i]) if i < len(dds_titles) else ("#" if i == 0 else "" )
-        self.dds_seq_header.setItem(0,i, QTableWidgetItem(title_text))
-        self.dds_seq_header.item(0,i).setTextAlignment(Qt.AlignCenter)
+        item = QTableWidgetItem(fixed_labels[i])
+        item.setTextAlignment(Qt.AlignCenter)
+        self.dds_seq_header.setItem(0, i, item)
 
     #MAKING VERTICAL SCROLL BARS COMMON FOR DDS TABLE
     self.dds_tables = [self.dds_table,self.dds_seq,self.analog_table,self.analog_dummy, self.digital_table, self.digital_dummy, self.sequence_table]
@@ -1009,7 +1011,7 @@ def dds_tab_build(self):
             bar.setValue(idx)
         
     self.dds_seq.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
     self.dds_seq_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.dds_seq_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     
@@ -1026,7 +1028,7 @@ def dds_tab_build(self):
         for bar in scrollbars:
             bar.setValue(idx)
         
-    self.dds_table_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_table_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
     self.dds_table_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     for tbl in self.dds_seq_tables:
         scrollbar = tbl.horizontalScrollBar()
