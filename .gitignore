@@ -8,6 +8,7 @@ ARTIQ_scripts/
 /device_db.py
 /logs
 main/config.py
+main/temp_images
 
 
 
