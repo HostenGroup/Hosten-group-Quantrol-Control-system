@@ -1,14 +1,15 @@
 __pycache__/
-dataset_db*
-default/
-repository/
-results/
-sequences/
-ARTIQ_scripts/
-/device_db.py
-/logs
-main/config.py
-main/temp_images
+# dataset_db*
+# default/
+# repository/
+# results/
+# sequences/
+# ARTIQ_scripts/
+# /device_db.py
+# /logs
+# main/config.py
+# main/temp_images
+experiment_specific_files/hybrid_experiment
 
 
 

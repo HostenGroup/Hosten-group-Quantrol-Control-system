@@ -14,8 +14,8 @@ sequence description, variables use and scan, input values allowed range check a
 Author  :   Vyacheslav Li (until 2.0), Andrea Pupic, Alexei Gurchenko (later versions)
 Email   :   vyacheslav.li.1991@gmail.com, andrea.pupic@ist.ac.at, alexei.gurchenko@ist.ac.at
 Date    :   07.30.2024 (2.0)
-Update  :   09.2025 
-Version :   2.3.3
+Update  :   02.2026 
+Version :   2.3.4
 Contact :   https://hostenlab.pages.ist.ac.at/contact/
 '''
 

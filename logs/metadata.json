@@ -1,0 +1,1872 @@
+{
+    "title_digital_tab": [
+        "#",
+        "Name",
+        "Time (ms)",
+        "",
+        "D0\nX shutter",
+        "D1\nXqwp shutter",
+        "D2\nY shutter",
+        "D3\nYqwp shutter",
+        "D4\nZtop shutter",
+        "D5\nZbot shutter",
+        "D6\nRepump shutter",
+        "D7",
+        "D8\nZ cam trigger",
+        "D9\nXY cam trigger",
+        "D10\nTrigger test",
+        "D11",
+        "D12",
+        "D13",
+        "D14",
+        "D15"
+    ],
+    "title_analog_tab": [
+        "#",
+        "Name",
+        "Time (ms)",
+        "",
+        "A0\nMOT coils (-.65)",
+        "A1\nBx (zero: -4)",
+        "A2\nBy (zero: 1.55)",
+        "A3\nBz (zero: -0.95)",
+        "A4",
+        "A5",
+        "A6\n2D MOT (on=5V)",
+        "A7\nPush B. (on=5V)",
+        "A8\nDipTrap Trans.",
+        "A9\n1527 Trans.",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15"
+    ],
+    "title_dds_tab": [
+        "DDS0 Repump Offset (24xf)",
+        "DDS1 Cooling Offset (3xf, gamma=2.022)",
+        "DDS2 3D MOT XY AOM",
+        "DDS3 3D MOT Z AOM",
+        "DDS0 Repump offset (24xf)",
+        "DDS1 Cooling offset (3xf, gamma=2.002)",
+        "DDS2 3D MOT XY AOM",
+        "DDS3 3D MOT Z AOM",
+        "DDS4 Repump AOM",
+        "DDS5 RF offest (3.6 GHz SSB1)",
+        "DDS6 MW Source frequency offset",
+        "DDS7 Dipole Trap offset (SSB trap)",
+        "DDS8 Repump modulation",
+        "DDS9 Raman 1 AOM",
+        "DDS10 Raman 2 AOM",
+        "DDS11 2D MOT and push beam AOM"
+    ],
+    "title_mirny_tab": [],
+    "title_sampler_tab": [
+        "#",
+        "Name",
+        "Time (ms)",
+        "",
+        "S0",
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7"
+    ],
+    "title_slow_dds_tab": [],
+    "sequence": [
+        {
+            "expression": "0.0",
+            "value": 0.0,
+            "name": "Default",
+            "id": "id0",
+            "digital": [
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                }
+            ],
+            "analog": [
+                {
+                    "expression": "0.0005",
+                    "value": 0.0005
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "3.0",
+                    "value": 3.0
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.75",
+                    "value": 0.75
+                },
+                {
+                    "expression": "0.45",
+                    "value": 0.45
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                }
+            ],
+            "dds": [
+                {
+                    "frequency": {
+                        "expression": "225.85",
+                        "value": 225.85
+                    },
+                    "amplitude": {
+                        "expression": "90.0",
+                        "value": 90.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "381.25",
+                        "value": 381.25
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "40.0",
+                        "value": 40.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "182.0",
+                        "value": 182.0
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "365.32",
+                        "value": 365.32
+                    },
+                    "amplitude": {
+                        "expression": "29.0",
+                        "value": 29.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "228.24",
+                        "value": 228.24
+                    },
+                    "amplitude": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "4.0",
+                        "value": 4.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "amplitude": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "15.0",
+                        "value": 15.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "70.0",
+                        "value": 70.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                }
+            ],
+            "mirny": [],
+            "sampler": [
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+            ],
+            "derived_variable_requested": -1
+        },
+        {
+            "expression": "id0+10.0",
+            "value": 10.0,
+            "name": "sample",
+            "id": "id1",
+            "digital": [
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                }
+            ],
+            "analog": [
+                {
+                    "expression": "0.0005",
+                    "value": 0.0005
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "3.0",
+                    "value": 3.0
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.75",
+                    "value": 0.75
+                },
+                {
+                    "expression": "0.45",
+                    "value": 0.45
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                }
+            ],
+            "dds": [
+                {
+                    "frequency": {
+                        "expression": "225.85",
+                        "value": 225.85
+                    },
+                    "amplitude": {
+                        "expression": "90.0",
+                        "value": 90.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "381.25",
+                        "value": 381.25
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "40.0",
+                        "value": 40.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "182.0",
+                        "value": 182.0
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "365.32",
+                        "value": 365.32
+                    },
+                    "amplitude": {
+                        "expression": "29.0",
+                        "value": 29.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "228.24",
+                        "value": 228.24
+                    },
+                    "amplitude": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "4.0",
+                        "value": 4.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "amplitude": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "15.0",
+                        "value": 15.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "70.0",
+                        "value": 70.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                }
+            ],
+            "mirny": [],
+            "sampler": [
+                "0",
+                "samp1",
+                "samp2",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+            ],
+            "derived_variable_requested": -1
+        },
+        {
+            "expression": "id1+10.0",
+            "value": 20.0,
+            "name": "save",
+            "id": "id2",
+            "digital": [
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                }
+            ],
+            "analog": [
+                {
+                    "expression": "0.0005",
+                    "value": 0.0005
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "3.0",
+                    "value": 3.0
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.75",
+                    "value": 0.75
+                },
+                {
+                    "expression": "0.45",
+                    "value": 0.45
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                }
+            ],
+            "dds": [
+                {
+                    "frequency": {
+                        "expression": "225.85",
+                        "value": 225.85
+                    },
+                    "amplitude": {
+                        "expression": "90.0",
+                        "value": 90.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "381.25",
+                        "value": 381.25
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "40.0",
+                        "value": 40.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "182.0",
+                        "value": 182.0
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "365.32",
+                        "value": 365.32
+                    },
+                    "amplitude": {
+                        "expression": "29.0",
+                        "value": 29.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "228.24",
+                        "value": 228.24
+                    },
+                    "amplitude": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "4.0",
+                        "value": 4.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "amplitude": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "15.0",
+                        "value": 15.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "70.0",
+                        "value": 70.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                }
+            ],
+            "mirny": [],
+            "sampler": [
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+            ],
+            "derived_variable_requested": -1
+        },
+        {
+            "expression": "id2+400.0",
+            "value": 420.0,
+            "name": "end",
+            "id": "id3",
+            "digital": [
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0
+                }
+            ],
+            "analog": [
+                {
+                    "expression": "0.0005",
+                    "value": 0.0005
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "3.0",
+                    "value": 3.0
+                },
+                {
+                    "expression": "-6.0",
+                    "value": -6.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.75",
+                    "value": 0.75
+                },
+                {
+                    "expression": "0.45",
+                    "value": 0.45
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                },
+                {
+                    "expression": "0.0",
+                    "value": 0.0
+                }
+            ],
+            "dds": [
+                {
+                    "frequency": {
+                        "expression": "225.85",
+                        "value": 225.85
+                    },
+                    "amplitude": {
+                        "expression": "90.0",
+                        "value": 90.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "381.25",
+                        "value": 381.25
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "6.0",
+                        "value": 6.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "40.0",
+                        "value": 40.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "182.0",
+                        "value": 182.0
+                    },
+                    "amplitude": {
+                        "expression": "30.0",
+                        "value": 30.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.5",
+                        "value": 0.5
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "365.32",
+                        "value": 365.32
+                    },
+                    "amplitude": {
+                        "expression": "29.0",
+                        "value": 29.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "228.24",
+                        "value": 228.24
+                    },
+                    "amplitude": {
+                        "expression": "10.0",
+                        "value": 10.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "4.0",
+                        "value": 4.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "amplitude": {
+                        "expression": "100.0",
+                        "value": 100.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "15.0",
+                        "value": 15.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "20.0",
+                        "value": 20.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "31.5",
+                        "value": 31.5
+                    },
+                    "state": {
+                        "expression": "0",
+                        "value": 0
+                    }
+                },
+                {
+                    "frequency": {
+                        "expression": "80.0",
+                        "value": 80.0
+                    },
+                    "amplitude": {
+                        "expression": "70.0",
+                        "value": 70.0
+                    },
+                    "phase": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "attenuation": {
+                        "expression": "0.0",
+                        "value": 0.0
+                    },
+                    "state": {
+                        "expression": "1",
+                        "value": 1
+                    }
+                }
+            ],
+            "mirny": [],
+            "sampler": [
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+            ],
+            "derived_variable_requested": -1
+        }
+    ],
+    "go_to_edge_num": -1,
+    "new_variables": [
+        {
+            "name": "samp1",
+            "value": 0.0,
+            "argument": ""
+        },
+        {
+            "name": "samp2",
+            "value": 0.0,
+            "argument": ""
+        },
+        {
+            "name": "dt",
+            "value": 0.0,
+            "argument": ""
+        },
+        {
+            "name": "test",
+            "value": 0.0,
+            "argument": ""
+        }
+    ],
+    "variables": {
+        "id0": {
+            "name": "id0",
+            "value": 0.0,
+            "argument": ""
+        },
+        "": {
+            "name": "",
+            "value": 0.0,
+            "argument": ""
+        },
+        "samp1": {
+            "name": "samp1",
+            "value": 0,
+            "argument": ""
+        },
+        "id1": {
+            "name": "id1",
+            "value": 10.0,
+            "argument": ""
+        },
+        "id2": {
+            "name": "id2",
+            "value": 20.0,
+            "argument": ""
+        },
+        "id3": {
+            "name": "id3",
+            "value": 420.0,
+            "argument": ""
+        },
+        "samp2": {
+            "name": "samp2",
+            "value": 0,
+            "argument": ""
+        },
+        "dt": {
+            "name": "dt",
+            "value": 0.0,
+            "argument": ""
+        },
+        "test": {
+            "name": "test",
+            "value": 0.0,
+            "argument": "",
+            "functionramp": 0.0
+        }
+    },
+    "sampler_variables": [
+        "samp2",
+        "samp1"
+    ],
+    "derived_variables": [],
+    "names_of_derived_variables": [],
+    "do_scan": true,
+    "do_ramp": true,
+    "number_of_steps": 5,
+    "number_of_runs": 4,
+    "cam_trigger_off_runs": 5,
+    "file_name": "C:/Users/HostenGroup/Desktop/Hosten-group-Quantrol-Control-system/sequences/tests/sample_test_2",
+    "scanned_variables": [
+        {
+            "name": "dt",
+            "min_val": 0.0,
+            "max_val": 0.0
+        }
+    ],
+    "scanned_variables_count": 1,
+    "ramped_variables": [
+        {
+            "name": "test",
+            "start_ID": "id2",
+            "end_ID": "id3",
+            "functionramp": 0.0,
+            "stepsramp": 0
+        }
+    ],
+    "ramped_variables_count": 1,
+    "run_continuous": false,
+    "multiple_runs": false,
+    "lookup_variables": [],
+    "names_of_lookup_variables": [],
+    "camera_enabled": false,
+    "texp_locked": false,
+    "slow_dds": [],
+    "experimental_data": {
+        "path": null,
+        "experiment_name": null,
+        "comment": null,
+        "experiment_id": null,
+        "camera": {
+            "gain_db": null,
+            "format_name": null,
+            "exposure_time_ms": null,
+            "serial_number": null,
+            "camera_name": null
+        },
+        "current_run_timestamp": "2026-02-24T21:28:49.205218",
+        "current_run_metadata_path": "C:\\Users\\HostenGroup\\Desktop\\Hosten-group-Quantrol-Control-system\\logs"
+    },
+    "skip_images": true,
+    "cam_trigger_off": false,
+    "cont_run_after_exp": false
+}

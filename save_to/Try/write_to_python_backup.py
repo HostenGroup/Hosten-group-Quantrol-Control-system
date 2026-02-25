@@ -64,20 +64,16 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     indentation = indentation[:-4]
 
 
-    #check if there are any sampled variables
-    has_sampled = any(
-        channel != "0"
-        for edge in self.experiment.sequence
-        for channel in edge.sampler)
-    
     # If a varialbe is sampled, we create an array for it to store the sampled values 
-    if has_sampled:
-        file.write("\n")
-        file.write(indentation + "def prepare(self): \n")
-        indentation += "    "
-        file.write(indentation + "# Create persistent dataset (persist=True -> stored in LMDB database)\n")
-        file.write(indentation + "self.set_dataset(\"data\", [], persist=True,archive=False)\n\n")
-        indentation = indentation[:-4]
+    # ### add if or for loop if needed
+    file.write("\n")
+    file.write(indentation + "def prepare(self): \n")
+    indentation += "    "
+    file.write(indentation + "# Create persistent dataset (persist=True -> stored in LMDB database)\n")
+    file.write(indentation + "self.set_dataset(\"data\", [], persist=True,archive=False)\n\n")
+    file.write(indentation + "# Define where you want the copy saved\n")
+    file.write(indentation + "self.backup_directory = \"C:/Users/HostenGroup/Desktop/Hosten-group-Quantrol-Control-system/save_to\"\n \n") #dummy directory CHANGE!!!
+    indentation = indentation[:-4]
 
 
     # Overwriting the run method
@@ -133,8 +129,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation += "    "
         indentation_flag += 1
         file.write(indentation + "camera_enabled = True   # continuous run\n")
-        file.write(indentation + "run_index = 0\n")
-        file.write(indentation + "step = 0\n")
         # file.write(indentation + "self.core.break_realtime()\n")
         # if warmup_runs > 0:
         #     file.write(indentation + "if not hasattr(self, '_cam_warmup_remaining'):\n")
@@ -207,8 +201,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         for variable in self.experiment.scanned_variables:
             if variable.name != "None":
                 file.write(indentation + f"{variable.name} = self.{variable.name}[step]\n")
-    else:
-        file.write(indentation + "step = 0\n")
     self.delta_t = 0 
 
     #flag_init is used to indicate that there is no need for a delay calculation for the first row
@@ -370,12 +362,16 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             for indent in range(count_indent):
                 indentation = indentation[:-4] 
 
-    if has_sampled:
-        file.write('\n' + indentation + "# For save sample variables\n")
-        args_str = ""
-        if sampled_names:
-            args_str += ", ".join(sampled_names)
-        file.write(indentation + "self.store_sample(run_index, step, %s)\n" %(args_str))
+    file.write('\n' + indentation + "# For save sample variables\n")
+    file.write(indentation + "if 'run_index' not in locals(): run_index = 0\n")
+    file.write(indentation + "if 'step' not in locals(): step = 0\n")
+    print("sampled_names:", sampled_names)
+    args_str = ""
+    if sampled_names:
+        args_str += ", ".join(sampled_names)
+    
+    print("args_str:", args_str)
+    file.write(indentation + "self.store_sample(run_index, step, %s)\n" %(args_str))
 
 
     for variable in self.experiment.derived_variables: # to print the values of all arguments in dervied variables (feedback)
@@ -393,43 +389,26 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     indentation = indentation[:-4]
     indentation = indentation[:-4*(indentation_flag)]
 
-    if has_sampled:
-        file.write('\n' + indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
-    
-    file.write('\n' + indentation + "self.print_end_exp()  # print end of experiment in the end of the run \n")
+    file.write('\n' + indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     file.write('\n')
 
-    
     indentation = indentation[:-4]
     file.write(indentation + "@rpc\n")
-    file.write('\n')
-    file.write(indentation + "def print_end_exp(self):\n")
+    file.write(indentation + "def store_sample(self, run_index, step, %s):\n" %(args_str))
     indentation += '    '
-    file.write(indentation + "print(\"End of experiment\")\n")
+    file.write(indentation + "self.append_to_dataset(\"data\", (int(run_index), int(step), %s))\n" %(args_str))
     indentation = indentation[:-4]
-    
-    if has_sampled:
-        file.write('\n')
-        file.write(indentation + "def store_sample(self, run_index, step, %s):\n" %(args_str))
-        indentation += '    '
-        file.write(indentation + "self.append_to_dataset(\"data\", (int(run_index), int(step), %s))\n" %(args_str))
-        indentation = indentation[:-4]
 
-        file.write('\n')
-        file.write(indentation + "def copy_dataset_file(self):\n")
-        indentation += '    '
-        file.write(indentation + "# Define where you want the copy saved\n")
-        file.write(indentation + "self.backup_directory = \"C:/Users/HostenGroup/Desktop/Hosten-group-Quantrol-Control-system/save_to\"\n \n") #dummy directory CHANGE!!!
-        file.write(indentation + "source_file =\"C:/Users/HostenGroup/Desktop/Hosten-group-Quantrol-Control-system/dataset_db.pyon\" # the source file is the dataset_db.pyon file generated by ARTIQ\n")
-        file.write(indentation + "target_file = os.path.join(self.backup_directory,\"dataset_db_copy.txt\")\n")
-        file.write(indentation + "shutil.copy2(source_file, target_file)\n")
-
-
-
-
+    file.write('\n')
+    file.write(indentation + "def copy_dataset_file(self):\n")
+    indentation += '    '
+    file.write(indentation + "source_file =\"C:/Users/HostenGroup/Desktop/Hosten-group-Quantrol-Control-system/dataset_db.pyon\"\n")
+    file.write(indentation + "target_file = os.path.join(self.backup_directory,\"dataset_db_copy.txt\")\n")
+    file.write(indentation + "shutil.copy2(source_file, target_file)\n")
+    file.write(indentation + "print(\"End of experiment\")\n")
 
         
-
+        
         
         
 
