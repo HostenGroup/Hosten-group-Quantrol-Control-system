@@ -1,18 +1,22 @@
+#ignore for git when pushing to main - both for hybrid and atoms
 __pycache__/
-# dataset_db*
-# default/
-# repository/
-# results/
-# sequences/
-# ARTIQ_scripts/
-# /device_db.py
-# /logs
-# main/config.py
-# main/temp_images
+dataset_db*
+default/
+repository/
+results/
+sequences/
+ARTIQ_scripts/
+/device_db.py
+/logs
+main/config.py
+main/temp_images
+
+# ignore for git when pushing to atom_interferometry branch
+__pycache__/
+dataset_db*
+main/temp_images
+main/temp_lookup_variables
 experiment_specific_files/hybrid_experiment
-
-
-
 
 
 
