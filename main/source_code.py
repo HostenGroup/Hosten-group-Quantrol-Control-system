@@ -748,6 +748,50 @@ class MainWindow(QMainWindow):
         show_error_message(text, title)
  
 
+    def closeEvent(self, event):
+        '''
+        Prompt the user to save the current sequence when the main window is closed.
+        Offers Yes (save), No (discard), and Cancel (abort close).
+        '''
+        try:
+            file_label = self.experiment.file_name if getattr(self.experiment, 'file_name', '') else '<unsaved>'
+            text = f"Do you want to save the sequence before exiting?\nCurrent file: {file_label}"
+            reply = QMessageBox.question(self, "Exit", text,
+                                         QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                                         QMessageBox.Yes)
+
+            if reply == QMessageBox.Yes:
+                camera_box = getattr(self, 'camera_box', None)
+                texp_locked = getattr(self, '_texp_locked', None)
+                file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
+                # If no file path set, ask Save As starting in default sequences directory
+                if not getattr(self.experiment, 'file_name', ''):
+                    start_dir = str(file_io.get_default_directory(self.repo_path))
+                    path = QFileDialog.getSaveFileName(self, 'Save File', start_dir)[0]
+                    if not path:
+                        # user cancelled Save As -> abort close
+                        event.ignore()
+                        return
+                    self.experiment.file_name = path
+                success, message, _ = file_io.save_experiment(self.experiment)
+                if message:
+                    try:
+                        self.message_to_logger(message)
+                    except Exception:
+                        pass
+                if success:
+                    event.accept()
+                else:
+                    QMessageBox.warning(self, "Save failed", message or "Saving the sequence failed.")
+                    event.ignore()
+            elif reply == QMessageBox.No:
+                event.accept()
+            else:
+                event.ignore()
+        except Exception:
+            event.accept()
+ 
+
     def decode_input(self, text):
         '''
         Function is used to decode the user input in a form of a simple mathematical expression. It interprets chunks of text 
