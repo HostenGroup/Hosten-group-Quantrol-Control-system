@@ -4,14 +4,11 @@ from scipy.io import loadmat
 import os
 import shutil
 from datetime import datetime
-import main.config
+# import main.config
 from pathlib import Path 
 
 def calculate_SSB(SSB,sampleSPOL)->TFloat: 
     return SSB+(-0.750+sampleSPOL)*0.235 
-
-def calculate_rr(rr,df)->TFloat: 
-    return rr+df 
 
 class run_experiment(EnvExperiment):
     def build(self):
@@ -63,7 +60,6 @@ class run_experiment(EnvExperiment):
         inputs = [0.0]*8
         delay(1*s)
         SSB = float(228.24)
-        rr = float(2)
         test = 0.0
         T_exp_ = 0.35
         dt = 0.0
@@ -175,7 +171,6 @@ class run_experiment(EnvExperiment):
                 sampleSPOL = inputs[1]
                 #Edge number 4 name of edge: Turn off 780 (locking)
                 delay((30.0)*ms)
-                rr = calculate_rr(rr,df)
                 self.zotino0.write_dac(9, 0.45)
                 self.zotino0.load()
                 self.urukul2_ch1.set_att((30.0)*dB) 
@@ -211,9 +206,6 @@ class run_experiment(EnvExperiment):
                 self.urukul1_ch0.set_att((10.0)*dB) 
                 self.urukul1_ch0.set(frequency = (80.0)*MHz, amplitude = (40.0)/100 , phase = (0.0)/360)
                 self.urukul1_ch0.sw.off() 
-                # Sampler input readout
-                self.sampler0.sample(inputs)
-                df = inputs[1]
                 #Edge number 9 name of edge: Cont Load begin
                 delay((10.0)*ms)
                 self.urukul0_ch1.set_att((0.5)*dB) 
@@ -454,13 +446,10 @@ class run_experiment(EnvExperiment):
                 # For save sample variables
                 if camera_enabled:
                     run_index = 1   # real number of runs 
-                    self.store_sample(run_index, step, sampleSPOL, df)
+                    self.store_sample(run_index, step, sampleSPOL)
 
                 print("SSB:", SSB)
                 print("sampleSPOL:", sampleSPOL)
-
-                print("rr:", rr)
-                print("df:", df)
 
                 #exiting the scan at the first step if camera is not enabled 
                 if not camera_enabled: 
@@ -475,14 +464,14 @@ class run_experiment(EnvExperiment):
     def print_end_exp(self):
         print("End of experiment")
 
-    def store_sample(self, run_index, step, sampleSPOL, df):
-        self.append_to_dataset("data", (int(run_index), int(step), sampleSPOL, df))
+    def store_sample(self, run_index, step, sampleSPOL):
+        self.append_to_dataset("data", (int(run_index), int(step), sampleSPOL))
 
     def copy_dataset_file(self):
         # Define where you want the copy saved
         source_file = Path(__file__).parent.parent / "dataset_db.pyon"
  
-        target_directory = main.config.experiment_data_root / "save sampled variables"
+        target_directory = config.experiment_data_root / "save sampled variables"
         target_directory.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         target_file = target_directory / f"dataset_db_copy_{timestamp}.txt"
