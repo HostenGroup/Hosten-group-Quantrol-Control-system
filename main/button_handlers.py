@@ -373,7 +373,7 @@ def handle_go_to_edge_button_clicked(self):
                 submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'go_to_edge.bat')])
             submit_experiment_thread.start()
             self.message_to_logger("Went to edge")
-            print("edge_num", edge_num)
+            print("test: went to edge_num :", edge_num)
             #unhighlighting the previously highlighted edge if it was previously highlighted
             if self.experiment.go_to_edge_num != -1:
                 self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
@@ -498,6 +498,8 @@ def handle_generate_run_experiment_py_button_clicked(self):
     Function is used to generate the run_experiment.py according to the experimental descirption without
     running it. It is usefull for debugging purposes.
     '''
+    self.count_scanned_variables()
+    self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #specifically used to update for_python version of each parameter in the sequence
     try:
         write_to_python.create_experiment(self)
