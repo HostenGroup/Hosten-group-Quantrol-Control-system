@@ -304,8 +304,9 @@ def run_acquisition(args: argparse.Namespace) -> None:
             output_root = directory
         output_root = output_root.resolve()
     else:
-        output_root = Path(args.output_root) if args.output_root else Path(
-            rf"G:/Experimental Data/Atom Interferometer experiment/Raman/{experiment_name}"
+        output_root = (Path(args.output_root) if args.output_root else
+            # Path (rf"G:/Experimental Data/Atom Interferometer experiment/Raman/{experiment_name}")
+            config.experiment_data_root / f"{experiment_name}"
         )
         output_root = output_root.resolve()
         timestamp = dt.datetime.now()

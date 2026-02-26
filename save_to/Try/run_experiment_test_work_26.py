@@ -3,9 +3,8 @@ import numpy as np
 from scipy.io import loadmat
 import os
 import shutil
-from datetime import datetime
 import main.config
-from pathlib import Path 
+from pathlib import Path
 
 def calculate_SSB(SSB,sampleSPOL)->TFloat: 
     return SSB+(-0.750+sampleSPOL)*0.235 
@@ -67,7 +66,7 @@ class run_experiment(EnvExperiment):
         firstraman2 = 0.0
         sampleSPOL = 0.0
         df = 0.0
-        for run_index in range(4):   # run loop including camera warm-up: warmup = 3, actual = 1, total = 4
+        for run_index in range(4):   # run loop including camera warm-up: warmup = {warmup_runs}, actual = {actual_runs}, total = {total_runs}
             # Trigger camera 10 times without saving images
             if run_index == 3:
                 for _ in range(10):
@@ -470,9 +469,9 @@ class run_experiment(EnvExperiment):
     def copy_dataset_file(self):
         # Define where you want the copy saved
         source_file = Path(__file__).parent.parent / "dataset_db.pyon"
- 
-        target_directory = main.config.experiment_data_root / "save sampled variables"
+
+        target_directory = main.config.experiment_data_root / "save sampled variables" 
         target_directory.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        target_file = target_directory / f"dataset_db_copy_{timestamp}.txt"
+        target_file = target_directory / "dataset_db_copy.txt"
         shutil.copy2(source_file, target_file)
+
