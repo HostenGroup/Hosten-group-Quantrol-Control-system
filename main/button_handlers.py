@@ -346,8 +346,13 @@ def handle_run_experiment_button_clicked(self):
             if not getattr(self.experiment.experimental_data, "current_run_timestamp", ""):
                 self.experiment.experimental_data.current_run_timestamp = datetime.now().isoformat()
             self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
-            with open(metadata_dir / 'metadata.json', "w") as outfile:
+            # with open(metadata_dir / 'metadata.json', "w") as outfile:
+            #     json.dump(self.to_dict(self.experiment),outfile,indent=4)
+            timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '').split('.')[0]
+            metadata_filename = f'metadata{timestamp}.json'
+            with open(metadata_dir / metadata_filename, "w") as outfile:
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
+
             self._record_experiment_run(metadata_dir, is_multiple_run=False)
             if camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
@@ -457,7 +462,11 @@ def handle_submit_run_experiment_py_button_clicked(self):
         if not getattr(self.experiment.experimental_data, "current_run_timestamp", ""):
             self.experiment.experimental_data.current_run_timestamp = datetime.now().isoformat()
         self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
-        with open(metadata_dir / 'metadata.json', "w") as outfile:
+        # with open(metadata_dir / 'metadata.json', "w") as outfile:
+        #     json.dump(self.to_dict(self.experiment),outfile,indent=4)
+        timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '').split('.')[0]
+        metadata_filename = f'metadata{timestamp}.json'
+        with open(metadata_dir / metadata_filename, "w") as outfile:
             json.dump(self.to_dict(self.experiment),outfile,indent=4)
         self._record_experiment_run(metadata_dir, is_multiple_run=False)
         if camera_launch_info:
@@ -560,8 +569,13 @@ def handle_multiple_runs_button_clicked(self):
             if not getattr(self.experiment.experimental_data, "current_run_timestamp", ""):
                 self.experiment.experimental_data.current_run_timestamp = datetime.now().isoformat()
             self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
-            with open(metadata_dir / 'metadata.json', "w") as outfile:
+            # with open(metadata_dir / 'metadata.json', "w") as outfile:
+            #     json.dump(self.to_dict(self.experiment),outfile,indent=4)
+            timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '').split('.')[0]
+            metadata_filename = f'metadata{timestamp}.json'
+            with open(metadata_dir / metadata_filename, "w") as outfile:
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
+
             self._record_experiment_run(metadata_dir, is_multiple_run=True)
             if camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
