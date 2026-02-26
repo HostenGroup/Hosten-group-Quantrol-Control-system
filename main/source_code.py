@@ -208,6 +208,38 @@ class MainWindow(QMainWindow):
         if config.slow_dds_channels_number > 0:
             self.main_window.addTab(self.slow_dds_tab_widget, "Slow DDS")
         self.to_update = True
+        # Track the last edge the user selected across all tabs so "Go to Edge" can
+        # fall back to a selection made in any tab when the current tab has none.
+        self.last_selected_edge_num = None
+        # Internal flag used to suppress the selection-changed handler when we
+        # programmatically change the selection (e.g. on tab switch). Do not
+        # confuse with `self.to_update` which serves a different purpose.
+        self._suppress_selection_handler = False
+
+        # Connect selection change signals from edge-bearing tables to update the tracker.
+        try:
+            if hasattr(self, "sequence_table"):
+                self.sequence_table.itemSelectionChanged.connect(lambda: self._on_edge_table_selection_changed(self.sequence_table))
+            if hasattr(self, "digital_dummy"):
+                self.digital_dummy.itemSelectionChanged.connect(lambda: self._on_edge_table_selection_changed(self.digital_dummy))
+            if hasattr(self, "analog_dummy"):
+                self.analog_dummy.itemSelectionChanged.connect(lambda: self._on_edge_table_selection_changed(self.analog_dummy))
+            if hasattr(self, "dds_seq"):
+                self.dds_seq.itemSelectionChanged.connect(lambda: self._on_edge_table_selection_changed(self.dds_seq))
+            if hasattr(self, "mirny_dummy"):
+                self.mirny_dummy.itemSelectionChanged.connect(lambda: self._on_edge_table_selection_changed(self.mirny_dummy))
+            if hasattr(self, "sampler_table"):
+                self.sampler_table.itemSelectionChanged.connect(lambda: self._on_edge_table_selection_changed(self.sampler_table))
+        except Exception:
+            # Best-effort wiring; do not break UI initialization if any widget isn't present yet.
+            pass
+
+        # Connect tab-change signal to auto-reselect the last-selected edge in the newly visible tab.
+        try:
+            if hasattr(self, "main_window"):
+                self.main_window.currentChanged.connect(self._on_tab_changed)
+        except Exception:
+            pass
 
 
     '''
@@ -871,9 +903,6 @@ class MainWindow(QMainWindow):
         self.file_name_lable.setText(self.experiment.file_name)
 
 
-
-
-    
     
     def set_color_of_the_edge(self, set_color, edge_num):
         '''
@@ -881,20 +910,48 @@ class MainWindow(QMainWindow):
         it will color it after successful execution. Or, when the user runs the sequence the highlighted edge should be unhighlighted
         '''
         self.to_update = False # this is done in order to avoid sequence table changed event
-        self.sequence_table.item(edge_num,0).setBackground(set_color)
-        self.sequence_table.item(edge_num,1).setBackground(set_color)
-        self.sequence_table.item(edge_num,2).setBackground(set_color)
-        self.sequence_table.item(edge_num,3).setBackground(set_color)
-        self.sequence_table.item(edge_num,4).setBackground(set_color)
-        self.digital_dummy.item(edge_num,0).setBackground(set_color)
-        self.digital_dummy.item(edge_num,1).setBackground(set_color)
-        self.digital_dummy.item(edge_num,2).setBackground(set_color)
-        self.analog_dummy.item(edge_num,0).setBackground(set_color)
-        self.analog_dummy.item(edge_num,1).setBackground(set_color)
-        self.analog_dummy.item(edge_num,2).setBackground(set_color)
-        self.dds_seq.item(edge_num,0).setBackground(set_color)
-        self.dds_seq.item(edge_num,1).setBackground(set_color)
-        self.dds_seq.item(edge_num,2).setBackground(set_color)
+        try:
+            self.sequence_table.item(edge_num,0).setBackground(set_color)
+            self.sequence_table.item(edge_num,1).setBackground(set_color)
+            self.sequence_table.item(edge_num,2).setBackground(set_color)
+            self.sequence_table.item(edge_num,3).setBackground(set_color)
+            self.sequence_table.item(edge_num,4).setBackground(set_color)
+        except Exception:
+            pass
+        try:
+            self.digital_dummy.item(edge_num,0).setBackground(set_color)
+            self.digital_dummy.item(edge_num,1).setBackground(set_color)
+            self.digital_dummy.item(edge_num,2).setBackground(set_color)
+        except Exception:
+            pass
+        try:
+            self.analog_dummy.item(edge_num,0).setBackground(set_color)
+            self.analog_dummy.item(edge_num,1).setBackground(set_color)
+            self.analog_dummy.item(edge_num,2).setBackground(set_color)
+        except Exception:
+            pass
+        try:
+            # DDS and Mirny have 2-row headers, so add offset when coloring
+            row_offset = 2
+            self.dds_seq.item(edge_num + row_offset,0).setBackground(set_color)
+            self.dds_seq.item(edge_num + row_offset,1).setBackground(set_color)
+            self.dds_seq.item(edge_num + row_offset,2).setBackground(set_color)
+        except Exception:
+            pass
+        try:
+            # Mirny also has 2-row header
+            row_offset = 2
+            self.mirny_dummy.item(edge_num + row_offset,0).setBackground(set_color)
+            self.mirny_dummy.item(edge_num + row_offset,1).setBackground(set_color)
+            self.mirny_dummy.item(edge_num + row_offset,2).setBackground(set_color)
+        except Exception:
+            pass
+        try:
+            self.sampler_table.item(edge_num,0).setBackground(set_color)
+            self.sampler_table.item(edge_num,1).setBackground(set_color)
+            self.sampler_table.item(edge_num,2).setBackground(set_color)
+        except Exception:
+            pass
         self.to_update = True        
     
     
@@ -1353,6 +1410,102 @@ class MainWindow(QMainWindow):
 
         self.error_message("Experiment is not chosen. Choose an experiment.", "Camera acquisition")
         return False
+
+
+    def _on_edge_table_selection_changed(self, table):
+        """Update `self.last_selected_edge_num` when the user selects an edge in any edge table.
+
+        This handler normalises table-specific header offsets (e.g. `dds_seq` / `mirny_dummy`)
+        and stores the sequence index if valid.
+        """
+        # Skip updates when we're programmatically selecting during tab changes
+        if getattr(self, '_suppress_selection_handler', False):
+            return
+        
+        try:
+            row = table.selectedIndexes()[0].row()
+        except (IndexError, AttributeError):
+            try:
+                row = table.currentRow()
+            except Exception:
+                row = -1
+
+        if row is None or row < 0:
+            return
+
+        # Some tables (e.g. DDS / Mirny) reserve top rows for titles; mirror logic used elsewhere.
+        if table is getattr(self, 'dds_seq', None) or table is getattr(self, 'mirny_dummy', None):
+            idx = row - 2
+        else:
+            idx = row
+
+        if idx is not None and idx >= 0 and idx < len(getattr(self.experiment, 'sequence', [])):
+            self.last_selected_edge_num = idx
+
+
+    def _on_tab_changed(self, tab_index):
+        """When the user switches to a new tab, automatically re-select the last-selected edge row in that tab.
+        
+        This keeps the user's edge selection consistent across tab switches, so "Go to Edge"
+        always targets the same sequence edge regardless of active tab.
+        """
+        if getattr(self, 'last_selected_edge_num', None) is None:
+            return
+
+        edge_num = self.last_selected_edge_num
+        sequence = getattr(self.experiment, 'sequence', [])
+        
+        if edge_num < 0 or edge_num >= len(sequence):
+            return
+
+        # Get the widget at this tab index and dynamically map to its table  
+        try:
+            tab_widget = self.main_window.widget(tab_index)
+        except Exception:
+            return
+
+        # Map each tab widget to its edge table and row offset (for tables with headers)
+        table_map = {
+            id(getattr(self, 'sequence_tab_widget', None)): (getattr(self, 'sequence_table', None), 0),
+            id(getattr(self, 'acquisition_tab_widget', None)): (None, 0),  # No edge table
+            id(getattr(self, 'digital_tab_widget', None)): (getattr(self, 'digital_dummy', None), 0),
+            id(getattr(self, 'analog_tab_widget', None)): (getattr(self, 'analog_dummy', None), 0),
+            id(getattr(self, 'dds_tab_widget', None)): (getattr(self, 'dds_seq', None), 2),  # 2-row header
+            id(getattr(self, 'mirny_tab_widget', None)): (getattr(self, 'mirny_dummy', None), 2),  # 2-row header
+            id(getattr(self, 'variables_tab_widget', None)): (None, 0),  # No edge table
+            id(getattr(self, 'sampler_tab_widget', None)): (getattr(self, 'sampler_table', None), 0),
+            id(getattr(self, 'slow_dds_tab_widget', None)): (None, 0),  # No edge table
+        }
+
+        table, row_offset = table_map.get(id(tab_widget), (None, 0))
+
+        if table is None:
+            return
+
+        try:
+            target_row = edge_num + row_offset
+            # Ensure row is in valid range for the table
+            if target_row < 0 or target_row >= table.rowCount():
+                return
+            # Find the actual row in the target table that corresponds to the
+            # sequence edge id. This is robust against header rows, filtering,
+            # or tables that were rebuilt.
+            edge_id = sequence[edge_num].id
+            found_row = self._find_row_for_edge_in_table(table, edge_id)
+            if found_row is None:
+                return
+
+            # Suppress the selection-changed handler while we programmatically
+            # select the row.
+            prev = getattr(self, '_suppress_selection_handler', False)
+            self._suppress_selection_handler = True
+            try:
+                table.selectRow(found_row)
+            finally:
+                self._suppress_selection_handler = prev
+        except Exception:
+            # Silently fail if table state doesn't permit selection
+            pass
 
 
     def _prepare_camera_launch(self):

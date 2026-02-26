@@ -1111,6 +1111,18 @@ def handle_sampler_table_changed(main_window, item):
                 if table_entry == "" or table_entry == "0" or table_entry == "0.0":  # User deleted the value or set it to 0. The function will assign 0 value
                     if channel in main_window.experiment.sampler_variables:  # if the previous value of the sampler was a variable we need to revert back the variables tab value and activate editing
                         main_window.experiment.sampler_variables.remove(channel)
+                        # clear sampled flag on the variable and restore its original stored value if present
+                        if channel in main_window.experiment.variables:
+                            try:
+                                main_window.experiment.variables[channel].is_sampled = False
+                                idx = main_window.index_of_a_new_variable(channel)
+                                if idx is not None:
+                                    # restore value/for_python to the value stored in new_variables
+                                    main_window.experiment.variables[channel].value = main_window.experiment.new_variables[idx].value
+                                    main_window.experiment.variables[channel].for_python = main_window.experiment.new_variables[idx].for_python
+                            except Exception:
+                                pass
+                        update.variable_tables(main_window)
                         update.variables_tab(main_window, derived_variables=False)
                     main_window.update_off()
                     table_item.setText("0")
@@ -1124,6 +1136,14 @@ def handle_sampler_table_changed(main_window, item):
                                     main_window.experiment.sampler_variables.remove(channel)
                                 main_window.experiment.sequence[row].sampler[col - 4] = table_entry  # Updating the sampler value
                                 main_window.experiment.sampler_variables.add(table_entry)  # Adding a new variable to the sampler variables set
+                                # mark the variable as sampled and clear its stored value to indicate sampling
+                                if table_entry in main_window.experiment.variables:
+                                    try:
+                                        main_window.experiment.variables[table_entry].is_sampled = True
+                                        main_window.experiment.variables[table_entry].value = 0
+                                    except Exception:
+                                        pass
+                                update.variable_tables(main_window)
                                 update.variables_tab(main_window, derived_variables=False)
                             else:
                                 main_window.update_off()

@@ -249,6 +249,33 @@ def handle_delete_edge_button_clicked(self):
             return_value = update.digital_analog_dds_mirny_tabs(self)
             if return_value == None: #no errors, means that the edge can be deleted
                 del self.experiment.sequence[row]
+                # Recompute sampler variables set after edge deletion to avoid stale sampled flags
+                new_sampler_set = set()
+                for edge in self.experiment.sequence:
+                    try:
+                        for entry in edge.sampler:
+                            if entry and entry != '0':
+                                new_sampler_set.add(entry)
+                    except Exception:
+                        pass
+                # Reset all variable sampled flags
+                try:
+                    for var in list(self.experiment.variables.keys()):
+                        try:
+                            self.experiment.variables[var].is_sampled = False
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                # Mark variables that remain sampled and set their runtime value to 0
+                for name in new_sampler_set:
+                    if name in self.experiment.variables:
+                        try:
+                            self.experiment.variables[name].is_sampled = True
+                            self.experiment.variables[name].value = 0
+                        except Exception:
+                            pass
+                self.experiment.sampler_variables = new_sampler_set
                 self.sequence_table.setCurrentCell(row-1, 0)
                 update.from_object(self) #updating all tables
             else:
@@ -264,17 +291,78 @@ def handle_go_to_edge_button_clicked(self):
     After a successful execution the edge will be highlighted in green. The function recognizes the tab that is being currently displayed
     and assigns the hardware to the state of the last selected edge in that particular tab.
     '''
-    try:                
-        if self.main_window.currentIndex() == 0:
-            edge_num = self.sequence_table.selectedIndexes()[0].row()
-        elif self.main_window.currentIndex() == 1:
-            edge_num = self.digital_dummy.selectedIndexes()[0].row()    
-        elif self.main_window.currentIndex() == 2:
-            edge_num = self.analog_dummy.selectedIndexes()[0].row()    
-        elif self.main_window.currentIndex() == 3:
-            edge_num = self.dds_seq.selectedIndexes()[0].row() - 2 # because top 2 rows are used for title   
-        elif self.main_window.currentIndex() == 4:
-            edge_num = self.mirny_dummy.selectedIndexes()[0].row() - 2 # because top 2 rows are used for title   
+    try:
+        # Determine current tab widget and map it to the corresponding table + row offset
+        cur_widget = self.main_window.currentWidget()
+        table = None
+        row_offset = 0
+
+        if cur_widget is getattr(self, 'digital_tab_widget', None):
+            table = getattr(self, 'digital_dummy', None)
+            row_offset = 0
+        elif cur_widget is getattr(self, 'analog_tab_widget', None):
+            table = getattr(self, 'analog_dummy', None)
+            row_offset = 0
+        elif cur_widget is getattr(self, 'dds_tab_widget', None):
+            table = getattr(self, 'dds_seq', None)
+            row_offset = 2
+        elif cur_widget is getattr(self, 'mirny_tab_widget', None):
+            table = getattr(self, 'mirny_dummy', None)
+            row_offset = 2
+        elif cur_widget is getattr(self, 'sampler_tab_widget', None):
+            table = getattr(self, 'sampler_table', None)
+            row_offset = 0
+        else:
+            # default to sequence table when no special tab matched
+            table = getattr(self, 'sequence_table', None)
+            row_offset = 0
+
+        edge_num = None
+        # Try to read selection from the active table
+        if table is not None:
+            sel = table.selectedIndexes()
+            if sel:
+                candidate = sel[0].row() - row_offset
+            else:
+                # Some interactions (e.g. right-click) may not change cell selection
+                # but `currentRow()` may reflect the user's intended row. Use it.
+                try:
+                    cur = table.currentRow()
+                    candidate = cur - row_offset if cur is not None else None
+                except Exception:
+                    candidate = None
+
+            # validate candidate against sequence length
+            seq = getattr(self, 'experiment', None)
+            seq_len = len(getattr(seq, 'sequence', [])) if seq is not None else 0
+            if candidate is not None and 0 <= candidate < seq_len:
+                edge_num = candidate
+
+        # Fall back to last selected edge across tabs when current tab has no valid selection
+        if edge_num is None:
+            edge_num = getattr(self, 'last_selected_edge_num', None)
+
+        # Final validation against sequence length
+        seq = getattr(self, 'experiment', None)
+        seq_len = len(getattr(seq, 'sequence', [])) if seq is not None else 0
+        if edge_num is None or not (0 <= edge_num < seq_len):
+            raise ValueError('No edge selected')
+
+        # If we fell back to last selection, update the visible table selection so UI matches
+        try:
+            if table is not None:
+                target_row = edge_num + row_offset
+                if 0 <= target_row < table.rowCount():
+                    prev = getattr(self, '_suppress_selection_handler', False)
+                    self._suppress_selection_handler = True
+                    try:
+                        table.selectRow(target_row)
+                    finally:
+                        self._suppress_selection_handler = prev
+        except Exception:
+            # non-fatal: selection sync is best-effort
+            pass
+
         write_to_python.create_go_to_edge(self, edge_num=edge_num)
         self.message_to_logger("Go to edge file generated")
         try:
