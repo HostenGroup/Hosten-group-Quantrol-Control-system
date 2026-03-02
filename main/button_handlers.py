@@ -305,10 +305,10 @@ def handle_go_to_edge_button_clicked(self):
             row_offset = 0
         elif cur_widget is getattr(self, 'dds_tab_widget', None):
             table = getattr(self, 'dds_seq', None)
-            row_offset = 2
+            row_offset = 0
         elif cur_widget is getattr(self, 'mirny_tab_widget', None):
             table = getattr(self, 'mirny_dummy', None)
-            row_offset = 2
+            row_offset = 0
         elif cur_widget is getattr(self, 'sampler_tab_widget', None):
             table = getattr(self, 'sampler_table', None)
             row_offset = 0
