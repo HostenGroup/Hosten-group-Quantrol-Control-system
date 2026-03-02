@@ -384,6 +384,7 @@ def handle_go_to_edge_button_clicked(self):
                 pass
             #highlighting newly selected edge to go
             self.set_color_of_the_edge(self.green, edge_num)
+            print("set color to green ")
             self.experiment.go_to_edge_num = edge_num
         except:
             self.message_to_logger("Couldn't go to edge")    
