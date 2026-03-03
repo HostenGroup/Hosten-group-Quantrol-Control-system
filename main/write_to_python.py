@@ -383,7 +383,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             args_str += ", ".join(sampled_names)
         file.write(indentation + "if camera_enabled:\n")
         indentation += '    '
-        file.write(indentation + "run_index = %d   # real number of runs \n" % actual_runs)
+        file.write(indentation + "run_index = %d-1   # real number of runs \n" % actual_runs)
         file.write(indentation + "self.store_sample(run_index, step, %s)\n" %(args_str))
         indentation = indentation[:-4]
 
@@ -412,7 +412,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     
     indentation = indentation[:-4]
     file.write(indentation + "@rpc\n")
-    file.write('\n')
     file.write(indentation + "def print_end_exp(self):\n")
     indentation += '    '
     file.write(indentation + "print(\"End of experiment\")\n")
@@ -420,12 +419,14 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     
     if has_sampled:
         file.write('\n')
+        file.write(indentation + "@rpc\n")
         file.write(indentation + "def store_sample(self, run_index, step, %s):\n" %(args_str))
         indentation += '    '
         file.write(indentation + "self.append_to_dataset(\"data\", (int(run_index), int(step), %s))\n" %(args_str))
         indentation = indentation[:-4]
 
         file.write('\n')
+        file.write(indentation + "@rpc\n")
         file.write(indentation + "def copy_dataset_file(self):\n")
         indentation += '    '
         file.write(indentation + "# Define where you want the copy saved\n")

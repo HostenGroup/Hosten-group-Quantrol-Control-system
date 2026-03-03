@@ -748,6 +748,50 @@ class MainWindow(QMainWindow):
         show_error_message(text, title)
  
 
+    def closeEvent(self, event):
+        '''
+        Prompt the user to save the current sequence when the main window is closed.
+        Offers Yes (save), No (discard), and Cancel (abort close).
+        '''
+        try:
+            file_label = self.experiment.file_name if getattr(self.experiment, 'file_name', '') else '<unsaved>'
+            text = f"Do you want to save the sequence before exiting?\nCurrent file: {file_label}"
+            reply = QMessageBox.question(self, "Exit", text,
+                                         QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                                         QMessageBox.Yes)
+
+            if reply == QMessageBox.Yes:
+                camera_box = getattr(self, 'camera_box', None)
+                texp_locked = getattr(self, '_texp_locked', None)
+                file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
+                # If no file path set, ask Save As starting in default sequences directory
+                if not getattr(self.experiment, 'file_name', ''):
+                    start_dir = str(file_io.get_default_directory(self.repo_path))
+                    path = QFileDialog.getSaveFileName(self, 'Save File', start_dir)[0]
+                    if not path:
+                        # user cancelled Save As -> abort close
+                        event.ignore()
+                        return
+                    self.experiment.file_name = path
+                success, message, _ = file_io.save_experiment(self.experiment)
+                if message:
+                    try:
+                        self.message_to_logger(message)
+                    except Exception:
+                        pass
+                if success:
+                    event.accept()
+                else:
+                    QMessageBox.warning(self, "Save failed", message or "Saving the sequence failed.")
+                    event.ignore()
+            elif reply == QMessageBox.No:
+                event.accept()
+            else:
+                event.ignore()
+        except Exception:
+            event.accept()
+ 
+
     def decode_input(self, text):
         '''
         Function is used to decode the user input in a form of a simple mathematical expression. It interprets chunks of text 
@@ -931,19 +975,17 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         try:
-            # DDS and Mirny have 2-row headers, so add offset when coloring
-            row_offset = 2
-            self.dds_seq.item(edge_num + row_offset,0).setBackground(set_color)
-            self.dds_seq.item(edge_num + row_offset,1).setBackground(set_color)
-            self.dds_seq.item(edge_num + row_offset,2).setBackground(set_color)
+            # DDS left-side dummy table uses the same row indexing as other dummies
+            self.dds_seq.item(edge_num,0).setBackground(set_color)
+            self.dds_seq.item(edge_num,1).setBackground(set_color)
+            self.dds_seq.item(edge_num,2).setBackground(set_color)
         except Exception:
             pass
         try:
-            # Mirny also has 2-row header
-            row_offset = 2
-            self.mirny_dummy.item(edge_num + row_offset,0).setBackground(set_color)
-            self.mirny_dummy.item(edge_num + row_offset,1).setBackground(set_color)
-            self.mirny_dummy.item(edge_num + row_offset,2).setBackground(set_color)
+            # Mirny dummy table aligns with sequence rows as well
+            self.mirny_dummy.item(edge_num,0).setBackground(set_color)
+            self.mirny_dummy.item(edge_num,1).setBackground(set_color)
+            self.mirny_dummy.item(edge_num,2).setBackground(set_color)
         except Exception:
             pass
         try:
@@ -1433,11 +1475,10 @@ class MainWindow(QMainWindow):
         if row is None or row < 0:
             return
 
-        # Some tables (e.g. DDS / Mirny) reserve top rows for titles; mirror logic used elsewhere.
-        if table is getattr(self, 'dds_seq', None) or table is getattr(self, 'mirny_dummy', None):
-            idx = row - 2
-        else:
-            idx = row
+        # All edge tables use the same 0-based row index mapping.
+        # Older layouts reserved header rows in-table; current implementation
+        # keeps headers in separate widgets, so use the raw row index.
+        idx = row
 
         if idx is not None and idx >= 0 and idx < len(getattr(self.experiment, 'sequence', [])):
             self.last_selected_edge_num = idx
@@ -1470,8 +1511,8 @@ class MainWindow(QMainWindow):
             id(getattr(self, 'acquisition_tab_widget', None)): (None, 0),  # No edge table
             id(getattr(self, 'digital_tab_widget', None)): (getattr(self, 'digital_dummy', None), 0),
             id(getattr(self, 'analog_tab_widget', None)): (getattr(self, 'analog_dummy', None), 0),
-            id(getattr(self, 'dds_tab_widget', None)): (getattr(self, 'dds_seq', None), 2),  # 2-row header
-            id(getattr(self, 'mirny_tab_widget', None)): (getattr(self, 'mirny_dummy', None), 2),  # 2-row header
+            id(getattr(self, 'dds_tab_widget', None)): (getattr(self, 'dds_seq', None), 0),
+            id(getattr(self, 'mirny_tab_widget', None)): (getattr(self, 'mirny_dummy', None), 0),
             id(getattr(self, 'variables_tab_widget', None)): (None, 0),  # No edge table
             id(getattr(self, 'sampler_tab_widget', None)): (getattr(self, 'sampler_table', None), 0),
             id(getattr(self, 'slow_dds_tab_widget', None)): (None, 0),  # No edge table
@@ -1487,20 +1528,13 @@ class MainWindow(QMainWindow):
             # Ensure row is in valid range for the table
             if target_row < 0 or target_row >= table.rowCount():
                 return
-            # Find the actual row in the target table that corresponds to the
-            # sequence edge id. This is robust against header rows, filtering,
-            # or tables that were rebuilt.
-            edge_id = sequence[edge_num].id
-            found_row = self._find_row_for_edge_in_table(table, edge_id)
-            if found_row is None:
-                return
 
             # Suppress the selection-changed handler while we programmatically
             # select the row.
             prev = getattr(self, '_suppress_selection_handler', False)
             self._suppress_selection_handler = True
             try:
-                table.selectRow(found_row)
+                table.selectRow(target_row)
             finally:
                 self._suppress_selection_handler = prev
         except Exception:
