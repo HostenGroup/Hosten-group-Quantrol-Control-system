@@ -46,5 +46,13 @@
     "11": {
         "name": "Population test",
         "plot_x_caption": "Pop, ratio"
+    },
+    "12": {
+        "name": "Raman lasing",
+        "plot_x_caption": ""
+    },
+    "13": {
+        "name": "MOT",
+        "plot_x_caption": ""
     }
 }
