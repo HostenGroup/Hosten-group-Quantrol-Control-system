@@ -436,7 +436,7 @@ def handle_run_experiment_button_clicked(self):
             self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
             # with open(metadata_dir / 'metadata.json', "w") as outfile:
             #     json.dump(self.to_dict(self.experiment),outfile,indent=4)
-            timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '').split('.')[0]
+            timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '_').split('.')[0]
             metadata_filename = f'metadata{timestamp}.json'
             with open(metadata_dir / metadata_filename, "w") as outfile:
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
@@ -554,7 +554,7 @@ def handle_submit_run_experiment_py_button_clicked(self):
         self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
         # with open(metadata_dir / 'metadata.json', "w") as outfile:
         #     json.dump(self.to_dict(self.experiment),outfile,indent=4)
-        timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '').split('.')[0]
+        timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '_').split('.')[0]
         metadata_filename = f'metadata{timestamp}.json'
         with open(metadata_dir / metadata_filename, "w") as outfile:
             json.dump(self.to_dict(self.experiment),outfile,indent=4)
@@ -661,7 +661,7 @@ def handle_multiple_runs_button_clicked(self):
             self.experiment.experimental_data.current_run_metadata_path = str(metadata_dir)
             # with open(metadata_dir / 'metadata.json', "w") as outfile:
             #     json.dump(self.to_dict(self.experiment),outfile,indent=4)
-            timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '').split('.')[0]
+            timestamp = self.experiment.experimental_data.current_run_timestamp.replace('-', '').replace(':', '').replace('T', '_').split('.')[0]
             metadata_filename = f'metadata{timestamp}.json'
             with open(metadata_dir / metadata_filename, "w") as outfile:
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)

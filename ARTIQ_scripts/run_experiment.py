@@ -153,9 +153,9 @@ class run_experiment(EnvExperiment):
                 samp2 = inputs[2]
                 #Edge number 2 name of edge: save
                 delay((10.0)*ms)
+                for i in range(1, (0+1)):   # ramp up loop 
+                    delay((400.000000000000/0)*ms)  # for ramp up: time devided by steps 
                 #Edge number 3 name of edge: end
-                delay((400.0)*ms)
-                #Edge number 4 name of edge: 
 
                 # For save sample variables
                 if camera_enabled:
@@ -183,7 +183,8 @@ class run_experiment(EnvExperiment):
         # Define where you want the copy saved
         source_file = Path(__file__).parent.parent / "dataset_db.pyon"
  
-        target_directory = Path(config.experiment_data_root) / "save sampled variables"
+        today_folder = datetime.now().strftime("%Y%m%d")
+        target_directory = Path(config.experiment_data_root) / "save sampled variables"  / today_folder 
         target_directory.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         target_file = target_directory / f"dataset_db_copy_{timestamp}.txt"

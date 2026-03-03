@@ -432,7 +432,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "# Define where you want the copy saved\n")
         file.write(indentation + "source_file = Path(__file__).parent.parent / \"dataset_db.pyon\"\n \n") 
 
-        file.write(indentation + "target_directory = Path(config.experiment_data_root) / \"save sampled variables\"\n")
+        file.write(indentation + "today_folder = datetime.now().strftime(\"%Y_%m_%d\")\n")
+        file.write(indentation + "target_directory = Path(config.experiment_data_root) / \"save sampled variables\"  / today_folder \n")
         file.write(indentation + "target_directory.mkdir(parents=True, exist_ok=True)\n")
         file.write(indentation + "timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n")
         file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{timestamp}.txt\"\n")
