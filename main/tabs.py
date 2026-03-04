@@ -1011,7 +1011,10 @@ def dds_tab_build(self):
             bar.setValue(idx)
         
     self.dds_seq.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+    if self.dds_table.verticalScrollBar().maximum() > 0: # to match the possition of rows and colums in GUI
+        self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+    else: 
+        self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.dds_seq_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.dds_seq_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     
