@@ -992,8 +992,12 @@ def dds_tab_build(self):
     #Separator
     # self.dds_seq_header.setItem(0,3, QTableWidgetItem())
     # self.dds_seq_header.item(0,3).setBackground(self.grey)
+    # # populating edge number, name and time  @ title_dds_tab
+    # for i in range(3):
+    #     title_text = str(dds_titles[i]) if i < len(dds_titles) else ("#" if i == 0 else "" )
+    #     self.dds_seq_header.setItem(0,i, QTableWidgetItem(title_text))
+    #     self.dds_seq_header.item(0,i).setTextAlignment(Qt.AlignCenter)
 
-    #populating edge number, name and time
     # Always use fixed labels for the first three columns
     fixed_labels = ["#", "Name", "Time (ms)"]
     for i in range(3):
@@ -1011,11 +1015,8 @@ def dds_tab_build(self):
             bar.setValue(idx)
         
     self.dds_seq.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    if self.dds_table.verticalScrollBar().maximum() > 0: # to match the possition of rows and colums in GUI
-        self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-    else: 
-        self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    self.dds_seq_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    self.dds_seq.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+    self.dds_seq_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff) 
     self.dds_seq_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     
     for tbl in self.dds_tables:
@@ -1030,9 +1031,11 @@ def dds_tab_build(self):
         scrollbars.remove(bar)
         for bar in scrollbars:
             bar.setValue(idx)
-        
-    self.dds_table_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+    
+    self.dds_table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn) 
+    self.dds_table_header.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn) 
     self.dds_table_header.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
     for tbl in self.dds_seq_tables:
         scrollbar = tbl.horizontalScrollBar()
         scrollbar.valueChanged.connect(lambda idx,bar=scrollbar: move_other_scrollbars_horizontal(idx, bar))

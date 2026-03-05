@@ -116,7 +116,7 @@ class init_hardware(EnvExperiment):
         self.urukul1_ch2.set(frequency = 365.319*MHz, amplitude = 29.0/100, phase = (0.0)/360)
         self.urukul1_ch2.sw.off() 
         self.urukul1_ch3.set_att(4.0*dB) 
-        self.urukul1_ch3.set(frequency = 228.64*MHz, amplitude = 10.0/100, phase = (0.0)/360)
+        self.urukul1_ch3.set(frequency = 228.43*MHz, amplitude = 10.0/100, phase = (0.0)/360)
         self.urukul1_ch3.sw.on() 
         self.urukul2_ch0.set_att(0.0*dB) 
         self.urukul2_ch0.set(frequency = 100.0*MHz, amplitude = 100.0/100, phase = (0.0)/360)

@@ -48,7 +48,7 @@ class run_experiment(EnvExperiment):
         self.setattr_device('ttl15')
         self.setattr_device('zotino0')
         self.setattr_device('sampler0')
-        self.df = list(np.linspace(178.000000, 181.000000, 50))
+        self.df = list(np.linspace(178.000000, 182.600000, 50))
         self.datt = list(np.linspace(0.000000, 25.000000, 15))
 
 
@@ -62,7 +62,7 @@ class run_experiment(EnvExperiment):
         self.core.break_realtime()
         inputs = [0.0]*8
         delay(1*s)
-        SSB = float(228.5)
+        SSB = float(228.43)
         test = 0.0
         T_exp_ = 0.35
         dt = 0.0
@@ -391,7 +391,7 @@ class run_experiment(EnvExperiment):
                     self.urukul2_ch2.set(frequency = (80.0)*MHz, amplitude = (20.0)/100 , phase = (0.0)/360)
                     self.urukul2_ch2.sw.on() 
                     #Edge number 36 name of edge: Raman 2 pulse end
-                    delay((0.04999999999991189)*ms)
+                    delay((1.400000000000006)*ms)
                     self.urukul2_ch2.set_att((self.datt[step1])*dB) 
                     self.urukul2_ch2.set(frequency = (80.0)*MHz, amplitude = (20.0)/100 , phase = (0.0)/360)
                     self.urukul2_ch2.sw.off() 
@@ -400,11 +400,11 @@ class run_experiment(EnvExperiment):
                     self.zotino0.write_dac(7, 5.0)
                     self.zotino0.load()
                     #Edge number 38 name of edge: Push end
-                    delay((0.04999999999999716)*ms)
+                    delay((0.04999999999989768)*ms)
                     self.zotino0.write_dac(7, 0.0)
                     self.zotino0.load()
                     #Edge number 39 name of edge: Storage end (free space det.)
-                    delay((3.514000000000095)*ms)
+                    delay((2.164000000000101)*ms)
                     self.zotino0.write_dac(8, 0.01)
                     self.zotino0.write_dac(9, 0.01)
                     self.zotino0.load()
@@ -445,6 +445,8 @@ class run_experiment(EnvExperiment):
                     SSB = calculate_SSB(SSB,sampleSPOL)
                     #Edge number 45 name of edge: Return dipole trap end
                     delay((24.999999999999996)*ms)
+
+
 
                     print("SSB:", SSB)
                     print("sampleSPOL:", sampleSPOL)
