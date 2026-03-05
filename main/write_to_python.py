@@ -342,12 +342,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             arg = arg.strip()
             file.write(f'{indentation}print("{arg}:", {arg})\n')        
         
-
-    file.write('\n' + indentation + "#exiting the scan at the first step if camera is not enabled \n")            
-    file.write(indentation + "if not camera_enabled: \n")
-    indentation += '    '
-    file.write(indentation + "break \n")
-    indentation = indentation[:-4]
+    if self.experiment.do_scan == True:
+        file.write('\n' + indentation + "#exiting the scan at the first step if camera is not enabled \n")            
+        file.write(indentation + "if not camera_enabled: \n")
+        indentation += '    '
+        file.write(indentation + "break \n")
+        indentation = indentation[:-4]
             
     ###############################################################################################
     ############################# for continuous run AFTER experiment #############################
