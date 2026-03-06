@@ -992,18 +992,18 @@ def dds_tab_build(self):
     #Separator
     # self.dds_seq_header.setItem(0,3, QTableWidgetItem())
     # self.dds_seq_header.item(0,3).setBackground(self.grey)
-    # # populating edge number, name and time  @ title_dds_tab
-    # for i in range(3):
-    #     title_text = str(dds_titles[i]) if i < len(dds_titles) else ("#" if i == 0 else "" )
-    #     self.dds_seq_header.setItem(0,i, QTableWidgetItem(title_text))
-    #     self.dds_seq_header.item(0,i).setTextAlignment(Qt.AlignCenter)
-
-    # Always use fixed labels for the first three columns
-    fixed_labels = ["#", "Name", "Time (ms)"]
+    # populating edge number, name and time  @ title_dds_tab
     for i in range(3):
-        item = QTableWidgetItem(fixed_labels[i])
-        item.setTextAlignment(Qt.AlignCenter)
-        self.dds_seq_header.setItem(0, i, item)
+        title_text = str(dds_titles[i]) if i < len(dds_titles) else ("#" if i == 0 else "" )
+        self.dds_seq_header.setItem(0,i, QTableWidgetItem(title_text))
+        self.dds_seq_header.item(0,i).setTextAlignment(Qt.AlignCenter)
+
+    # # Always use fixed labels for the first three columns
+    # fixed_labels = ["#", "NameTest", "Time (ms)"]
+    # for i in range(3):
+    #     item = QTableWidgetItem(fixed_labels[i])
+    #     item.setTextAlignment(Qt.AlignCenter)
+    #     self.dds_seq_header.setItem(0, i, item)
 
     #MAKING VERTICAL SCROLL BARS COMMON FOR DDS TABLE
     self.dds_tables = [self.dds_table,self.dds_seq,self.analog_table,self.analog_dummy, self.digital_table, self.digital_dummy, self.sequence_table]

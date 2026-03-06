@@ -346,7 +346,7 @@ class MainWindow(QMainWindow):
                     self.experiment.sequence[0] = deepcopy(default_experiment.sequence[0])
                     self.experiment.title_digital_tab = deepcopy(default_experiment.title_digital_tab)
                     self.experiment.title_analog_tab = deepcopy(default_experiment.title_analog_tab)
-                    self.experiment.title_dds_tab = deepcopy(default_experiment.title_dds_tab)
+                    self.experiment.title_dds_tab = deepcopy(default_experiment.title_dds_tab)    
                     self.experiment.title_mirny_tab = deepcopy(default_experiment.title_mirny_tab)
                     self.experiment.title_sampler_tab = deepcopy(default_experiment.title_sampler_tab)
                     self._ensure_variable_structures()
@@ -364,7 +364,7 @@ class MainWindow(QMainWindow):
             if config.analog_channels_number > 0:
                 self.experiment.title_analog_tab = ["#", "Name", "Time (ms)", ""] + [f"A{i}" for i in range(config.analog_channels_number)]
             if config.dds_channels_number > 0:
-                self.experiment.title_dds_tab = ["#", "Name", "Time (ms)", ""] + [f"DDS{i}" for i in range(config.dds_channels_number)]            
+                self.experiment.title_dds_tab = ["#", "Name", "Time (ms)", ""] + [f"DDS{i}" for i in range(config.dds_channels_number)]
             if config.mirny_channels_number > 0:
                 self.experiment.title_mirny_tab = ["#", "Name", "Time (ms)", ""] + [f"M{i}" for i in range(config.mirny_channels_number)]            
             if config.sampler_channels_number > 0:
