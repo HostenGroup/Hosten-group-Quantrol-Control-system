@@ -353,7 +353,7 @@ def sequence_tab_build(self):
     #file_name label
     self.file_name_lable = QLabel(self.sequence_tab_widget)
     self.file_name_lable.setFont(QFont('Arial', self.scale_font(10)))
-    self.file_name_lable.setGeometry(*self.scale_geom(275, 2, width_of_table, self.top_margin))
+    self.file_name_lable.setGeometry(*self.scale_geom(200, 2, width_of_table+200, self.top_margin))
 
     #SEQUENCE TAB LAYOUT
     self.sequence_table = QTableWidget(self.sequence_tab_widget)
@@ -395,14 +395,15 @@ def sequence_tab_build(self):
 
     #TABLE OF SCANNING PARAMETERS
     self.scan_table_parameters = QTableWidget()
-    self.scan_table_parameters.setColumnCount(3)
+    self.scan_table_parameters.setColumnCount(4)
     self.scan_table_parameters.setRowCount(0)
     self.scan_table_parameters.verticalHeader().setVisible(False)
     self.scan_table_parameters.setFont(QFont('Arial', self.scale_font(14)))
-    self.scan_table_parameters.setHorizontalHeaderLabels(["Variable","Min value", "Max value"])
+    self.scan_table_parameters.setHorizontalHeaderLabels(["Variable","Min value", "Max value", "Steps"])
     self.scan_table_parameters.setColumnWidth(0,int(self.SCALE_W*250))
     self.scan_table_parameters.setColumnWidth(1,int(self.SCALE_W*200))
     self.scan_table_parameters.setColumnWidth(2,int(self.SCALE_W*200))
+    self.scan_table_parameters.setColumnWidth(3,int(self.SCALE_W*80))
     self.scan_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_scan_table_changed(self, item))
     
 
@@ -421,25 +422,17 @@ def sequence_tab_build(self):
     self.delete_scanned_variable_button.clicked.connect(lambda: button_handlers.handle_delete_scanned_variable_button_pressed(self))
     self.delete_scanned_variable_button.setToolTip("Delete scanned variable button is used to delete variables from the scanning table and hence disable their scans. The user should first right click the variable that needs to be deleted. The Quantrol will set the values of the deleted scanned variables to the values that were defined before the variable was set to scan.")
     
-    #Step size input
-    self.number_of_steps_label = QLabel()
-    self.number_of_steps_label.setText("Number of steps")
-    self.number_of_steps_input = QLineEdit()
-    self.number_of_steps_input.editingFinished.connect(lambda: change_handlers.handle_number_of_steps_input_changed(self))
-    self.number_of_steps_input.setText("1")
 
-    #warning for the user
-    #self.warning_about_scan_range = QLabel(self.sequence_tab_widget)
-    #self.warning_about_scan_range.setFont(QFont('Arial', self.scale_font(14)))
-    #self.warning_about_scan_range.setGeometry(*self.scale_geom(width_of_table + 300, 330, 800, 30))
+    #warning for the user # look into
+    # self.warning_about_scan_range = QLabel(self.sequence_tab_widget)
+    # self.warning_about_scan_range.setFont(QFont('Arial', self.scale_font(14)))
+    # self.warning_about_scan_range.setGeometry(*self.scale_geom(width_of_table + 300, 330, 800, 30))
 
     #Horizontal layout
     hBox = QHBoxLayout()
     temp = QWidget()
     hBox.addWidget(self.add_scanned_variable_button)
-    hBox.addWidget(self.delete_scanned_variable_button)     
-    hBox.addWidget(self.number_of_steps_label)
-    hBox.addWidget(self.number_of_steps_input)
+    hBox.addWidget(self.delete_scanned_variable_button)  
     temp.setLayout(hBox)
 
     #Scan parameters
@@ -452,8 +445,8 @@ def sequence_tab_build(self):
     self.scan_table.setCheckable(True)
     self.scan_table.setChecked(False)
     self.scan_table.setFont(QFont('Arial', self.scale_font(14)))
-    self.scan_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*20))
-    self.scan_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*300))
+    self.scan_table.move(int(self.SCALE_W*x_val_ramp), int(self.SCALE_H*30))
+    self.scan_table.setFixedSize(int(self.SCALE_W*w_val_ramp), int(self.SCALE_H*290))
     self.scan_table.toggled.connect(lambda: other_handlers.handle_scan_table_checked(self))
     vBox = QVBoxLayout()
     self.scan_table.setLayout(vBox)

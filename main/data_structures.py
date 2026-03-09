@@ -342,10 +342,17 @@ class ScannedVariable:
         min_val     :   Minimum value assigned to the scanned variable
         max_val     :   Maximum value assigned to the scanned variable
     ''' 
-    def __init__(self, name, min_val, max_val):
+    def __init__(self, name, min_val, max_val, num_scan_steps):
         self.name = name
         self.min_val = min_val
         self.max_val = max_val
+        # check if num_scan_steps is a positive integer, otherwise default to 1
+        try:
+            self.num_scan_steps = int(num_scan_steps)
+            if self.num_scan_steps <= 0:
+                self.num_scan_steps = 1
+        except Exception:
+            self.num_scan_steps = 1
 
 
 class RampedVariable: 
