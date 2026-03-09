@@ -1169,7 +1169,7 @@ def handle_clear_logger_button_clicked(main_window):
 
 def handle_add_scanned_variable_button_pressed(main_window):
     '''Add a scanned variable with name "None" and update scan_table.'''
-    main_window.experiment.scanned_variables.append(ScannedVariable("None", 0.0, 0.0))
+    main_window.experiment.scanned_variables.append(ScannedVariable("None", 0.0, 0.0, 0.0))
     update.scan_table(main_window)
     update.digital_analog_dds_mirny_tabs(main_window)
     update.variable_tables(main_window)
@@ -1188,10 +1188,17 @@ def handle_delete_scanned_variable_button_pressed(main_window):
             main_window.experiment.new_variables[index].is_scanned = False
             main_window.experiment.variables[variable.name].for_python = main_window.experiment.variables[variable.name].value
         del main_window.experiment.scanned_variables[row]
+        # Reassign per-variable step indices (for_python) for remaining scanned variables
+        for i, rem_var in enumerate(main_window.experiment.scanned_variables):
+            if rem_var.name != "None" and rem_var.name in main_window.experiment.variables:
+                main_window.experiment.variables[rem_var.name].is_scanned = True
+                main_window.experiment.variables[rem_var.name].for_python = "self.%s[step%d]" % (rem_var.name, i+1)
+
         # Update the variables tab first to update values for evaluation
         update.variable_tables(main_window)
         update.scan_table(main_window)
         update.digital_analog_dds_mirny_tabs(main_window)
+        main_window.count_scanned_variables()
         if row != 0:
             main_window.scan_table_parameters.setCurrentCell(row-1, 0)
     except:

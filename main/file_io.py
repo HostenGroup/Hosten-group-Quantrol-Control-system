@@ -531,13 +531,16 @@ def record_experiment_run(experiment, repo_path: Path, metadata_dir: str,
             max_val = getattr(variable, "max_val", "")
             scan_ranges.append(f"{min_val} -> {max_val}")
 
+    # compute total number of scan points as product of per-variable `num_scan_steps` (default 1)
     scan_points = 1
     if getattr(experiment, "do_scan", False) and getattr(experiment, "scanned_variables_count", 0) > 0:
         try:
-            scan_points = int(getattr(experiment, "number_of_steps", 1))
+            total = 1
+            for variable in getattr(experiment, "scanned_variables", []):
+                if getattr(variable, "name", "") != "None":
+                    total *= int(getattr(variable, "num_scan_steps", 1))
+            scan_points = max(1, int(total))
         except (TypeError, ValueError):
-            scan_points = 1
-        if scan_points <= 0:
             scan_points = 1
 
     number_of_runs_value = getattr(experiment, "number_of_runs", 1)

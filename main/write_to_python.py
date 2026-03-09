@@ -64,7 +64,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         var_names = ""
         for variable in self.experiment.scanned_variables:
             if variable.name != "None":
-                file.write(indentation + "self.%s = list(np.linspace(%f, %f, %d))\n"%(variable.name, variable.min_val, variable.max_val, self.experiment.number_of_steps))
+                num = getattr(variable, 'num_scan_steps', 1)
+                file.write(indentation + "self.%s = list(np.linspace(%f, %f, %d))\n"%(variable.name, variable.min_val, variable.max_val, int(num)))
                 var_names += variable.name + ", "
     file.write("\n")
     indentation = indentation[:-4]
@@ -204,15 +205,20 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "delay(100*ns)\n")
     # If scan is needed 
     if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
-        #making a scanning loop 
-        #introduce a flag for multi and single variable scan
         file.write(indentation + "#Beginning of the Scan\n")
-        file.write(indentation + "for step in range(%d):\n" %(self.experiment.number_of_steps))
-        indentation += "    "
-        indentation_flag += 1
-        for variable in self.experiment.scanned_variables:
+        # open nested loops: step1, step2, ... for each scanned variable in order
+        opened = 0
+        for idx, variable in enumerate(self.experiment.scanned_variables):
             if variable.name != "None":
-                file.write(indentation + f"{variable.name} = self.{variable.name}[step]\n")
+                num = getattr(variable, 'num_scan_steps', 1)
+                file.write(indentation + "for step%d in range(%d):\n" % (idx+1, int(num)))
+                indentation += "    "
+                opened += 1
+        # assign current scanned values to variable names (use step indices)
+        for idx, variable in enumerate(self.experiment.scanned_variables):
+            if variable.name != "None":
+                file.write(indentation + f"{variable.name} = self.{variable.name}[step{idx+1}]\n")
+        indentation_flag += opened
     else:
         file.write(indentation + "step = 0\n")
     self.delta_t = 0 
@@ -381,10 +387,22 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         args_str = ""
         if sampled_names:
             args_str += ", ".join(sampled_names)
+
+        # determine which step variables exist (step1, step2, ...)
+        step_var_names = [f"step{idx+1}" for idx, variable in enumerate(self.experiment.scanned_variables) if getattr(variable, 'name', "") != "None"]
+
         file.write(indentation + "if camera_enabled:\n")
         indentation += '    '
         file.write(indentation + "run_index = %d-1   # real number of runs \n" % actual_runs)
-        file.write(indentation + "self.store_sample(run_index, step, %s)\n" %(args_str))
+
+        # build call arguments: steps (if any) followed by sampled variable names
+        if step_var_names:
+            call_args_list = step_var_names + sampled_names
+            call_args = ", ".join(call_args_list)
+            file.write(indentation + "self.store_sample(run_index, %s)\n" % (call_args if call_args else ""))
+        else:
+            # no per-variable steps: keep legacy single `step` argument
+            file.write(indentation + "self.store_sample(run_index, step%s)\n" % (", " + args_str if args_str else ""))
         indentation = indentation[:-4]
 
 
@@ -420,10 +438,25 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if has_sampled:
         file.write('\n')
         file.write(indentation + "@rpc\n")
-        file.write(indentation + "def store_sample(self, run_index, step, %s):\n" %(args_str))
-        indentation += '    '
-        file.write(indentation + "self.append_to_dataset(\"data\", (int(run_index), int(step), %s))\n" %(args_str))
-        indentation = indentation[:-4]
+        # determine per-variable step names
+        step_var_names = [f"step{idx+1}" for idx, variable in enumerate(self.experiment.scanned_variables) if getattr(variable, 'name', "") != "None"]
+        if step_var_names:
+            signature_args_list = step_var_names + sampled_names
+            signature_args = ", ".join(signature_args_list)
+            file.write(indentation + f"def store_sample(self, run_index, {signature_args}):\n")
+            indentation += '    '
+            # build tuple for dataset: run_index, all steps as ints, then sampled values
+            tuple_parts = ["int(run_index)"] + [f"int({s})" for s in step_var_names]
+            if sampled_names:
+                tuple_parts += sampled_names
+            file.write(indentation + f"self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
+            indentation = indentation[:-4]
+        else:
+            # legacy single step
+            file.write(indentation + "def store_sample(self, run_index, step%s):\n" % (", " + args_str if args_str else ""))
+            indentation += '    '
+            file.write(indentation + "self.append_to_dataset(\"data\", (int(run_index), int(step)%s))\n" % (", " + args_str if args_str else ""))
+            indentation = indentation[:-4]
 
         file.write('\n')
         file.write(indentation + "@rpc\n")
@@ -472,14 +505,19 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "delay(1000*ns)\n")
         # If scan is needed 
         if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
-            #making a scanning loop 
-            #introduce a flag for multi and single variable scan
+            #making a scanning loop (use per-variable `num_scan_steps`)
             file.write(indentation + "#Beginning of the Scan\n")
-            file.write(indentation + "for step in range(%d):\n" %(self.experiment.number_of_steps))
-            indentation += "    "
-            for variable in self.experiment.scanned_variables:
+            # open nested loops based on per-variable step counts
+            opened = 0
+            for idx, variable in enumerate(self.experiment.scanned_variables):
                 if variable.name != "None":
-                    file.write(indentation + f"{variable.name} = self.{variable.name}[step]\n")
+                    num = getattr(variable, 'num_scan_steps', 1)
+                    file.write(indentation + "for step%d in range(%d):\n" % (idx+1, int(num)))
+                    indentation += "    "
+                    opened += 1
+            for idx, variable in enumerate(self.experiment.scanned_variables):
+                if variable.name != "None":
+                    file.write(indentation + f"{variable.name} = self.{variable.name}[step{idx+1}]\n")
         self.delta_t = 0 
 
         #flag_init is used to indicate that there is no need for a delay calculation for the first row
@@ -565,7 +603,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                     for index, channel in enumerate(self.experiment.sequence[edge_index].analog):
                         if channel.changed == True:
                             flag_zotino_change_needed = True
-                            file.write(indentation + "self.zotino0.write_dac(%d, %s)\n" %(index, channel.for_python)) 
+                            expr = str(channel.for_python)
+                            for sv_idx, sv in enumerate(self.experiment.scanned_variables):
+                                sv_name = getattr(sv, 'name', '')
+                                if sv_name and sv_name != "None":
+                                    expr = expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                    expr = expr.replace(f"self.{sv_name}[step]", sv_name)
+                            file.write(indentation + "self.zotino0.write_dac(%d, %s)\n" %(index, expr)) 
                             
                     if flag_zotino_change_needed:
                         file.write(indentation + "self.zotino0.load()\n")
@@ -579,7 +623,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                             number_of_channels_changed += 1
                             if edge_index == 0 or index > 0: #adds a delay only for the default edge and in sace of 
                                 file.write(indentation + "delay(10*ns)\n")    
-                            file.write(indentation + "self.fastino0.set_dac(%d, %s)\n" %(index,channel.for_python))
+                            expr = str(channel.for_python)
+                            for sv_idx, sv in enumerate(self.experiment.scanned_variables):
+                                sv_name = getattr(sv, 'name', '')
+                                if sv_name and sv_name != "None":
+                                    expr = expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                    expr = expr.replace(f"self.{sv_name}[step]", sv_name)
+                            file.write(indentation + "self.fastino0.set_dac(%d, %s)\n" %(index,expr))
                     #Moving the time cursor back
                     if number_of_channels_changed > 1:
                         file.write(indentation + "delay(-%d0*ns)\n" %(number_of_channels_changed-1))
@@ -590,8 +640,23 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                     if channel.changed == True:
                         urukul_num = int(index // 4)
                         channel_num = int(index % 4)
-                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set_att((" + str(channel.attenuation.for_python) + ")*dB) \n")    
-                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set(frequency = (" + str(channel.frequency.for_python) + ")*MHz, amplitude = (" + str(channel.amplitude.for_python) + ")/100 , phase = (" + str(channel.phase.for_python) + ")/360)\n")    
+                        att_expr = str(channel.attenuation.for_python)
+                        freq_expr = str(channel.frequency.for_python)
+                        amp_expr = str(channel.amplitude.for_python)
+                        phase_expr = str(channel.phase.for_python)
+                        for sv_idx, sv in enumerate(self.experiment.scanned_variables):
+                            sv_name = getattr(sv, 'name', '')
+                            if sv_name and sv_name != "None":
+                                att_expr = att_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                att_expr = att_expr.replace(f"self.{sv_name}[step]", sv_name)
+                                freq_expr = freq_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                freq_expr = freq_expr.replace(f"self.{sv_name}[step]", sv_name)
+                                amp_expr = amp_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                amp_expr = amp_expr.replace(f"self.{sv_name}[step]", sv_name)
+                                phase_expr = phase_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                phase_expr = phase_expr.replace(f"self.{sv_name}[step]", sv_name)
+                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set_att((" + att_expr + ")*dB) \n")    
+                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set(frequency = (" + freq_expr + ")*MHz, amplitude = (" + amp_expr + ")/100 , phase = (" + phase_expr + ")/360)\n")    
                         if channel.state.value == 1:
                             file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.on() \n")
                         else:

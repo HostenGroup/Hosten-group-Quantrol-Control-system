@@ -323,7 +323,7 @@ def handle_scan_table_changed(main_window, item):
                         #updating the values and scanning states of the new scanning  variable
                         variable.name = new_variable_name
                         main_window.experiment.variables[variable.name].value = variable.min_val
-                        main_window.experiment.variables[variable.name].for_python = "self." + variable.name + "[step]"
+                        main_window.experiment.variables[variable.name].for_python = "self." + variable.name + "[step%d]" % (row+1)
                         main_window.experiment.variables[variable.name].is_scanned = True
                         main_window.experiment.new_variables[index].is_scanned = True
                     else: #The variable name enteres is used in sampler tab
@@ -353,6 +353,18 @@ def handle_scan_table_changed(main_window, item):
                 variable.max_val = float(table_item.text())
                 table_item.setText(str(variable.max_val))
             except:
+                main_window.error_message("Expression can not be evaluated", "Wrong entry")
+        elif col == 3: # number of scans for this scanned variable
+            try:
+                expression = table_item.text()
+                (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
+                exec("main_window.value = " + str(evaluation), {"main_window": main_window})
+                if int(main_window.value) > 0:
+                    variable.num_scan_steps = int(main_window.value)
+                    table_item.setText(str(variable.num_scan_steps))
+                else:
+                    main_window.error_message("Only positive integers larger than 0 are allowed", "Wrong entry")
+            except Exception:
                 main_window.error_message("Expression can not be evaluated", "Wrong entry")
         update.digital_analog_dds_mirny_tabs(main_window)
         update.variable_tables(main_window)

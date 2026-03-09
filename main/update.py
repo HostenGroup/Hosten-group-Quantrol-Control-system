@@ -645,11 +645,13 @@ def variables_tab(self, new_variables = True, derived_variables = True, lookup_v
 def scan_table(self):
     self.update_off()
     self.scan_table_parameters.setRowCount(len(self.experiment.scanned_variables))
-    self.number_of_steps_input.setText(str(self.experiment.number_of_steps))
     for row, variable in enumerate(self.experiment.scanned_variables):
         self.scan_table_parameters.setItem(row,0, QTableWidgetItem(str(variable.name)))
         self.scan_table_parameters.setItem(row,1, QTableWidgetItem(str(variable.min_val)))
         self.scan_table_parameters.setItem(row,2, QTableWidgetItem(str(variable.max_val)))
+        # display per-variable number of scans (use `num_scan_steps`, default 1)
+        num = getattr(variable, 'num_scan_steps', 1)
+        self.scan_table_parameters.setItem(row,3, QTableWidgetItem(str(num)))
     self.update_on()
 
 def ramp_table(self):
