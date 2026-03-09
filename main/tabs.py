@@ -403,7 +403,7 @@ def sequence_tab_build(self):
     self.scan_table_parameters.setColumnWidth(0,int(self.SCALE_W*250))
     self.scan_table_parameters.setColumnWidth(1,int(self.SCALE_W*200))
     self.scan_table_parameters.setColumnWidth(2,int(self.SCALE_W*200))
-    self.scan_table_parameters.setColumnWidth(3,int(self.SCALE_W*80))
+    self.scan_table_parameters.setColumnWidth(3,int(self.SCALE_W*100))
     self.scan_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_scan_table_changed(self, item))
     
 
