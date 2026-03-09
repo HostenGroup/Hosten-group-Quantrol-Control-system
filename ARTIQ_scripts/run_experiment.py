@@ -48,7 +48,7 @@ class run_experiment(EnvExperiment):
         self.setattr_device('ttl15')
         self.setattr_device('zotino0')
         self.setattr_device('sampler0')
-        self.df = list(np.linspace(182.000000, 183.000000, 200))
+        self.df = list(np.linspace(182.000000, 182.400000, 200))
 
 
     def prepare(self): 
@@ -61,7 +61,7 @@ class run_experiment(EnvExperiment):
         self.core.break_realtime()
         inputs = [0.0]*8
         delay(1*s)
-        SSB = float(228.58)
+        SSB = float(228.52)
         test = 0.0
         T_exp_ = 0.35
         dt = 3.0
