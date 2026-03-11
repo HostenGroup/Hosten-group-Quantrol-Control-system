@@ -78,7 +78,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         for channel in edge.sampler)
     
     # If a varialbe is sampled, we create an array for it to store the sampled values 
-    if has_sampled:
+    if has_sampled and not run_continuous:
         file.write("\n")
         file.write(indentation + "def prepare(self): \n")
         indentation += "    "
@@ -180,6 +180,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         
         file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up: warmup = %d, actual = %d, total = %d\n" % (total_runs, warmup_runs, actual_runs, total_runs))
         indentation += "    "
+        file.write(indentation + "run_index_no_warumup = run_index - %d # real run index for actual runs, will be negative for warm-up runs\n" % warmup_runs)
         indentation_flag += 1
         run_loop_added = True
         # Skip-image runs: trigger camera warm-up shots without saving
@@ -382,7 +383,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             for indent in range(count_indent):
                 indentation = indentation[:-4] 
 
-    if has_sampled:
+    if has_sampled and not run_continuous:
         file.write('\n' + indentation + "# For save sample variables\n")
         args_str = ""
         if sampled_names:
@@ -393,16 +394,16 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
         file.write(indentation + "if camera_enabled:\n")
         indentation += '    '
-        file.write(indentation + "run_index = %d-1   # real number of runs \n" % actual_runs)
 
         # build call arguments: steps (if any) followed by sampled variable names
         if step_var_names:
             call_args_list = step_var_names + sampled_names
             call_args = ", ".join(call_args_list)
-            file.write(indentation + "self.store_sample(run_index, %s)\n" % (call_args if call_args else ""))
+            file.write(indentation + "self.store_sample(run_index_no_warumup, %s)\n" % (call_args if call_args else ""))
+            
         else:
             # no per-variable steps: keep legacy single `step` argument
-            file.write(indentation + "self.store_sample(run_index, step%s)\n" % (", " + args_str if args_str else ""))
+            file.write(indentation + "self.store_sample(run_index_no_warumup, step%s)\n" % (", " + args_str if args_str else ""))
         indentation = indentation[:-4]
 
 
@@ -411,6 +412,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write('\n')
         for arg in args_list:
             arg = arg.strip()
+            file.write(f'{indentation}delay(5*ms)\n')        
             file.write(f'{indentation}print("{arg}:", {arg})\n')        
         
 
@@ -421,7 +423,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     indentation = indentation[:-4]
     indentation = indentation[:-4*(indentation_flag)]
 
-    if has_sampled:
+    if has_sampled and not run_continuous:
         file.write('\n' + indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
     file.write('\n' + indentation + "self.print_end_exp()  # print end of experiment in the end of the run \n")
@@ -435,7 +437,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "print(\"End of experiment\")\n")
     indentation = indentation[:-4]
     
-    if has_sampled:
+    if has_sampled and not run_continuous:
         file.write('\n')
         file.write(indentation + "@rpc\n")
         # determine per-variable step names
