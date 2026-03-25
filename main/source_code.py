@@ -162,6 +162,8 @@ class MainWindow(QMainWindow):
         self._texp_locked = False
         self._updating_texp_lock = False
         self._openpyxl_missing_warned = False
+        self.live_camera_window = None
+        self._live_camera_import_error_shown = False
 
 
         self.experiment.variables['id0'] = Variable(name = "id0", value = 0.0, for_python = 0.0)
@@ -1354,6 +1356,144 @@ class MainWindow(QMainWindow):
         self.error_message("Experiment is not chosen. Choose an experiment.", "Camera acquisition")
         return False
 
+    def _get_live_camera_parameters(self):
+        """Validate and return camera settings used by the live-view window."""
+        camera_name = (self.which_cam_combo.currentText() or "").strip()
+        if not camera_name:
+            raise ValueError("Select a camera before starting live view.")
+
+        serial_number = config.camera_serial_numbers_dict.get(camera_name)
+        if serial_number is None:
+            raise ValueError(f"Camera '{camera_name}' is not configured in config.camera_serial_numbers_dict.")
+
+        gain_text = (self.gain_edit.text() or "").strip()
+        if gain_text == "":
+            raise ValueError("Specify camera gain before starting live view.")
+        try:
+            gain_value = float(gain_text)
+        except ValueError as exc:
+            raise ValueError("Camera gain must be a numeric value.") from exc
+
+        exposure_text = (self.exposure_edit.text() or "").strip()
+        if exposure_text == "":
+            raise ValueError("Specify camera exposure time before starting live view.")
+        try:
+            exposure_value = float(exposure_text)
+        except ValueError as exc:
+            raise ValueError("Camera exposure time must be a numeric value.") from exc
+
+        format_name = (self.format_combo.currentText() or "").strip()
+        if not format_name:
+            raise ValueError("Select an image format before starting live view.")
+
+        self.experiment.experimental_data.camera.camera_name = camera_name
+        self.experiment.experimental_data.camera.serial_number = serial_number
+        self.experiment.experimental_data.camera.gain_db = gain_value
+        self.experiment.experimental_data.camera.exposure_time_ms = exposure_value
+        self.experiment.experimental_data.camera.format_name = format_name
+
+        return camera_name, format_name, gain_value, exposure_value
+
+    def _open_live_camera_window(self):
+        """Create and show the live camera window if it is not already open."""
+        if self.live_camera_window is not None:
+            self.live_camera_window.show()
+            self.live_camera_window.raise_()
+            self.live_camera_window.activateWindow()
+            return
+
+        camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters()
+
+        try:
+            live_module = importlib.import_module("camera_live_display")
+            LiveCameraWindow = getattr(live_module, "LiveCameraWindow")
+        except Exception as exc:
+            if not self._live_camera_import_error_shown:
+                self._live_camera_import_error_shown = True
+                self.error_message(
+                    f"Could not import live camera module: {exc}",
+                    "Live camera",
+                )
+            raise
+
+        self.live_camera_window = LiveCameraWindow(
+            camera_name=camera_name,
+            pixel_format=format_name,
+            gain_db=gain_value,
+            exposure_ms=exposure_value,
+        )
+        self.live_camera_window.destroyed.connect(lambda *_: setattr(self, "live_camera_window", None))
+        self.live_camera_window.show()
+
+        if hasattr(self, "live_subtract_checkbox") and self.live_subtract_checkbox.isChecked():
+            self.live_camera_window.set_subtraction_enabled(True)
+            self.live_camera_window.arm_next_subtraction_reference()
+
+        self.message_to_logger("Live camera window opened")
+
+    def _close_live_camera_window(self):
+        """Close and release the live camera window if it exists."""
+        if self.live_camera_window is None:
+            return
+        try:
+            self.live_camera_window.close()
+        finally:
+            self.live_camera_window = None
+        self.message_to_logger("Live camera window closed")
+
+    def handle_live_camera_toggled(self, checked):
+        """Open or close the live camera window when the UI checkbox changes."""
+        if hasattr(self, "live_subtract_checkbox"):
+            self.live_subtract_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_subtract_reset_button"):
+            can_reset = bool(checked) and bool(getattr(self, "live_subtract_checkbox", None) and self.live_subtract_checkbox.isChecked())
+            self.live_subtract_reset_button.setEnabled(can_reset)
+
+        if checked:
+            try:
+                self._open_live_camera_window()
+            except Exception as exc:
+                self.error_message(str(exc), "Live camera")
+                if hasattr(self, "live_camera_checkbox"):
+                    self.live_camera_checkbox.blockSignals(True)
+                    self.live_camera_checkbox.setChecked(False)
+                    self.live_camera_checkbox.blockSignals(False)
+                if hasattr(self, "live_subtract_checkbox"):
+                    self.live_subtract_checkbox.setEnabled(False)
+                if hasattr(self, "live_subtract_reset_button"):
+                    self.live_subtract_reset_button.setEnabled(False)
+        else:
+            self._close_live_camera_window()
+
+    def handle_live_subtraction_toggled(self, enabled):
+        """Enable/disable live subtraction and capture the next frame as reference when enabled."""
+        if hasattr(self, "live_subtract_reset_button"):
+            self.live_subtract_reset_button.setEnabled(bool(enabled) and bool(getattr(self, "live_camera_checkbox", None) and self.live_camera_checkbox.isChecked()))
+
+        if self.live_camera_window is None:
+            return
+
+        self.live_camera_window.set_subtraction_enabled(bool(enabled))
+        if enabled:
+            self.live_camera_window.arm_next_subtraction_reference()
+            self.message_to_logger("Live subtraction enabled; waiting for next acquired frame as reference")
+        else:
+            self.message_to_logger("Live subtraction disabled")
+
+    def handle_live_subtraction_reset_clicked(self):
+        """Reset subtraction by capturing a new reference from the next acquired frame."""
+        if not hasattr(self, "live_camera_checkbox") or not self.live_camera_checkbox.isChecked() or self.live_camera_window is None:
+            self.error_message("Enable Live camera first.", "Live subtraction")
+            return
+
+        if hasattr(self, "live_subtract_checkbox") and not self.live_subtract_checkbox.isChecked():
+            self.live_subtract_checkbox.setChecked(True)
+        else:
+            self.live_camera_window.set_subtraction_enabled(True)
+
+        self.live_camera_window.reset_subtraction_reference()
+        self.message_to_logger("Live subtraction reset; next acquired frame will be used as reference")
+
 
     def _prepare_camera_launch(self):
         """Validate camera settings and build the launch metadata dictionary."""
@@ -1682,6 +1822,13 @@ class MainWindow(QMainWindow):
         finally:
             self.to_update = previous_update_state
             self._updating_texp_lock = False
+
+    def closeEvent(self, event):
+        """Ensure auxiliary windows and worker threads are shut down with the main GUI."""
+        try:
+            self._close_live_camera_window()
+        finally:
+            super().closeEvent(event)
 
 def run():
     '''

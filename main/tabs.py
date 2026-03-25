@@ -1694,6 +1694,23 @@ def acquisition_tab_build(self):
     # self.camera_box.toggled.connect(self.camera_box_checked)
     form = QFormLayout(self.camera_box)
 
+    self.live_camera_checkbox = QCheckBox("Live camera", self.acquisition_tab_widget)
+    self.live_camera_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_camera_checkbox.setGeometry(*self.scale_geom(3*self.button_w + 4*self.sep, self.top_margin + 2, 150, 28))
+    self.live_camera_checkbox.toggled.connect(self.handle_live_camera_toggled)
+
+    self.live_subtract_checkbox = QCheckBox("Enable subtraction", self.acquisition_tab_widget)
+    self.live_subtract_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_subtract_checkbox.setGeometry(*self.scale_geom(3*self.button_w + 4*self.sep, self.top_margin + 34, 190, 28))
+    self.live_subtract_checkbox.setEnabled(False)
+    self.live_subtract_checkbox.toggled.connect(self.handle_live_subtraction_toggled)
+
+    self.live_subtract_reset_button = QPushButton("Reset subtraction", self.acquisition_tab_widget)
+    self.live_subtract_reset_button.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_subtract_reset_button.setGeometry(*self.scale_geom(3*self.button_w + 4*self.sep, self.top_margin + 66, 190, 30))
+    self.live_subtract_reset_button.setEnabled(False)
+    self.live_subtract_reset_button.clicked.connect(self.handle_live_subtraction_reset_clicked)
+
     self.which_cam_combo = QComboBox(self.camera_box)
     self.which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))
     self.which_cam_combo.setEditable(True)
