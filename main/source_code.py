@@ -35,6 +35,7 @@ import threading
 import subprocess
 import time
 import socket
+import select
 import struct
 from time import perf_counter
 import config
@@ -72,13 +73,17 @@ class LiveCameraStreamReceiver(QThread):
     error = pyqtSignal(str)
     stopped = pyqtSignal()
 
-    def __init__(self, host, port, parent=None):
+    def __init__(self, host, port, parent=None, max_emit_fps=30.0):
         super().__init__(parent)
         self.host = host
         self.port = int(port)
         self._running = True
         self._server_socket = None
         self._client_socket = None
+        self.max_emit_fps = float(max_emit_fps) if float(max_emit_fps) > 0.0 else 0.0
+        self._emit_interval = (1.0 / self.max_emit_fps) if self.max_emit_fps > 0.0 else 0.0
+        self._last_emit_ts = 0.0
+        self._dropped_frames = 0
 
     def stop(self):
         self._running = False
@@ -101,6 +106,23 @@ class LiveCameraStreamReceiver(QThread):
             data.extend(chunk)
         return bytes(data) if len(data) == size else None
 
+    def _recv_one_frame(self):
+        """Receive a single framed image packet; return tuple or None when stream ends."""
+        header = self._recv_exact(self._client_socket, 24)
+        if header is None:
+            return None
+
+        width, height, payload_len, fps, get_ms, proc_ms = struct.unpack("!IIIfff", header)
+        if width <= 0 or height <= 0 or payload_len <= 0:
+            self.error.emit("Received invalid live camera frame header")
+            return None
+
+        payload = self._recv_exact(self._client_socket, payload_len)
+        if payload is None:
+            return None
+
+        return width, height, payload, fps, get_ms, proc_ms
+
     def run(self):
         try:
             self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,23 +137,40 @@ class LiveCameraStreamReceiver(QThread):
                     client, _addr = self._server_socket.accept()
                     self._client_socket = client
                     self._client_socket.settimeout(0.5)
+                    self._client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 256 * 1024)
                     self.status_ready.emit("Live camera stream connected")
                 except socket.timeout:
                     continue
 
             while self._running and self._client_socket is not None:
-                header = self._recv_exact(self._client_socket, 24)
-                if header is None:
+                frame_tuple = self._recv_one_frame()
+                if frame_tuple is None:
                     break
-                width, height, payload_len, fps, get_ms, proc_ms = struct.unpack("!IIIfff", header)
-                if width <= 0 or height <= 0 or payload_len <= 0:
-                    self.error.emit("Received invalid live camera frame header")
-                    break
-                payload = self._recv_exact(self._client_socket, payload_len)
-                if payload is None:
-                    break
+                width, height, payload, fps, get_ms, proc_ms = frame_tuple
+
+                # Drain already-queued TCP frames and keep only the freshest one.
+                while self._running:
+                    try:
+                        readable, _w, _x = select.select([self._client_socket], [], [], 0.0)
+                    except Exception:
+                        break
+                    if not readable:
+                        break
+
+                    newer_tuple = self._recv_one_frame()
+                    if newer_tuple is None:
+                        break
+                    width, height, payload, fps, get_ms, proc_ms = newer_tuple
+                    self._dropped_frames += 1
+
+                now = perf_counter()
+                if self._emit_interval > 0.0 and (now - self._last_emit_ts) < self._emit_interval:
+                    # Keep transport drained, but drop stale frames to avoid 1-2 s UI lag.
+                    self._dropped_frames += 1
+                    continue
 
                 image = QImage(payload, int(width), int(height), int(width), QImage.Format_Grayscale8).copy()
+                self._last_emit_ts = now
                 self.frame_ready.emit(image, float(fps), float(get_ms), float(proc_ms))
 
         except Exception as exc:
@@ -1613,6 +1652,10 @@ class MainWindow(QMainWindow):
         gain_value=None,
         exposure_value=None,
         format_name=None,
+        gaussian_sigma=None,
+        gaussian_kernel=None,
+        downsample_factor=None,
+        target_fps=None,
     ):
         """Persist live camera UI fields into experiment.experimental_data.live_camera."""
         if not hasattr(self.experiment, "live_camera_enabled"):
@@ -1643,6 +1686,65 @@ class MainWindow(QMainWindow):
                 exposure_value = getattr(live_camera_data, "exposure_time_ms", None)
         if format_name is None and hasattr(self, "live_format_combo"):
             format_name = (self.live_format_combo.currentText() or "").strip()
+        if gaussian_sigma is None and hasattr(self, "live_gaussian_sigma_edit"):
+            try:
+                gaussian_sigma = float((self.live_gaussian_sigma_edit.text() or "").strip())
+            except Exception:
+                gaussian_sigma = getattr(live_camera_data, "gaussian_sigma", 1.0)
+        if gaussian_kernel is None and hasattr(self, "live_gaussian_kernel_edit"):
+            try:
+                gaussian_kernel = int(float((self.live_gaussian_kernel_edit.text() or "").strip()))
+            except Exception:
+                gaussian_kernel = getattr(live_camera_data, "gaussian_kernel", 5)
+        if downsample_factor is None and hasattr(self, "live_downsample_factor_edit"):
+            try:
+                downsample_factor = float((self.live_downsample_factor_edit.text() or "").strip())
+            except Exception:
+                downsample_factor = getattr(live_camera_data, "downsample_factor", 2.0)
+        if target_fps is None and hasattr(self, "live_target_fps_edit"):
+            try:
+                target_fps = float((self.live_target_fps_edit.text() or "").strip())
+            except Exception:
+                target_fps = getattr(live_camera_data, "target_fps", 12.0)
+
+        try:
+            gaussian_sigma = float(gaussian_sigma)
+        except Exception:
+            gaussian_sigma = 1.0
+        if gaussian_sigma <= 0:
+            gaussian_sigma = 1.0
+
+        try:
+            gaussian_kernel = int(gaussian_kernel)
+        except Exception:
+            gaussian_kernel = 5
+        if gaussian_kernel < 1:
+            gaussian_kernel = 1
+        if gaussian_kernel % 2 == 0:
+            gaussian_kernel += 1
+
+        try:
+            downsample_factor = float(downsample_factor)
+        except Exception:
+            downsample_factor = 2.0
+        if downsample_factor <= 0.0:
+            downsample_factor = 1.0
+
+        try:
+            target_fps = float(target_fps)
+        except Exception:
+            target_fps = 12.0
+        if target_fps <= 0.0:
+            target_fps = 1.0
+
+        if hasattr(self, "live_gaussian_sigma_edit"):
+            self.live_gaussian_sigma_edit.setText(str(gaussian_sigma))
+        if hasattr(self, "live_gaussian_kernel_edit"):
+            self.live_gaussian_kernel_edit.setText(str(gaussian_kernel))
+        if hasattr(self, "live_downsample_factor_edit"):
+            self.live_downsample_factor_edit.setText(str(downsample_factor))
+        if hasattr(self, "live_target_fps_edit"):
+            self.live_target_fps_edit.setText(str(target_fps))
 
         if camera_name is not None:
             live_camera_data.camera_name = camera_name
@@ -1658,6 +1760,16 @@ class MainWindow(QMainWindow):
             live_camera_data.hardware_trigger = bool(self.live_hardware_trigger_checkbox.isChecked())
         if hasattr(self, "live_subtract_checkbox"):
             live_camera_data.subtraction_enabled = bool(self.live_subtract_checkbox.isChecked())
+        if hasattr(self, "live_gaussian_checkbox"):
+            live_camera_data.gaussian_enabled = bool(self.live_gaussian_checkbox.isChecked())
+        if hasattr(self, "live_downsample_checkbox"):
+            live_camera_data.downsample_enabled = bool(self.live_downsample_checkbox.isChecked())
+        if hasattr(self, "live_fps_limit_checkbox"):
+            live_camera_data.fps_limit_enabled = bool(self.live_fps_limit_checkbox.isChecked())
+        live_camera_data.gaussian_sigma = gaussian_sigma
+        live_camera_data.gaussian_kernel = gaussian_kernel
+        live_camera_data.downsample_factor = downsample_factor
+        live_camera_data.target_fps = target_fps
 
     def _open_live_camera_window(self):
         """Launch live camera acquisition and show frames in Quantrol window."""
@@ -1739,8 +1851,10 @@ class MainWindow(QMainWindow):
             "--stream-port", str(stream_port),
             "--control-host", control_host,
             "--control-port", str(control_port),
-            "--display-max-width", "1024",
-            "--display-max-height", "768",
+            "--downsample-factor", str(getattr(self.experiment.experimental_data.live_camera, "downsample_factor", 2.0)),
+            "--target-fps", str(getattr(self.experiment.experimental_data.live_camera, "target_fps", 12.0)),
+            "--gaussian-sigma", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_sigma", 1.0)),
+            "--gaussian-kernel", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_kernel", 5)),
         ]
 
         if hasattr(self, "live_hardware_trigger_checkbox") and self.live_hardware_trigger_checkbox.isChecked():
@@ -1748,6 +1862,16 @@ class MainWindow(QMainWindow):
 
         if hasattr(self, "live_subtract_checkbox") and self.live_subtract_checkbox.isChecked():
             argv.append("--subtract-enabled")
+        if hasattr(self, "live_gaussian_checkbox") and self.live_gaussian_checkbox.isChecked():
+            argv.append("--gaussian-enabled")
+        if hasattr(self, "live_downsample_checkbox") and self.live_downsample_checkbox.isChecked():
+            argv.append("--downsample-enabled")
+        else:
+            argv.append("--downsample-disabled")
+        if hasattr(self, "live_fps_limit_checkbox") and self.live_fps_limit_checkbox.isChecked():
+            argv.append("--fps-limit-enabled")
+        else:
+            argv.append("--fps-limit-disabled")
 
         return {
             "argv": argv,
@@ -1822,11 +1946,21 @@ class MainWindow(QMainWindow):
     def _apply_live_runtime_parameters(self):
         if not self._is_live_camera_running():
             return False
+        self._persist_live_camera_settings_from_ui()
         try:
             _camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters()
         except Exception as exc:
             self.error_message(str(exc), "Live camera")
             return False
+
+        live_data = getattr(getattr(self.experiment, "experimental_data", None), "live_camera", None)
+        gaussian_enabled = bool(getattr(live_data, "gaussian_enabled", False))
+        gaussian_sigma = float(getattr(live_data, "gaussian_sigma", 1.0))
+        gaussian_kernel = int(getattr(live_data, "gaussian_kernel", 5))
+        downsample_enabled = bool(getattr(live_data, "downsample_enabled", True))
+        downsample_factor = float(getattr(live_data, "downsample_factor", 2.0))
+        fps_limit_enabled = bool(getattr(live_data, "fps_limit_enabled", False))
+        target_fps = float(getattr(live_data, "target_fps", 12.0))
 
         payload = {
             "cmd": "apply_params",
@@ -1834,6 +1968,13 @@ class MainWindow(QMainWindow):
             "exposure_ms": exposure_value,
             "pixel_format": format_name,
             "hardware_trigger": bool(getattr(self, "live_hardware_trigger_checkbox", None) and self.live_hardware_trigger_checkbox.isChecked()),
+            "gaussian_enabled": gaussian_enabled,
+            "gaussian_sigma": gaussian_sigma,
+            "gaussian_kernel": gaussian_kernel,
+            "downsample_enabled": downsample_enabled,
+            "downsample_factor": downsample_factor,
+            "fps_limit_enabled": fps_limit_enabled,
+            "target_fps": target_fps,
         }
         return self._send_live_control_command(payload)
 
@@ -1848,7 +1989,8 @@ class MainWindow(QMainWindow):
     def _start_live_stream_receiver(self, host, port):
         if not host or not port:
             raise ValueError("Live camera stream host/port are not configured.")
-        receiver = LiveCameraStreamReceiver(host, int(port), self)
+        max_emit_fps = float(getattr(config, "live_display_max_fps", 30.0))
+        receiver = LiveCameraStreamReceiver(host, int(port), self, max_emit_fps=max_emit_fps)
         receiver.frame_ready.connect(self._handle_live_camera_frame_ready)
         receiver.status_ready.connect(self._handle_live_camera_stream_status)
         receiver.error.connect(self._handle_live_camera_stream_error)
@@ -1889,6 +2031,20 @@ class MainWindow(QMainWindow):
             self.live_subtract_checkbox.setEnabled(bool(checked))
         if hasattr(self, "live_hardware_trigger_checkbox"):
             self.live_hardware_trigger_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_gaussian_checkbox"):
+            self.live_gaussian_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_gaussian_sigma_edit"):
+            self.live_gaussian_sigma_edit.setEnabled(bool(checked) and bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
+        if hasattr(self, "live_gaussian_kernel_edit"):
+            self.live_gaussian_kernel_edit.setEnabled(bool(checked) and bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
+        if hasattr(self, "live_downsample_checkbox"):
+            self.live_downsample_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_downsample_factor_edit"):
+            self.live_downsample_factor_edit.setEnabled(bool(checked) and bool(getattr(self, "live_downsample_checkbox", None) and self.live_downsample_checkbox.isChecked()))
+        if hasattr(self, "live_fps_limit_checkbox"):
+            self.live_fps_limit_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_target_fps_edit"):
+            self.live_target_fps_edit.setEnabled(bool(checked) and bool(getattr(self, "live_fps_limit_checkbox", None) and self.live_fps_limit_checkbox.isChecked()))
         if hasattr(self, "live_start_button"):
             self.live_start_button.setEnabled(bool(checked))
         if hasattr(self, "live_subtract_reset_button"):
@@ -1959,6 +2115,46 @@ class MainWindow(QMainWindow):
         self._persist_live_camera_settings_from_ui()
         if self._apply_live_runtime_parameters():
             self.message_to_logger("Live hardware trigger mode updated")
+
+    def handle_live_gaussian_toggled(self, _enabled):
+        """Apply gaussian filter mode immediately for the running live stream."""
+        if hasattr(self, "live_camera_checkbox") and not self.live_camera_checkbox.isChecked():
+            if hasattr(self, "live_gaussian_sigma_edit"):
+                self.live_gaussian_sigma_edit.setEnabled(False)
+            if hasattr(self, "live_gaussian_kernel_edit"):
+                self.live_gaussian_kernel_edit.setEnabled(False)
+        else:
+            if hasattr(self, "live_gaussian_sigma_edit"):
+                self.live_gaussian_sigma_edit.setEnabled(bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
+            if hasattr(self, "live_gaussian_kernel_edit"):
+                self.live_gaussian_kernel_edit.setEnabled(bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
+        self._persist_live_camera_settings_from_ui()
+        if self._apply_live_runtime_parameters():
+            self.message_to_logger("Live Gaussian filter mode updated")
+
+    def handle_live_downsample_toggled(self, _enabled):
+        """Apply display downsample mode and factor immediately for the running live stream."""
+        if hasattr(self, "live_camera_checkbox") and not self.live_camera_checkbox.isChecked():
+            if hasattr(self, "live_downsample_factor_edit"):
+                self.live_downsample_factor_edit.setEnabled(False)
+        else:
+            if hasattr(self, "live_downsample_factor_edit"):
+                self.live_downsample_factor_edit.setEnabled(bool(getattr(self, "live_downsample_checkbox", None) and self.live_downsample_checkbox.isChecked()))
+        self._persist_live_camera_settings_from_ui()
+        if self._apply_live_runtime_parameters():
+            self.message_to_logger("Live downsample settings updated")
+
+    def handle_live_fps_limit_toggled(self, _enabled):
+        """Apply camera FPS limit mode and value immediately for the running live stream."""
+        if hasattr(self, "live_camera_checkbox") and not self.live_camera_checkbox.isChecked():
+            if hasattr(self, "live_target_fps_edit"):
+                self.live_target_fps_edit.setEnabled(False)
+        else:
+            if hasattr(self, "live_target_fps_edit"):
+                self.live_target_fps_edit.setEnabled(bool(getattr(self, "live_fps_limit_checkbox", None) and self.live_fps_limit_checkbox.isChecked()))
+        self._persist_live_camera_settings_from_ui()
+        if self._apply_live_runtime_parameters():
+            self.message_to_logger("Live FPS limit settings updated")
 
 
     def _prepare_camera_launch(self):

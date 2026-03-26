@@ -181,6 +181,20 @@ def handle_load_sequence_button_clicked(self):
                         self.live_hardware_trigger_checkbox.setChecked(bool(lcam.hardware_trigger))
                     if hasattr(self, "live_subtract_checkbox") and hasattr(lcam, "subtraction_enabled"):
                         self.live_subtract_checkbox.setChecked(bool(lcam.subtraction_enabled))
+                    if hasattr(self, "live_gaussian_checkbox") and hasattr(lcam, "gaussian_enabled"):
+                        self.live_gaussian_checkbox.setChecked(bool(lcam.gaussian_enabled))
+                    if hasattr(self, "live_gaussian_sigma_edit") and hasattr(lcam, "gaussian_sigma") and lcam.gaussian_sigma is not None:
+                        self.live_gaussian_sigma_edit.setText(str(lcam.gaussian_sigma))
+                    if hasattr(self, "live_gaussian_kernel_edit") and hasattr(lcam, "gaussian_kernel") and lcam.gaussian_kernel is not None:
+                        self.live_gaussian_kernel_edit.setText(str(lcam.gaussian_kernel))
+                    if hasattr(self, "live_downsample_checkbox") and hasattr(lcam, "downsample_enabled"):
+                        self.live_downsample_checkbox.setChecked(bool(lcam.downsample_enabled))
+                    if hasattr(self, "live_downsample_factor_edit") and hasattr(lcam, "downsample_factor") and lcam.downsample_factor is not None:
+                        self.live_downsample_factor_edit.setText(str(lcam.downsample_factor))
+                    if hasattr(self, "live_fps_limit_checkbox") and hasattr(lcam, "fps_limit_enabled"):
+                        self.live_fps_limit_checkbox.setChecked(bool(lcam.fps_limit_enabled))
+                    if hasattr(self, "live_target_fps_edit") and hasattr(lcam, "target_fps") and lcam.target_fps is not None:
+                        self.live_target_fps_edit.setText(str(lcam.target_fps))
             # Restore T_exp_ lock state
             if hasattr(self, "lock_cb"):
                 self.lock_cb.setChecked(self.experiment.texp_locked)

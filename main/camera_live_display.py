@@ -11,6 +11,7 @@ from time import perf_counter
 
 import numpy as np
 import PySpin
+from scipy.ndimage import gaussian_filter
 
 from camera import configure_camera, initialise_cameras
 
@@ -28,9 +29,14 @@ class LiveCameraStreamer:
         stream_port: int,
         control_host: str,
         control_port: int,
-        display_max_width: int,
-        display_max_height: int,
+        downsample_factor: float,
+        target_fps: float,
         hardware_trigger: bool = False,
+        gaussian_enabled: bool = False,
+        gaussian_sigma: float = 1.0,
+        gaussian_kernel: int = 5,
+        downsample_enabled: bool = True,
+        fps_limit_enabled: bool = False,
         subtract_enabled: bool = False,
     ) -> None:
         self.camera_name = camera_name
@@ -41,9 +47,22 @@ class LiveCameraStreamer:
         self.stream_port = int(stream_port)
         self.control_host = control_host
         self.control_port = int(control_port)
-        self.display_max_width = max(int(display_max_width), 1)
-        self.display_max_height = max(int(display_max_height), 1)
+        self.downsample_factor = float(downsample_factor)
+        if self.downsample_factor <= 0.0:
+            self.downsample_factor = 1.0
+        self.target_fps = float(target_fps)
+        if self.target_fps <= 0.0:
+            self.target_fps = 1.0
         self.hardware_trigger = bool(hardware_trigger)
+        self.gaussian_enabled = bool(gaussian_enabled)
+        self.gaussian_sigma = float(gaussian_sigma) if float(gaussian_sigma) > 0 else 1.0
+        self.gaussian_kernel = int(gaussian_kernel)
+        if self.gaussian_kernel < 1:
+            self.gaussian_kernel = 1
+        if self.gaussian_kernel % 2 == 0:
+            self.gaussian_kernel += 1
+        self.downsample_enabled = bool(downsample_enabled)
+        self.fps_limit_enabled = bool(fps_limit_enabled)
 
         self._running = True
         self._subtract_enabled = bool(subtract_enabled)
@@ -123,6 +142,28 @@ class LiveCameraStreamer:
                     self.pixel_format = str(payload.get("pixel_format") or self.pixel_format)
                 if "hardware_trigger" in payload:
                     self.hardware_trigger = bool(payload.get("hardware_trigger"))
+                if "gaussian_enabled" in payload:
+                    self.gaussian_enabled = bool(payload.get("gaussian_enabled"))
+                if "gaussian_sigma" in payload:
+                    sigma_value = float(payload.get("gaussian_sigma"))
+                    self.gaussian_sigma = sigma_value if sigma_value > 0 else 1.0
+                if "gaussian_kernel" in payload:
+                    kernel_value = int(float(payload.get("gaussian_kernel")))
+                    if kernel_value < 1:
+                        kernel_value = 1
+                    if kernel_value % 2 == 0:
+                        kernel_value += 1
+                    self.gaussian_kernel = kernel_value
+                if "downsample_enabled" in payload:
+                    self.downsample_enabled = bool(payload.get("downsample_enabled"))
+                if "downsample_factor" in payload:
+                    factor_value = float(payload.get("downsample_factor"))
+                    self.downsample_factor = factor_value if factor_value > 0.0 else 1.0
+                if "fps_limit_enabled" in payload:
+                    self.fps_limit_enabled = bool(payload.get("fps_limit_enabled"))
+                if "target_fps" in payload:
+                    fps_value = float(payload.get("target_fps"))
+                    self.target_fps = fps_value if fps_value > 0.0 else 1.0
 
                 was_acquiring = False
                 try:
@@ -139,15 +180,39 @@ class LiveCameraStreamer:
                 print(f"Live apply_params failed: {exc}")
             return
 
+    def _apply_gaussian_if_enabled(self, arr: np.ndarray) -> np.ndarray:
+        if not self.gaussian_enabled:
+            return arr
+
+        # Keep the same intensity scale/type so enabling Gaussian does not auto-brighten.
+        arrf = arr.astype(np.float32, copy=False)
+        sigma = max(float(self.gaussian_sigma), 1e-6)
+        radius = max((int(self.gaussian_kernel) - 1) / 2.0, 0.0)
+        truncate = max(radius / sigma, 0.01)
+        filtered = gaussian_filter(arrf, sigma=sigma, mode="nearest", truncate=truncate)
+
+        if arr.dtype == np.uint8:
+            return np.clip(np.rint(filtered), 0.0, 255.0).astype(np.uint8)
+        if arr.dtype == np.uint16:
+            return np.clip(np.rint(filtered), 0.0, 65535.0).astype(np.uint16)
+        return filtered
+
     @staticmethod
-    def _to_display_uint8(arr: np.ndarray, subtraction_mode: bool = False) -> np.ndarray:
+    def _to_display_uint8(
+        arr: np.ndarray,
+        subtraction_mode: bool = False,
+        subtraction_full_scale: float | None = None,
+    ) -> np.ndarray:
         if arr.size == 0:
             return np.zeros((1, 1), dtype=np.uint8)
 
         if subtraction_mode:
             # For subtraction view, show magnitude of change regardless of sign.
             arr_abs = np.abs(arr)
-            max_abs = float(np.max(arr_abs))
+            if subtraction_full_scale is not None and subtraction_full_scale > 0.0:
+                max_abs = float(subtraction_full_scale)
+            else:
+                max_abs = float(np.max(arr_abs))
             if max_abs <= 0.0:
                 return np.zeros(arr.shape, dtype=np.uint8)
             scaled = arr_abs * (255.0 / max_abs)
@@ -166,7 +231,14 @@ class LiveCameraStreamer:
 
         return np.clip(scaled, 0.0, 255.0).astype(np.uint8)
 
-    def _send_frame(self, sock_: socket.socket, frame8: np.ndarray, fps: float, get_ms: float, proc_ms: float) -> None:
+    def _send_frame(
+        self,
+        sock_: socket.socket,
+        frame8: np.ndarray,
+        fps: float,
+        get_ms: float,
+        proc_ms: float,
+    ) -> None:
         if frame8.ndim != 2:
             raise RuntimeError("Expected grayscale frame")
         height, width = frame8.shape
@@ -176,12 +248,22 @@ class LiveCameraStreamer:
         sock_.sendall(payload)
 
     def _downsample_for_display(self, frame8: np.ndarray) -> np.ndarray:
-        h, w = frame8.shape
-        sx = max((w + self.display_max_width - 1) // self.display_max_width, 1)
-        sy = max((h + self.display_max_height - 1) // self.display_max_height, 1)
-        if sx == 1 and sy == 1:
+        if not self.downsample_enabled:
             return frame8
-        return frame8[::sy, ::sx]
+
+        factor = float(self.downsample_factor)
+        if factor <= 1.0:
+            return frame8
+
+        h, w = frame8.shape
+        out_w = max(int(round(w / factor)), 1)
+        out_h = max(int(round(h / factor)), 1)
+        if out_w >= w and out_h >= h:
+            return frame8
+
+        x_idx = np.clip((np.arange(out_w, dtype=np.float32) * factor).astype(np.int32), 0, w - 1)
+        y_idx = np.clip((np.arange(out_h, dtype=np.float32) * factor).astype(np.int32), 0, h - 1)
+        return frame8[np.ix_(y_idx, x_idx)]
 
     def _configure_camera_for_live(self, cam: PySpin.Camera) -> None:
         """Apply the same baseline configuration used by camera.py plus live-specific safety checks."""
@@ -194,14 +276,53 @@ class LiveCameraStreamer:
             info=info,
         )
 
-        # Explicitly enforce automatic frame-rate mode for live view as requested.
+        # Configure frame rate mode for live view.
         nodemap = cam.GetNodeMap()
         node_acq_fr_enable = PySpin.CBooleanPtr(nodemap.GetNode("AcquisitionFrameRateEnable"))
+        node_acq_fr = PySpin.CFloatPtr(nodemap.GetNode("AcquisitionFrameRate"))
         if PySpin.IsAvailable(node_acq_fr_enable) and PySpin.IsWritable(node_acq_fr_enable):
-            node_acq_fr_enable.SetValue(False)
-            print("Live: frame rate is set to automatic (AcquisitionFrameRateEnable=False)")
+            node_acq_fr_enable.SetValue(bool(self.fps_limit_enabled))
+            if self.fps_limit_enabled and PySpin.IsAvailable(node_acq_fr) and PySpin.IsWritable(node_acq_fr):
+                req_fps = max(float(self.target_fps), 1.0)
+                req_fps = max(min(req_fps, node_acq_fr.GetMax()), node_acq_fr.GetMin())
+                node_acq_fr.SetValue(req_fps)
+                print(f"Live: frame rate limit enabled at {req_fps:.3f} FPS")
+            elif self.fps_limit_enabled:
+                print("Live: FPS limit requested but AcquisitionFrameRate node is unavailable")
+            else:
+                print("Live: frame rate is set to automatic (AcquisitionFrameRateEnable=False)")
         else:
             print("Live: AcquisitionFrameRateEnable unavailable; keeping camera default behavior")
+
+        # Force low-latency stream buffering for preview. NewestOnly avoids a fixed stale-frame offset.
+        try:
+            tl_stream = cam.GetTLStreamNodeMap()
+
+            node_handling = PySpin.CEnumerationPtr(tl_stream.GetNode("StreamBufferHandlingMode"))
+            if PySpin.IsAvailable(node_handling) and PySpin.IsWritable(node_handling):
+                newest = node_handling.GetEntryByName("NewestOnly")
+                if PySpin.IsAvailable(newest) and PySpin.IsReadable(newest):
+                    node_handling.SetIntValue(newest.GetValue())
+                    print("Live: StreamBufferHandlingMode set to NewestOnly")
+                else:
+                    print("Live: NewestOnly stream buffer mode unavailable; keeping camera default")
+            else:
+                print("Live: StreamBufferHandlingMode node unavailable; keeping camera default")
+
+            node_count_mode = PySpin.CEnumerationPtr(tl_stream.GetNode("StreamBufferCountMode"))
+            if PySpin.IsAvailable(node_count_mode) and PySpin.IsWritable(node_count_mode):
+                manual = node_count_mode.GetEntryByName("Manual")
+                if PySpin.IsAvailable(manual) and PySpin.IsReadable(manual):
+                    node_count_mode.SetIntValue(manual.GetValue())
+
+            node_count_manual = PySpin.CIntegerPtr(tl_stream.GetNode("StreamBufferCountManual"))
+            if PySpin.IsAvailable(node_count_manual) and PySpin.IsWritable(node_count_manual):
+                target_count = int(node_count_manual.GetMin())
+                target_count = max(min(target_count, node_count_manual.GetMax()), node_count_manual.GetMin())
+                node_count_manual.SetValue(target_count)
+                print(f"Live: StreamBufferCountManual set to {target_count}")
+        except Exception as exc:
+            print(f"Live: could not apply low-latency stream buffer settings: {exc}")
 
         # Live preview defaults to free-running. Optionally keep hardware trigger when requested.
         trig_mode = PySpin.CEnumerationPtr(nodemap.GetNode("TriggerMode"))
@@ -264,6 +385,23 @@ class LiveCameraStreamer:
                     if "[-1011]" in str(exc):
                         continue
                     raise
+
+                # Drain any queued frames and keep only the newest one.
+                # This removes fixed latency when camera/driver buffering persists.
+                while self._running:
+                    try:
+                        newer_image = cam.GetNextImage(0)
+                    except PySpin.SpinnakerException as exc:
+                        if "[-1011]" in str(exc):
+                            break
+                        raise
+
+                    try:
+                        image.Release()
+                    except Exception:
+                        pass
+                    image = newer_image
+
                 t_get_end = perf_counter()
 
                 try:
@@ -274,6 +412,12 @@ class LiveCameraStreamer:
                     arr = image.GetNDArray()
                     if arr.ndim == 3:
                         arr = arr[:, :, 0]
+                    subtraction_full_scale = None
+                    if arr.dtype == np.uint8:
+                        subtraction_full_scale = 255.0
+                    elif arr.dtype == np.uint16:
+                        subtraction_full_scale = 65535.0
+                    arr = self._apply_gaussian_if_enabled(arr)
 
                     if self._subtract_enabled or self._capture_reference_next:
                         arrf = arr.astype(np.float32, copy=False)
@@ -290,7 +434,11 @@ class LiveCameraStreamer:
                                 print("Subtraction skipped due to shape mismatch")
                         else:
                             frame_for_display = arrf
-                        frame8 = self._to_display_uint8(frame_for_display, subtraction_mode=self._subtract_enabled)
+                        frame8 = self._to_display_uint8(
+                            frame_for_display,
+                            subtraction_mode=self._subtract_enabled,
+                            subtraction_full_scale=subtraction_full_scale,
+                        )
                     else:
                         # Fast path when subtraction is disabled.
                         if arr.dtype == np.uint8:
@@ -363,9 +511,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stream-port", required=True, type=int, help="Quantrol TCP port for frame stream")
     parser.add_argument("--control-host", required=True, help="Quantrol host for control commands")
     parser.add_argument("--control-port", required=True, type=int, help="Quantrol UDP port for control commands")
-    parser.add_argument("--display-max-width", type=int, default=1024, help="Maximum streamed frame width")
-    parser.add_argument("--display-max-height", type=int, default=768, help="Maximum streamed frame height")
+    parser.add_argument("--downsample-factor", type=float, default=2.0, help="Uniform display downsampling factor (float > 0)")
+    parser.add_argument("--target-fps", type=float, default=12.0, help="Target camera FPS when FPS limit is enabled")
+    parser.add_argument("--downsample-enabled", dest="downsample_enabled", action="store_true", help="Enable display downsampling")
+    parser.add_argument("--downsample-disabled", dest="downsample_enabled", action="store_false", help="Disable display downsampling")
+    parser.set_defaults(downsample_enabled=True)
+    parser.add_argument("--fps-limit-enabled", dest="fps_limit_enabled", action="store_true", help="Enable camera FPS limiting")
+    parser.add_argument("--fps-limit-disabled", dest="fps_limit_enabled", action="store_false", help="Disable camera FPS limiting")
+    parser.set_defaults(fps_limit_enabled=False)
     parser.add_argument("--hardware-trigger", action="store_true", help="Use hardware trigger for live preview")
+    parser.add_argument("--gaussian-enabled", action="store_true", help="Enable gaussian filtering")
+    parser.add_argument("--gaussian-sigma", type=float, default=1.0, help="Gaussian sigma in pixels")
+    parser.add_argument("--gaussian-kernel", type=int, default=5, help="Gaussian kernel size (odd integer)")
     parser.add_argument("--subtract-enabled", action="store_true", help="Enable subtraction at startup")
     return parser.parse_args()
 
@@ -381,9 +538,14 @@ def main() -> int:
         stream_port=args.stream_port,
         control_host=args.control_host,
         control_port=args.control_port,
-        display_max_width=args.display_max_width,
-        display_max_height=args.display_max_height,
+        downsample_factor=args.downsample_factor,
+        target_fps=args.target_fps,
         hardware_trigger=args.hardware_trigger,
+        gaussian_enabled=args.gaussian_enabled,
+        gaussian_sigma=args.gaussian_sigma,
+        gaussian_kernel=args.gaussian_kernel,
+        downsample_enabled=args.downsample_enabled,
+        fps_limit_enabled=args.fps_limit_enabled,
         subtract_enabled=args.subtract_enabled,
     )
     signal.signal(signal.SIGTERM, streamer.stop)

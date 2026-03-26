@@ -1700,7 +1700,7 @@ def acquisition_tab_build(self):
     self.live_camera_box.setChecked(False)
     self.live_camera_box.setFont(QFont('Arial', self.scale_font(14)))
     self.live_camera_box.move(int(self.SCALE_W*(3*self.button_w + 4*self.sep)), int(self.SCALE_H*self.top_margin))
-    self.live_camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(260)))
+    self.live_camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(580)))
     self.live_camera_box.toggled.connect(self.handle_live_camera_toggled)
     self.live_camera_checkbox = self.live_camera_box
 
@@ -1747,6 +1747,51 @@ def acquisition_tab_build(self):
     self.live_hardware_trigger_checkbox.toggled.connect(self.handle_live_hardware_trigger_toggled)
     live_form.addRow("", self.live_hardware_trigger_checkbox)
 
+    self.live_gaussian_checkbox = QCheckBox("Enable Gaussian filter", self.live_camera_box)
+    self.live_gaussian_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_gaussian_checkbox.setEnabled(False)
+    self.live_gaussian_checkbox.setChecked(False)
+    self.live_gaussian_checkbox.toggled.connect(self.handle_live_gaussian_toggled)
+    live_form.addRow("", self.live_gaussian_checkbox)
+
+    self.live_gaussian_sigma_edit = QLineEdit(self.live_camera_box)
+    self.live_gaussian_sigma_edit.setPlaceholderText("e.g. 1.0")
+    self.live_gaussian_sigma_edit.setEnabled(False)
+    self.live_gaussian_sigma_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
+    live_form.addRow("Gaussian sigma", self.live_gaussian_sigma_edit)
+
+    self.live_gaussian_kernel_edit = QLineEdit(self.live_camera_box)
+    self.live_gaussian_kernel_edit.setPlaceholderText("odd integer, e.g. 5")
+    self.live_gaussian_kernel_edit.setEnabled(False)
+    self.live_gaussian_kernel_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
+    live_form.addRow("Gaussian kernel", self.live_gaussian_kernel_edit)
+
+    self.live_downsample_checkbox = QCheckBox("Enable display downsample", self.live_camera_box)
+    self.live_downsample_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_downsample_checkbox.setEnabled(False)
+    self.live_downsample_checkbox.setChecked(True)
+    self.live_downsample_checkbox.toggled.connect(self.handle_live_downsample_toggled)
+    live_form.addRow("", self.live_downsample_checkbox)
+
+    self.live_downsample_factor_edit = QLineEdit(self.live_camera_box)
+    self.live_downsample_factor_edit.setPlaceholderText("e.g. 2.0")
+    self.live_downsample_factor_edit.setEnabled(False)
+    self.live_downsample_factor_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
+    live_form.addRow("Downsample factor", self.live_downsample_factor_edit)
+
+    self.live_fps_limit_checkbox = QCheckBox("Enable camera FPS limit", self.live_camera_box)
+    self.live_fps_limit_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_fps_limit_checkbox.setEnabled(False)
+    self.live_fps_limit_checkbox.setChecked(False)
+    self.live_fps_limit_checkbox.toggled.connect(self.handle_live_fps_limit_toggled)
+    live_form.addRow("", self.live_fps_limit_checkbox)
+
+    self.live_target_fps_edit = QLineEdit(self.live_camera_box)
+    self.live_target_fps_edit.setPlaceholderText("e.g. 12")
+    self.live_target_fps_edit.setEnabled(False)
+    self.live_target_fps_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
+    live_form.addRow("Target FPS", self.live_target_fps_edit)
+
     self.live_subtract_reset_button = QPushButton("Reset subtraction", self.live_camera_box)
     self.live_subtract_reset_button.setFont(QFont('Arial', self.scale_font(12)))
     self.live_subtract_reset_button.setEnabled(False)
@@ -1777,6 +1822,24 @@ def acquisition_tab_build(self):
             self.live_hardware_trigger_checkbox.setChecked(bool(live_defaults.hardware_trigger))
         if hasattr(live_defaults, "subtraction_enabled"):
             self.live_subtract_checkbox.setChecked(bool(live_defaults.subtraction_enabled))
+        if hasattr(live_defaults, "gaussian_enabled"):
+            self.live_gaussian_checkbox.setChecked(bool(live_defaults.gaussian_enabled))
+        if hasattr(live_defaults, "gaussian_sigma") and live_defaults.gaussian_sigma is not None:
+            self.live_gaussian_sigma_edit.setText(str(live_defaults.gaussian_sigma))
+        if hasattr(live_defaults, "gaussian_kernel") and live_defaults.gaussian_kernel is not None:
+            self.live_gaussian_kernel_edit.setText(str(live_defaults.gaussian_kernel))
+        if hasattr(live_defaults, "downsample_enabled"):
+            self.live_downsample_checkbox.setChecked(bool(live_defaults.downsample_enabled))
+        if hasattr(live_defaults, "downsample_factor") and live_defaults.downsample_factor is not None:
+            self.live_downsample_factor_edit.setText(str(live_defaults.downsample_factor))
+        if hasattr(live_defaults, "fps_limit_enabled"):
+            self.live_fps_limit_checkbox.setChecked(bool(live_defaults.fps_limit_enabled))
+        if hasattr(live_defaults, "target_fps") and live_defaults.target_fps is not None:
+            self.live_target_fps_edit.setText(str(live_defaults.target_fps))
+
+    self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
+    self.handle_live_downsample_toggled(self.live_downsample_checkbox.isChecked())
+    self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked())
 
     self.which_cam_combo = QComboBox(self.camera_box)
     self.which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))

@@ -117,6 +117,29 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(experiment.experimental_data, 'live_camera') or experiment.experimental_data.live_camera is None:
         experiment.experimental_data.live_camera = LiveCamera()
         notes.append("Added experimental_data.live_camera attribute")
+
+    live_camera = experiment.experimental_data.live_camera
+    if not hasattr(live_camera, 'gaussian_enabled'):
+        live_camera.gaussian_enabled = False
+        notes.append("Added live_camera.gaussian_enabled attribute")
+    if not hasattr(live_camera, 'gaussian_sigma'):
+        live_camera.gaussian_sigma = 1.0
+        notes.append("Added live_camera.gaussian_sigma attribute")
+    if not hasattr(live_camera, 'gaussian_kernel'):
+        live_camera.gaussian_kernel = 5
+        notes.append("Added live_camera.gaussian_kernel attribute")
+    if not hasattr(live_camera, 'downsample_enabled'):
+        live_camera.downsample_enabled = True
+        notes.append("Added live_camera.downsample_enabled attribute")
+    if not hasattr(live_camera, 'downsample_factor'):
+        live_camera.downsample_factor = 2.0
+        notes.append("Added live_camera.downsample_factor attribute")
+    if not hasattr(live_camera, 'fps_limit_enabled'):
+        live_camera.fps_limit_enabled = False
+        notes.append("Added live_camera.fps_limit_enabled attribute")
+    if not hasattr(live_camera, 'target_fps'):
+        live_camera.target_fps = 12.0
+        notes.append("Added live_camera.target_fps attribute")
     
     return notes
 

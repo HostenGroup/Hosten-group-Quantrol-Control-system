@@ -443,6 +443,13 @@ class LiveCamera:
         camera_name=None,
         hardware_trigger=False,
         subtraction_enabled=False,
+        gaussian_enabled=False,
+        gaussian_sigma=1.0,
+        gaussian_kernel=5,
+        downsample_enabled=True,
+        downsample_factor=2.0,
+        fps_limit_enabled=False,
+        target_fps=12.0,
     ):
         self.gain_db = gain_db
         self.format_name = format_name
@@ -451,3 +458,10 @@ class LiveCamera:
         self.camera_name = camera_name
         self.hardware_trigger = bool(hardware_trigger)
         self.subtraction_enabled = bool(subtraction_enabled)
+        self.gaussian_enabled = bool(gaussian_enabled)
+        self.gaussian_sigma = gaussian_sigma
+        self.gaussian_kernel = gaussian_kernel
+        self.downsample_enabled = bool(downsample_enabled)
+        self.downsample_factor = downsample_factor
+        self.fps_limit_enabled = bool(fps_limit_enabled)
+        self.target_fps = target_fps
