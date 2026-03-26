@@ -1,53 +1,160 @@
 from __future__ import annotations
 
 import argparse
+import signal
+import socket
+import struct
 import sys
+import time
 from time import perf_counter
-from typing import Optional
 
 import numpy as np
 import PySpin
-from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget
 
 from camera import configure_camera, initialise_cameras
 
 
-class CameraWorker(QObject):
-    frame_ready = pyqtSignal(object, float)
-    status_ready = pyqtSignal(str)
-    error = pyqtSignal(str)
-    finished = pyqtSignal()
+class LiveCameraStreamer:
+    """Acquire frames with PySpin and stream display-ready grayscale frames over TCP."""
 
-    def __init__(self, camera_name: str, pixel_format: str, gain_db: float, exposure_ms: float) -> None:
-        super().__init__()
+    def __init__(
+        self,
+        camera_name: str,
+        pixel_format: str,
+        gain_db: float,
+        exposure_ms: float,
+        stream_host: str,
+        stream_port: int,
+        display_max_width: int,
+        display_max_height: int,
+        subtract_enabled: bool = False,
+    ) -> None:
         self.camera_name = camera_name
         self.pixel_format = pixel_format
         self.gain_db = gain_db
         self.exposure_ms = exposure_ms
+        self.stream_host = stream_host
+        self.stream_port = int(stream_port)
+        self.display_max_width = max(int(display_max_width), 1)
+        self.display_max_height = max(int(display_max_height), 1)
 
-        self._running = False
-        self._subtract_enabled = False
-        self._subtract_reference: Optional[np.ndarray] = None
-        self._capture_reference_next = False
-
-    @pyqtSlot()
-    def run(self) -> None:
         self._running = True
+        self._subtract_enabled = bool(subtract_enabled)
+        self._subtract_reference = None
+        self._capture_reference_next = bool(subtract_enabled)
+
+    def stop(self, *_args) -> None:
+        self._running = False
+
+    def _connect_stream_socket(self) -> socket.socket:
+        sock_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        deadline = time.time() + 5.0
+        last_exc = None
+        while time.time() < deadline and self._running:
+            try:
+                sock_.connect((self.stream_host, self.stream_port))
+                sock_.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                return sock_
+            except OSError as exc:
+                last_exc = exc
+                time.sleep(0.1)
+        sock_.close()
+        if last_exc is not None:
+            raise RuntimeError(f"Could not connect to Quantrol live stream socket: {last_exc}")
+        raise RuntimeError("Could not connect to Quantrol live stream socket")
+
+    @staticmethod
+    def _to_display_uint8(arr: np.ndarray, subtraction_mode: bool = False) -> np.ndarray:
+        if arr.size == 0:
+            return np.zeros((1, 1), dtype=np.uint8)
+
+        if subtraction_mode:
+            # For subtraction view, show magnitude of change regardless of sign.
+            arr_abs = np.abs(arr)
+            max_abs = float(np.max(arr_abs))
+            if max_abs <= 0.0:
+                return np.zeros(arr.shape, dtype=np.uint8)
+            scaled = arr_abs * (255.0 / max_abs)
+            return np.clip(scaled, 0.0, 255.0).astype(np.uint8)
+
+        arr_min = float(np.min(arr))
+        arr_max = float(np.max(arr))
+        if arr_min == arr_max:
+            return np.zeros(arr.shape, dtype=np.uint8)
+
+        if arr_min < 0.0:
+            max_abs = max(abs(arr_min), abs(arr_max), 1e-9)
+            scaled = (arr + max_abs) * (255.0 / (2.0 * max_abs))
+        else:
+            scaled = (arr - arr_min) * (255.0 / (arr_max - arr_min))
+
+        return np.clip(scaled, 0.0, 255.0).astype(np.uint8)
+
+    def _send_frame(self, sock_: socket.socket, frame8: np.ndarray, fps: float, get_ms: float, proc_ms: float) -> None:
+        if frame8.ndim != 2:
+            raise RuntimeError("Expected grayscale frame")
+        height, width = frame8.shape
+        payload = frame8.tobytes(order="C")
+        header = struct.pack("!IIIfff", int(width), int(height), len(payload), float(fps), float(get_ms), float(proc_ms))
+        sock_.sendall(header)
+        sock_.sendall(payload)
+
+    def _downsample_for_display(self, frame8: np.ndarray) -> np.ndarray:
+        h, w = frame8.shape
+        sx = max((w + self.display_max_width - 1) // self.display_max_width, 1)
+        sy = max((h + self.display_max_height - 1) // self.display_max_height, 1)
+        if sx == 1 and sy == 1:
+            return frame8
+        return frame8[::sy, ::sx]
+
+    def _configure_camera_for_live(self, cam: PySpin.Camera) -> None:
+        """Apply the same baseline configuration used by camera.py plus live-specific safety checks."""
+        info = {}
+        configure_camera(
+            cam=cam,
+            exposure_us=max(self.exposure_ms, 0.0) * 1000.0,
+            gain_db=self.gain_db,
+            format_name=self.pixel_format,
+            info=info,
+        )
+
+        # Explicitly enforce automatic frame-rate mode for live view as requested.
+        nodemap = cam.GetNodeMap()
+        node_acq_fr_enable = PySpin.CBooleanPtr(nodemap.GetNode("AcquisitionFrameRateEnable"))
+        if PySpin.IsAvailable(node_acq_fr_enable) and PySpin.IsWritable(node_acq_fr_enable):
+            node_acq_fr_enable.SetValue(False)
+            print("Live: frame rate is set to automatic (AcquisitionFrameRateEnable=False)")
+        else:
+            print("Live: AcquisitionFrameRateEnable unavailable; keeping camera default behavior")
+
+        # Live preview should free-run; hardware-triggered mode severely limits preview FPS.
+        trig_mode = PySpin.CEnumerationPtr(nodemap.GetNode("TriggerMode"))
+        if PySpin.IsAvailable(trig_mode) and PySpin.IsWritable(trig_mode):
+            trig_mode_off = trig_mode.GetEntryByName("Off")
+            if PySpin.IsAvailable(trig_mode_off) and PySpin.IsReadable(trig_mode_off):
+                trig_mode.SetIntValue(trig_mode_off.GetValue())
+                print("Live: TriggerMode set to Off (free-running preview)")
+            else:
+                print("Live: TriggerMode Off entry unavailable; keeping existing trigger mode")
+        else:
+            print("Live: TriggerMode node unavailable; keeping existing trigger mode")
+
+    def run(self) -> int:
         system = None
         cam_list = None
         cam = None
-
+        stream_sock = None
         frame_counter = 0
         t_start = perf_counter()
 
         try:
             import config
 
-            serial_numbers = config.camera_serial_numbers_dict
-            if self.camera_name not in serial_numbers:
+            if self.camera_name not in config.camera_serial_numbers_dict:
                 raise ValueError(f"Camera label '{self.camera_name}' is not configured")
+
+            stream_sock = self._connect_stream_socket()
+            print(f"Connected to Quantrol stream at {self.stream_host}:{self.stream_port}")
 
             system = PySpin.System.GetInstance()
             cam_list = system.GetCameras()
@@ -59,59 +166,73 @@ class CameraWorker(QObject):
                 raise RuntimeError(f"Requested camera '{self.camera_name}' not detected.")
 
             cam = camera_dict[self.camera_name]
-            info = {}
-            configure_camera(
-                cam=cam,
-                exposure_us=max(self.exposure_ms, 0.0) * 1000.0,
-                gain_db=self.gain_db,
-                format_name=self.pixel_format,
-                info=info,
-            )
+            self._configure_camera_for_live(cam)
 
             cam.BeginAcquisition()
-            self.status_ready.emit("Live camera acquisition started")
+            print("Live camera acquisition started")
 
             while self._running:
+                t_get_start = perf_counter()
                 try:
                     image = cam.GetNextImage(100)
                 except PySpin.SpinnakerException as exc:
                     if "[-1011]" in str(exc):
                         continue
                     raise
+                t_get_end = perf_counter()
 
                 try:
                     if image.IsIncomplete():
                         continue
 
+                    t_proc_start = perf_counter()
                     arr = image.GetNDArray()
                     if arr.ndim == 3:
                         arr = arr[:, :, 0]
-                    arr = arr.astype(np.float32, copy=False)
 
-                    if self._capture_reference_next:
-                        self._subtract_reference = arr.copy()
-                        self._capture_reference_next = False
-                        self.status_ready.emit("Subtraction reference captured from next acquired frame")
-                        frame_for_display = arr
-                    elif self._subtract_enabled and self._subtract_reference is not None:
-                        if self._subtract_reference.shape == arr.shape:
-                            frame_for_display = arr - self._subtract_reference
+                    if self._subtract_enabled or self._capture_reference_next:
+                        arrf = arr.astype(np.float32, copy=False)
+                        if self._capture_reference_next:
+                            self._subtract_reference = arrf.copy()
+                            self._capture_reference_next = False
+                            print("Subtraction reference captured")
+                            frame_for_display = arrf
+                        elif self._subtract_reference is not None:
+                            if self._subtract_reference.shape == arrf.shape:
+                                frame_for_display = arrf - self._subtract_reference
+                            else:
+                                frame_for_display = arrf
+                                print("Subtraction skipped due to shape mismatch")
                         else:
-                            frame_for_display = arr
-                            self.status_ready.emit("Subtraction skipped due to shape mismatch")
+                            frame_for_display = arrf
+                        frame8 = self._to_display_uint8(frame_for_display, subtraction_mode=self._subtract_enabled)
                     else:
-                        frame_for_display = arr
+                        # Fast path when subtraction is disabled.
+                        if arr.dtype == np.uint8:
+                            frame8 = arr
+                        elif arr.dtype == np.uint16:
+                            frame8 = (arr >> 8).astype(np.uint8, copy=False)
+                        else:
+                            frame8 = self._to_display_uint8(arr.astype(np.float32, copy=False))
 
-                    frame8 = self._to_display_uint8(frame_for_display)
+                    frame8 = self._downsample_for_display(frame8)
+                    t_proc_end = perf_counter()
+
                     frame_counter += 1
                     elapsed = max(perf_counter() - t_start, 1e-9)
                     fps = frame_counter / elapsed
-                    self.frame_ready.emit(frame8, fps)
+                    get_ms = (t_get_end - t_get_start) * 1000.0
+                    proc_ms = (t_proc_end - t_proc_start) * 1000.0
+                    self._send_frame(stream_sock, frame8, fps, get_ms, proc_ms)
                 finally:
                     image.Release()
 
+            print("Live camera acquisition stopped")
+            return 0
+
         except Exception as exc:
-            self.error.emit(str(exc))
+            print(f"Live camera error: {exc}")
+            return 1
         finally:
             if cam is not None:
                 try:
@@ -133,163 +254,43 @@ class CameraWorker(QObject):
                 except Exception:
                     pass
 
-            self.status_ready.emit("Live camera acquisition stopped")
-            self.finished.emit()
-
-    @pyqtSlot()
-    def stop(self) -> None:
-        self._running = False
-
-    @pyqtSlot(bool)
-    def set_subtraction_enabled(self, enabled: bool) -> None:
-        self._subtract_enabled = bool(enabled)
-
-    @pyqtSlot()
-    def arm_next_reference_capture(self) -> None:
-        self._capture_reference_next = True
-
-    @pyqtSlot()
-    def clear_reference(self) -> None:
-        self._subtract_reference = None
-        self._capture_reference_next = False
-
-    @staticmethod
-    def _to_display_uint8(arr: np.ndarray) -> np.ndarray:
-        if arr.size == 0:
-            return np.zeros((1, 1), dtype=np.uint8)
-
-        arr_min = float(np.min(arr))
-        arr_max = float(np.max(arr))
-        if arr_min == arr_max:
-            return np.zeros(arr.shape, dtype=np.uint8)
-
-        if arr_min < 0.0:
-            max_abs = max(abs(arr_min), abs(arr_max), 1e-9)
-            scaled = (arr + max_abs) * (255.0 / (2.0 * max_abs))
-        else:
-            scaled = (arr - arr_min) * (255.0 / (arr_max - arr_min))
-
-        return np.clip(scaled, 0.0, 255.0).astype(np.uint8)
-
-
-class LiveCameraWindow(QMainWindow):
-    def __init__(
-        self,
-        camera_name: str,
-        pixel_format: str,
-        gain_db: float,
-        exposure_ms: float,
-        parent=None,
-    ) -> None:
-        super().__init__(parent)
-        self.setWindowTitle(f"Live camera view: {camera_name}")
-        self.resize(920, 700)
-
-        self.image_label = QLabel("Waiting for frames...")
-        self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setMinimumSize(640, 480)
-        self.image_label.setStyleSheet("background-color: black; color: white;")
-
-        self.status_label = QLabel("Idle")
-
-        root_layout = QVBoxLayout()
-        root_layout.addWidget(self.image_label)
-        root_layout.addWidget(self.status_label)
-
-        root = QWidget()
-        root.setLayout(root_layout)
-        self.setCentralWidget(root)
-
-        self.thread = QThread(self)
-        self.worker = CameraWorker(
-            camera_name=camera_name,
-            pixel_format=pixel_format,
-            gain_db=gain_db,
-            exposure_ms=exposure_ms,
-        )
-        self.worker.moveToThread(self.thread)
-
-        self.thread.started.connect(self.worker.run)
-        self.worker.frame_ready.connect(self._on_frame_ready)
-        self.worker.status_ready.connect(self._on_status)
-        self.worker.error.connect(self._on_error)
-        self.worker.finished.connect(self._on_worker_finished)
-
-        self.start_stream()
-
-    def start_stream(self) -> None:
-        if not self.thread.isRunning():
-            self.thread.start()
-
-    def stop_stream(self) -> None:
-        self.worker.stop()
-        self.thread.quit()
-        self.thread.wait(2500)
-
-    def set_subtraction_enabled(self, enabled: bool) -> None:
-        self.worker.set_subtraction_enabled(bool(enabled))
-
-    def arm_next_subtraction_reference(self) -> None:
-        self.worker.arm_next_reference_capture()
-
-    def reset_subtraction_reference(self) -> None:
-        self.worker.arm_next_reference_capture()
-
-    def clear_subtraction_reference(self) -> None:
-        self.worker.clear_reference()
-
-    @pyqtSlot(object, float)
-    def _on_frame_ready(self, frame8: object, fps: float) -> None:
-        array = np.asarray(frame8)
-        h, w = array.shape
-        image = QImage(array.data, w, h, array.strides[0], QImage.Format_Grayscale8).copy()
-        pixmap = QPixmap.fromImage(image)
-        self.image_label.setPixmap(
-            pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.FastTransformation)
-        )
-        self.status_label.setText(f"Streaming | FPS: {fps:.1f} | Size: {w}x{h}")
-
-    @pyqtSlot(str)
-    def _on_status(self, text: str) -> None:
-        self.status_label.setText(text)
-
-    @pyqtSlot(str)
-    def _on_error(self, text: str) -> None:
-        self.status_label.setText(f"Error: {text}")
-
-    @pyqtSlot()
-    def _on_worker_finished(self) -> None:
-        pass
-
-    def closeEvent(self, event) -> None:  # type: ignore[override]
-        self.stop_stream()
-        super().closeEvent(event)
+            if stream_sock is not None:
+                try:
+                    stream_sock.close()
+                except Exception:
+                    pass
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Live FLIR camera display")
+    parser = argparse.ArgumentParser(description="Live FLIR camera acquisition streamer")
     parser.add_argument("--camera", required=True, help="Camera label as defined in config.camera_serial_numbers_dict")
     parser.add_argument("--format", required=True, help="Pixel format name, e.g. Mono8")
     parser.add_argument("--gain-db", required=True, type=float, help="Analog gain in dB")
     parser.add_argument("--exposure-ms", required=True, type=float, help="Exposure time in milliseconds")
+    parser.add_argument("--stream-host", required=True, help="Quantrol host for frame stream")
+    parser.add_argument("--stream-port", required=True, type=int, help="Quantrol TCP port for frame stream")
+    parser.add_argument("--display-max-width", type=int, default=1024, help="Maximum streamed frame width")
+    parser.add_argument("--display-max-height", type=int, default=768, help="Maximum streamed frame height")
     parser.add_argument("--subtract-enabled", action="store_true", help="Enable subtraction at startup")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    app = QApplication(sys.argv)
-    window = LiveCameraWindow(
+    streamer = LiveCameraStreamer(
         camera_name=args.camera,
         pixel_format=args.format,
         gain_db=args.gain_db,
         exposure_ms=args.exposure_ms,
+        stream_host=args.stream_host,
+        stream_port=args.stream_port,
+        display_max_width=args.display_max_width,
+        display_max_height=args.display_max_height,
+        subtract_enabled=args.subtract_enabled,
     )
-    if args.subtract_enabled:
-        window.set_subtraction_enabled(True)
-        window.arm_next_subtraction_reference()
-    window.show()
-    return app.exec_()
+    signal.signal(signal.SIGTERM, streamer.stop)
+    signal.signal(signal.SIGINT, streamer.stop)
+    return streamer.run()
 
 
 if __name__ == "__main__":

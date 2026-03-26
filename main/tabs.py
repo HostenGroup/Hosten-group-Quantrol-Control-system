@@ -1694,22 +1694,74 @@ def acquisition_tab_build(self):
     # self.camera_box.toggled.connect(self.camera_box_checked)
     form = QFormLayout(self.camera_box)
 
-    self.live_camera_checkbox = QCheckBox("Live camera", self.acquisition_tab_widget)
-    self.live_camera_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_camera_checkbox.setGeometry(*self.scale_geom(3*self.button_w + 4*self.sep, self.top_margin + 2, 150, 28))
-    self.live_camera_checkbox.toggled.connect(self.handle_live_camera_toggled)
+    self.live_camera_box = QGroupBox(self.acquisition_tab_widget)
+    self.live_camera_box.setTitle("Live camera")
+    self.live_camera_box.setCheckable(True)
+    self.live_camera_box.setChecked(False)
+    self.live_camera_box.setFont(QFont('Arial', self.scale_font(14)))
+    self.live_camera_box.move(int(self.SCALE_W*(3*self.button_w + 4*self.sep)), int(self.SCALE_H*self.top_margin))
+    self.live_camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(260)))
+    self.live_camera_box.toggled.connect(self.handle_live_camera_toggled)
+    self.live_camera_checkbox = self.live_camera_box
 
-    self.live_subtract_checkbox = QCheckBox("Enable subtraction", self.acquisition_tab_widget)
+    live_form = QFormLayout(self.live_camera_box)
+
+    self.live_which_cam_combo = QComboBox(self.live_camera_box)
+    self.live_which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))
+    self.live_which_cam_combo.setEditable(True)
+    self.live_which_cam_combo.lineEdit().setReadOnly(True)
+    self.live_which_cam_combo.lineEdit().setPlaceholderText("Select camera...")
+    self.live_which_cam_combo.setCurrentIndex(-1)
+    live_form.addRow("Which camera", self.live_which_cam_combo)
+
+    self.live_gain_edit = QLineEdit(self.live_camera_box)
+    self.live_gain_edit.setPlaceholderText("e.g. 20")
+    live_form.addRow("Gain, dB", self.live_gain_edit)
+
+    self.live_exposure_edit = QLineEdit(self.live_camera_box)
+    self.live_exposure_edit.setPlaceholderText("e.g. 0.35")
+    live_form.addRow("Exposure time, ms", self.live_exposure_edit)
+
+    self.live_format_combo = QComboBox(self.live_camera_box)
+    self.live_format_combo.setEditable(True)
+    self.live_format_combo.lineEdit().setReadOnly(True)
+    self.live_format_combo.lineEdit().setPlaceholderText("Select image format...")
+    self.live_format_combo.addItems(["Mono8", "Mono16"])
+    self.live_format_combo.setCurrentIndex(-1)
+    live_form.addRow("Image format", self.live_format_combo)
+
+    self.live_subtract_checkbox = QCheckBox("Enable subtraction", self.live_camera_box)
     self.live_subtract_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_subtract_checkbox.setGeometry(*self.scale_geom(3*self.button_w + 4*self.sep, self.top_margin + 34, 190, 28))
     self.live_subtract_checkbox.setEnabled(False)
     self.live_subtract_checkbox.toggled.connect(self.handle_live_subtraction_toggled)
+    live_form.addRow("", self.live_subtract_checkbox)
 
-    self.live_subtract_reset_button = QPushButton("Reset subtraction", self.acquisition_tab_widget)
+    self.live_subtract_reset_button = QPushButton("Reset subtraction", self.live_camera_box)
     self.live_subtract_reset_button.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_subtract_reset_button.setGeometry(*self.scale_geom(3*self.button_w + 4*self.sep, self.top_margin + 66, 190, 30))
     self.live_subtract_reset_button.setEnabled(False)
     self.live_subtract_reset_button.clicked.connect(self.handle_live_subtraction_reset_clicked)
+    live_form.addRow("", self.live_subtract_reset_button)
+
+    self.live_start_button = QPushButton("Start acquisition", self.live_camera_box)
+    self.live_start_button.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_start_button.setEnabled(False)
+    self.live_start_button.clicked.connect(self.handle_live_camera_start_clicked)
+    live_form.addRow("", self.live_start_button)
+
+    cam_defaults = getattr(self.experiment.experimental_data, "camera", None)
+    if cam_defaults is not None:
+        if getattr(cam_defaults, "camera_name", ""):
+            live_index = self.live_which_cam_combo.findText(cam_defaults.camera_name)
+            if live_index >= 0:
+                self.live_which_cam_combo.setCurrentIndex(live_index)
+        if getattr(cam_defaults, "gain_db", None) is not None:
+            self.live_gain_edit.setText(str(cam_defaults.gain_db))
+        if getattr(cam_defaults, "exposure_time_ms", None) is not None:
+            self.live_exposure_edit.setText(str(cam_defaults.exposure_time_ms))
+        if getattr(cam_defaults, "format_name", ""):
+            live_index = self.live_format_combo.findText(cam_defaults.format_name)
+            if live_index >= 0:
+                self.live_format_combo.setCurrentIndex(live_index)
 
     self.which_cam_combo = QComboBox(self.camera_box)
     self.which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))
