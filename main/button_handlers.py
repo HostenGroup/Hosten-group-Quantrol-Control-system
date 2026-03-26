@@ -162,7 +162,31 @@ def handle_load_sequence_button_clicked(self):
                             self.format_combo.setCurrentIndex(index)
 
             if hasattr(self, "live_camera_checkbox"):
-                self.live_camera_checkbox.setChecked(getattr(self.experiment, "live_camera_enabled", False))
+                live_enabled = getattr(self.experiment, "live_camera_enabled", False)
+                if hasattr(self.experiment.experimental_data, 'live_camera') and hasattr(self.experiment.experimental_data.live_camera, 'enabled'):
+                    live_enabled = bool(getattr(self.experiment.experimental_data.live_camera, 'enabled'))
+
+                live_widgets = [
+                    getattr(self, "live_camera_checkbox", None),
+                    getattr(self, "live_which_cam_combo", None),
+                    getattr(self, "live_gain_edit", None),
+                    getattr(self, "live_exposure_edit", None),
+                    getattr(self, "live_format_combo", None),
+                    getattr(self, "live_hardware_trigger_checkbox", None),
+                    getattr(self, "live_subtract_checkbox", None),
+                    getattr(self, "live_gaussian_checkbox", None),
+                    getattr(self, "live_gaussian_sigma_edit", None),
+                    getattr(self, "live_gaussian_kernel_edit", None),
+                    getattr(self, "live_display_gain_edit", None),
+                    getattr(self, "live_downsample_factor_edit", None),
+                    getattr(self, "live_fps_limit_checkbox", None),
+                    getattr(self, "live_target_fps_edit", None),
+                ]
+                live_widgets = [w for w in live_widgets if w is not None]
+                for widget in live_widgets:
+                    widget.blockSignals(True)
+
+                self.live_camera_checkbox.setChecked(bool(live_enabled))
                 if hasattr(self.experiment.experimental_data, 'live_camera'):
                     lcam = self.experiment.experimental_data.live_camera
                     if hasattr(lcam, 'camera_name') and lcam.camera_name:
@@ -187,14 +211,28 @@ def handle_load_sequence_button_clicked(self):
                         self.live_gaussian_sigma_edit.setText(str(lcam.gaussian_sigma))
                     if hasattr(self, "live_gaussian_kernel_edit") and hasattr(lcam, "gaussian_kernel") and lcam.gaussian_kernel is not None:
                         self.live_gaussian_kernel_edit.setText(str(lcam.gaussian_kernel))
-                    if hasattr(self, "live_downsample_checkbox") and hasattr(lcam, "downsample_enabled"):
-                        self.live_downsample_checkbox.setChecked(bool(lcam.downsample_enabled))
+                    if hasattr(self, "live_display_gain_edit") and hasattr(lcam, "display_gain") and lcam.display_gain is not None:
+                        self.live_display_gain_edit.setText(str(lcam.display_gain))
                     if hasattr(self, "live_downsample_factor_edit") and hasattr(lcam, "downsample_factor") and lcam.downsample_factor is not None:
                         self.live_downsample_factor_edit.setText(str(lcam.downsample_factor))
                     if hasattr(self, "live_fps_limit_checkbox") and hasattr(lcam, "fps_limit_enabled"):
                         self.live_fps_limit_checkbox.setChecked(bool(lcam.fps_limit_enabled))
                     if hasattr(self, "live_target_fps_edit") and hasattr(lcam, "target_fps") and lcam.target_fps is not None:
                         self.live_target_fps_edit.setText(str(lcam.target_fps))
+
+                for widget in live_widgets:
+                    widget.blockSignals(False)
+
+                self.experiment.live_camera_enabled = bool(self.live_camera_checkbox.isChecked())
+                if hasattr(self.experiment.experimental_data, 'live_camera'):
+                    self.experiment.experimental_data.live_camera.enabled = bool(self.live_camera_checkbox.isChecked())
+
+                if hasattr(self, "handle_live_camera_toggled"):
+                    self.handle_live_camera_toggled(self.live_camera_checkbox.isChecked())
+                if hasattr(self, "handle_live_gaussian_toggled"):
+                    self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
+                if hasattr(self, "handle_live_fps_limit_toggled"):
+                    self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked())
             # Restore T_exp_ lock state
             if hasattr(self, "lock_cb"):
                 self.lock_cb.setChecked(self.experiment.texp_locked)

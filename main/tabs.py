@@ -1766,12 +1766,11 @@ def acquisition_tab_build(self):
     self.live_gaussian_kernel_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
     live_form.addRow("Gaussian kernel", self.live_gaussian_kernel_edit)
 
-    self.live_downsample_checkbox = QCheckBox("Enable display downsample", self.live_camera_box)
-    self.live_downsample_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_downsample_checkbox.setEnabled(False)
-    self.live_downsample_checkbox.setChecked(True)
-    self.live_downsample_checkbox.toggled.connect(self.handle_live_downsample_toggled)
-    live_form.addRow("", self.live_downsample_checkbox)
+    self.live_display_gain_edit = QLineEdit(self.live_camera_box)
+    self.live_display_gain_edit.setPlaceholderText("e.g. 0.0")
+    self.live_display_gain_edit.setEnabled(False)
+    self.live_display_gain_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
+    live_form.addRow("Display digital gain, dB", self.live_display_gain_edit)
 
     self.live_downsample_factor_edit = QLineEdit(self.live_camera_box)
     self.live_downsample_factor_edit.setPlaceholderText("e.g. 2.0")
@@ -1806,6 +1805,8 @@ def acquisition_tab_build(self):
 
     live_defaults = getattr(self.experiment.experimental_data, "live_camera", None)
     if live_defaults is not None:
+        if hasattr(live_defaults, "enabled"):
+            self.live_camera_checkbox.setChecked(bool(live_defaults.enabled))
         if getattr(live_defaults, "camera_name", ""):
             live_index = self.live_which_cam_combo.findText(live_defaults.camera_name)
             if live_index >= 0:
@@ -1828,8 +1829,8 @@ def acquisition_tab_build(self):
             self.live_gaussian_sigma_edit.setText(str(live_defaults.gaussian_sigma))
         if hasattr(live_defaults, "gaussian_kernel") and live_defaults.gaussian_kernel is not None:
             self.live_gaussian_kernel_edit.setText(str(live_defaults.gaussian_kernel))
-        if hasattr(live_defaults, "downsample_enabled"):
-            self.live_downsample_checkbox.setChecked(bool(live_defaults.downsample_enabled))
+        if hasattr(live_defaults, "display_gain") and live_defaults.display_gain is not None:
+            self.live_display_gain_edit.setText(str(live_defaults.display_gain))
         if hasattr(live_defaults, "downsample_factor") and live_defaults.downsample_factor is not None:
             self.live_downsample_factor_edit.setText(str(live_defaults.downsample_factor))
         if hasattr(live_defaults, "fps_limit_enabled"):
@@ -1838,7 +1839,6 @@ def acquisition_tab_build(self):
             self.live_target_fps_edit.setText(str(live_defaults.target_fps))
 
     self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
-    self.handle_live_downsample_toggled(self.live_downsample_checkbox.isChecked())
     self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked())
 
     self.which_cam_combo = QComboBox(self.camera_box)

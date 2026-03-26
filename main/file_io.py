@@ -119,6 +119,30 @@ def ensure_backward_compatibility(experiment) -> list:
         notes.append("Added experimental_data.live_camera attribute")
 
     live_camera = experiment.experimental_data.live_camera
+    if not hasattr(live_camera, 'enabled'):
+        live_camera.enabled = bool(getattr(experiment, 'live_camera_enabled', False))
+        notes.append("Added live_camera.enabled attribute")
+    if not hasattr(live_camera, 'camera_name'):
+        live_camera.camera_name = None
+        notes.append("Added live_camera.camera_name attribute")
+    if not hasattr(live_camera, 'serial_number'):
+        live_camera.serial_number = None
+        notes.append("Added live_camera.serial_number attribute")
+    if not hasattr(live_camera, 'gain_db'):
+        live_camera.gain_db = None
+        notes.append("Added live_camera.gain_db attribute")
+    if not hasattr(live_camera, 'exposure_time_ms'):
+        live_camera.exposure_time_ms = None
+        notes.append("Added live_camera.exposure_time_ms attribute")
+    if not hasattr(live_camera, 'format_name'):
+        live_camera.format_name = None
+        notes.append("Added live_camera.format_name attribute")
+    if not hasattr(live_camera, 'hardware_trigger'):
+        live_camera.hardware_trigger = False
+        notes.append("Added live_camera.hardware_trigger attribute")
+    if not hasattr(live_camera, 'subtraction_enabled'):
+        live_camera.subtraction_enabled = False
+        notes.append("Added live_camera.subtraction_enabled attribute")
     if not hasattr(live_camera, 'gaussian_enabled'):
         live_camera.gaussian_enabled = False
         notes.append("Added live_camera.gaussian_enabled attribute")
@@ -128,9 +152,9 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(live_camera, 'gaussian_kernel'):
         live_camera.gaussian_kernel = 5
         notes.append("Added live_camera.gaussian_kernel attribute")
-    if not hasattr(live_camera, 'downsample_enabled'):
-        live_camera.downsample_enabled = True
-        notes.append("Added live_camera.downsample_enabled attribute")
+    if not hasattr(live_camera, 'display_gain'):
+        live_camera.display_gain = 0.0
+        notes.append("Added live_camera.display_gain attribute")
     if not hasattr(live_camera, 'downsample_factor'):
         live_camera.downsample_factor = 2.0
         notes.append("Added live_camera.downsample_factor attribute")
@@ -239,6 +263,9 @@ def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, l
         experiment.camera_enabled = camera_box.isChecked()
     if live_camera_box is not None:
         experiment.live_camera_enabled = live_camera_box.isChecked()
+        if hasattr(experiment, "experimental_data") and experiment.experimental_data is not None:
+            if hasattr(experiment.experimental_data, "live_camera") and experiment.experimental_data.live_camera is not None:
+                experiment.experimental_data.live_camera.enabled = bool(experiment.live_camera_enabled)
     if texp_locked is not None:
         experiment.texp_locked = texp_locked
 

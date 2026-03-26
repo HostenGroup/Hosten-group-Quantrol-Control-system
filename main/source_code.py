@@ -1654,6 +1654,7 @@ class MainWindow(QMainWindow):
         format_name=None,
         gaussian_sigma=None,
         gaussian_kernel=None,
+        display_gain=None,
         downsample_factor=None,
         target_fps=None,
     ):
@@ -1669,11 +1670,16 @@ class MainWindow(QMainWindow):
             self.experiment.experimental_data.live_camera = LiveCamera()
 
         live_camera_data = self.experiment.experimental_data.live_camera
+        live_camera_data.enabled = bool(getattr(self.experiment, "live_camera_enabled", False))
 
         if camera_name is None and hasattr(self, "live_which_cam_combo"):
             camera_name = (self.live_which_cam_combo.currentText() or "").strip()
+        if not camera_name:
+            camera_name = getattr(live_camera_data, "camera_name", None)
         if serial_number is None and camera_name:
             serial_number = config.camera_serial_numbers_dict.get(camera_name)
+        if serial_number is None:
+            serial_number = getattr(live_camera_data, "serial_number", None)
         if gain_value is None and hasattr(self, "live_gain_edit"):
             try:
                 gain_value = float((self.live_gain_edit.text() or "").strip())
@@ -1686,6 +1692,8 @@ class MainWindow(QMainWindow):
                 exposure_value = getattr(live_camera_data, "exposure_time_ms", None)
         if format_name is None and hasattr(self, "live_format_combo"):
             format_name = (self.live_format_combo.currentText() or "").strip()
+        if not format_name:
+            format_name = getattr(live_camera_data, "format_name", "")
         if gaussian_sigma is None and hasattr(self, "live_gaussian_sigma_edit"):
             try:
                 gaussian_sigma = float((self.live_gaussian_sigma_edit.text() or "").strip())
@@ -1696,6 +1704,11 @@ class MainWindow(QMainWindow):
                 gaussian_kernel = int(float((self.live_gaussian_kernel_edit.text() or "").strip()))
             except Exception:
                 gaussian_kernel = getattr(live_camera_data, "gaussian_kernel", 5)
+        if display_gain is None and hasattr(self, "live_display_gain_edit"):
+            try:
+                display_gain = float((self.live_display_gain_edit.text() or "").strip())
+            except Exception:
+                display_gain = getattr(live_camera_data, "display_gain", 0.0)
         if downsample_factor is None and hasattr(self, "live_downsample_factor_edit"):
             try:
                 downsample_factor = float((self.live_downsample_factor_edit.text() or "").strip())
@@ -1706,6 +1719,9 @@ class MainWindow(QMainWindow):
                 target_fps = float((self.live_target_fps_edit.text() or "").strip())
             except Exception:
                 target_fps = getattr(live_camera_data, "target_fps", 12.0)
+
+        if display_gain is None:
+            display_gain = getattr(live_camera_data, "display_gain", 0.0)
 
         try:
             gaussian_sigma = float(gaussian_sigma)
@@ -1722,6 +1738,11 @@ class MainWindow(QMainWindow):
             gaussian_kernel = 1
         if gaussian_kernel % 2 == 0:
             gaussian_kernel += 1
+
+        try:
+            display_gain = float(display_gain)
+        except Exception:
+            display_gain = 0.0
 
         try:
             downsample_factor = float(downsample_factor)
@@ -1741,6 +1762,8 @@ class MainWindow(QMainWindow):
             self.live_gaussian_sigma_edit.setText(str(gaussian_sigma))
         if hasattr(self, "live_gaussian_kernel_edit"):
             self.live_gaussian_kernel_edit.setText(str(gaussian_kernel))
+        if hasattr(self, "live_display_gain_edit"):
+            self.live_display_gain_edit.setText(str(display_gain))
         if hasattr(self, "live_downsample_factor_edit"):
             self.live_downsample_factor_edit.setText(str(downsample_factor))
         if hasattr(self, "live_target_fps_edit"):
@@ -1762,12 +1785,11 @@ class MainWindow(QMainWindow):
             live_camera_data.subtraction_enabled = bool(self.live_subtract_checkbox.isChecked())
         if hasattr(self, "live_gaussian_checkbox"):
             live_camera_data.gaussian_enabled = bool(self.live_gaussian_checkbox.isChecked())
-        if hasattr(self, "live_downsample_checkbox"):
-            live_camera_data.downsample_enabled = bool(self.live_downsample_checkbox.isChecked())
         if hasattr(self, "live_fps_limit_checkbox"):
             live_camera_data.fps_limit_enabled = bool(self.live_fps_limit_checkbox.isChecked())
         live_camera_data.gaussian_sigma = gaussian_sigma
         live_camera_data.gaussian_kernel = gaussian_kernel
+        live_camera_data.display_gain = display_gain
         live_camera_data.downsample_factor = downsample_factor
         live_camera_data.target_fps = target_fps
 
@@ -1855,6 +1877,7 @@ class MainWindow(QMainWindow):
             "--target-fps", str(getattr(self.experiment.experimental_data.live_camera, "target_fps", 12.0)),
             "--gaussian-sigma", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_sigma", 1.0)),
             "--gaussian-kernel", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_kernel", 5)),
+            "--display-gain", str(getattr(self.experiment.experimental_data.live_camera, "display_gain", 0.0)),
         ]
 
         if hasattr(self, "live_hardware_trigger_checkbox") and self.live_hardware_trigger_checkbox.isChecked():
@@ -1864,10 +1887,6 @@ class MainWindow(QMainWindow):
             argv.append("--subtract-enabled")
         if hasattr(self, "live_gaussian_checkbox") and self.live_gaussian_checkbox.isChecked():
             argv.append("--gaussian-enabled")
-        if hasattr(self, "live_downsample_checkbox") and self.live_downsample_checkbox.isChecked():
-            argv.append("--downsample-enabled")
-        else:
-            argv.append("--downsample-disabled")
         if hasattr(self, "live_fps_limit_checkbox") and self.live_fps_limit_checkbox.isChecked():
             argv.append("--fps-limit-enabled")
         else:
@@ -1957,10 +1976,10 @@ class MainWindow(QMainWindow):
         gaussian_enabled = bool(getattr(live_data, "gaussian_enabled", False))
         gaussian_sigma = float(getattr(live_data, "gaussian_sigma", 1.0))
         gaussian_kernel = int(getattr(live_data, "gaussian_kernel", 5))
-        downsample_enabled = bool(getattr(live_data, "downsample_enabled", True))
         downsample_factor = float(getattr(live_data, "downsample_factor", 2.0))
         fps_limit_enabled = bool(getattr(live_data, "fps_limit_enabled", False))
         target_fps = float(getattr(live_data, "target_fps", 12.0))
+        display_gain = float(getattr(live_data, "display_gain", 0.0))
 
         payload = {
             "cmd": "apply_params",
@@ -1971,7 +1990,7 @@ class MainWindow(QMainWindow):
             "gaussian_enabled": gaussian_enabled,
             "gaussian_sigma": gaussian_sigma,
             "gaussian_kernel": gaussian_kernel,
-            "downsample_enabled": downsample_enabled,
+            "display_gain": display_gain,
             "downsample_factor": downsample_factor,
             "fps_limit_enabled": fps_limit_enabled,
             "target_fps": target_fps,
@@ -2037,10 +2056,10 @@ class MainWindow(QMainWindow):
             self.live_gaussian_sigma_edit.setEnabled(bool(checked) and bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
         if hasattr(self, "live_gaussian_kernel_edit"):
             self.live_gaussian_kernel_edit.setEnabled(bool(checked) and bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
-        if hasattr(self, "live_downsample_checkbox"):
-            self.live_downsample_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_display_gain_edit"):
+            self.live_display_gain_edit.setEnabled(bool(checked))
         if hasattr(self, "live_downsample_factor_edit"):
-            self.live_downsample_factor_edit.setEnabled(bool(checked) and bool(getattr(self, "live_downsample_checkbox", None) and self.live_downsample_checkbox.isChecked()))
+            self.live_downsample_factor_edit.setEnabled(bool(checked))
         if hasattr(self, "live_fps_limit_checkbox"):
             self.live_fps_limit_checkbox.setEnabled(bool(checked))
         if hasattr(self, "live_target_fps_edit"):
@@ -2131,18 +2150,6 @@ class MainWindow(QMainWindow):
         self._persist_live_camera_settings_from_ui()
         if self._apply_live_runtime_parameters():
             self.message_to_logger("Live Gaussian filter mode updated")
-
-    def handle_live_downsample_toggled(self, _enabled):
-        """Apply display downsample mode and factor immediately for the running live stream."""
-        if hasattr(self, "live_camera_checkbox") and not self.live_camera_checkbox.isChecked():
-            if hasattr(self, "live_downsample_factor_edit"):
-                self.live_downsample_factor_edit.setEnabled(False)
-        else:
-            if hasattr(self, "live_downsample_factor_edit"):
-                self.live_downsample_factor_edit.setEnabled(bool(getattr(self, "live_downsample_checkbox", None) and self.live_downsample_checkbox.isChecked()))
-        self._persist_live_camera_settings_from_ui()
-        if self._apply_live_runtime_parameters():
-            self.message_to_logger("Live downsample settings updated")
 
     def handle_live_fps_limit_toggled(self, _enabled):
         """Apply camera FPS limit mode and value immediately for the running live stream."""

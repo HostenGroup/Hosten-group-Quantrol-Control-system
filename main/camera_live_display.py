@@ -35,7 +35,7 @@ class LiveCameraStreamer:
         gaussian_enabled: bool = False,
         gaussian_sigma: float = 1.0,
         gaussian_kernel: int = 5,
-        downsample_enabled: bool = True,
+        display_gain: float = 0.0,
         fps_limit_enabled: bool = False,
         subtract_enabled: bool = False,
     ) -> None:
@@ -61,7 +61,7 @@ class LiveCameraStreamer:
             self.gaussian_kernel = 1
         if self.gaussian_kernel % 2 == 0:
             self.gaussian_kernel += 1
-        self.downsample_enabled = bool(downsample_enabled)
+        self.display_gain = float(display_gain)
         self.fps_limit_enabled = bool(fps_limit_enabled)
 
         self._running = True
@@ -154,8 +154,9 @@ class LiveCameraStreamer:
                     if kernel_value % 2 == 0:
                         kernel_value += 1
                     self.gaussian_kernel = kernel_value
-                if "downsample_enabled" in payload:
-                    self.downsample_enabled = bool(payload.get("downsample_enabled"))
+                if "display_gain" in payload:
+                    gain_value = float(payload.get("display_gain"))
+                    self.display_gain = gain_value
                 if "downsample_factor" in payload:
                     factor_value = float(payload.get("downsample_factor"))
                     self.downsample_factor = factor_value if factor_value > 0.0 else 1.0
@@ -196,6 +197,22 @@ class LiveCameraStreamer:
         if arr.dtype == np.uint16:
             return np.clip(np.rint(filtered), 0.0, 65535.0).astype(np.uint16)
         return filtered
+
+    def _apply_display_gain(self, arr: np.ndarray) -> np.ndarray:
+        # Interpret display gain in camera-style dB (amplitude): +20 dB -> 10x.
+        gain = float(10.0 ** (float(self.display_gain) / 20.0))
+        if abs(gain - 1.0) < 1e-9:
+            return arr
+
+        if np.issubdtype(arr.dtype, np.floating):
+            return arr * gain
+
+        arrf = arr.astype(np.float32, copy=False) * gain
+        if arr.dtype == np.uint8:
+            return np.clip(np.rint(arrf), 0.0, 255.0).astype(np.uint8)
+        if arr.dtype == np.uint16:
+            return np.clip(np.rint(arrf), 0.0, 65535.0).astype(np.uint16)
+        return arrf
 
     @staticmethod
     def _to_display_uint8(
@@ -248,9 +265,6 @@ class LiveCameraStreamer:
         sock_.sendall(payload)
 
     def _downsample_for_display(self, frame8: np.ndarray) -> np.ndarray:
-        if not self.downsample_enabled:
-            return frame8
-
         factor = float(self.downsample_factor)
         if factor <= 1.0:
             return frame8
@@ -434,6 +448,7 @@ class LiveCameraStreamer:
                                 print("Subtraction skipped due to shape mismatch")
                         else:
                             frame_for_display = arrf
+                        frame_for_display = self._apply_display_gain(frame_for_display)
                         frame8 = self._to_display_uint8(
                             frame_for_display,
                             subtraction_mode=self._subtract_enabled,
@@ -441,6 +456,7 @@ class LiveCameraStreamer:
                         )
                     else:
                         # Fast path when subtraction is disabled.
+                        arr = self._apply_display_gain(arr)
                         if arr.dtype == np.uint8:
                             frame8 = arr
                         elif arr.dtype == np.uint16:
@@ -513,9 +529,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--control-port", required=True, type=int, help="Quantrol UDP port for control commands")
     parser.add_argument("--downsample-factor", type=float, default=2.0, help="Uniform display downsampling factor (float > 0)")
     parser.add_argument("--target-fps", type=float, default=12.0, help="Target camera FPS when FPS limit is enabled")
-    parser.add_argument("--downsample-enabled", dest="downsample_enabled", action="store_true", help="Enable display downsampling")
-    parser.add_argument("--downsample-disabled", dest="downsample_enabled", action="store_false", help="Disable display downsampling")
-    parser.set_defaults(downsample_enabled=True)
+    parser.add_argument("--display-gain", type=float, default=0.0, help="Display-only digital gain in camera-style dB (20 dB = 10x)")
     parser.add_argument("--fps-limit-enabled", dest="fps_limit_enabled", action="store_true", help="Enable camera FPS limiting")
     parser.add_argument("--fps-limit-disabled", dest="fps_limit_enabled", action="store_false", help="Disable camera FPS limiting")
     parser.set_defaults(fps_limit_enabled=False)
@@ -544,7 +558,7 @@ def main() -> int:
         gaussian_enabled=args.gaussian_enabled,
         gaussian_sigma=args.gaussian_sigma,
         gaussian_kernel=args.gaussian_kernel,
-        downsample_enabled=args.downsample_enabled,
+        display_gain=args.display_gain,
         fps_limit_enabled=args.fps_limit_enabled,
         subtract_enabled=args.subtract_enabled,
     )
