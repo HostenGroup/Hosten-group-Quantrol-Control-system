@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import signal
 import socket
 import struct
@@ -25,8 +26,11 @@ class LiveCameraStreamer:
         exposure_ms: float,
         stream_host: str,
         stream_port: int,
+        control_host: str,
+        control_port: int,
         display_max_width: int,
         display_max_height: int,
+        hardware_trigger: bool = False,
         subtract_enabled: bool = False,
     ) -> None:
         self.camera_name = camera_name
@@ -35,16 +39,25 @@ class LiveCameraStreamer:
         self.exposure_ms = exposure_ms
         self.stream_host = stream_host
         self.stream_port = int(stream_port)
+        self.control_host = control_host
+        self.control_port = int(control_port)
         self.display_max_width = max(int(display_max_width), 1)
         self.display_max_height = max(int(display_max_height), 1)
+        self.hardware_trigger = bool(hardware_trigger)
 
         self._running = True
         self._subtract_enabled = bool(subtract_enabled)
         self._subtract_reference = None
         self._capture_reference_next = bool(subtract_enabled)
+        self._control_socket = None
 
     def stop(self, *_args) -> None:
         self._running = False
+        if self._control_socket is not None:
+            try:
+                self._control_socket.close()
+            except Exception:
+                pass
 
     def _connect_stream_socket(self) -> socket.socket:
         sock_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -62,6 +75,69 @@ class LiveCameraStreamer:
         if last_exc is not None:
             raise RuntimeError(f"Could not connect to Quantrol live stream socket: {last_exc}")
         raise RuntimeError("Could not connect to Quantrol live stream socket")
+
+    def _create_control_socket(self) -> socket.socket:
+        sock_ = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock_.bind((self.control_host, self.control_port))
+        sock_.setblocking(False)
+        return sock_
+
+    def _poll_control_commands(self, cam: PySpin.Camera) -> None:
+        if self._control_socket is None:
+            return
+        while self._running:
+            try:
+                packet, _addr = self._control_socket.recvfrom(4096)
+            except BlockingIOError:
+                break
+            except OSError:
+                break
+
+            try:
+                payload = json.loads(packet.decode("utf-8"))
+            except Exception:
+                continue
+            self._apply_control_command(cam, payload)
+
+    def _apply_control_command(self, cam: PySpin.Camera, payload: dict) -> None:
+        command = str(payload.get("cmd", "")).strip().lower()
+        if command == "set_subtraction":
+            self._subtract_enabled = bool(payload.get("enabled", False))
+            if bool(payload.get("capture_reference_next", False)):
+                self._capture_reference_next = True
+            return
+
+        if command == "reset_subtraction":
+            self._subtract_reference = None
+            self._capture_reference_next = True
+            self._subtract_enabled = True
+            return
+
+        if command == "apply_params":
+            try:
+                if "gain_db" in payload:
+                    self.gain_db = float(payload.get("gain_db"))
+                if "exposure_ms" in payload:
+                    self.exposure_ms = float(payload.get("exposure_ms"))
+                if "pixel_format" in payload:
+                    self.pixel_format = str(payload.get("pixel_format") or self.pixel_format)
+                if "hardware_trigger" in payload:
+                    self.hardware_trigger = bool(payload.get("hardware_trigger"))
+
+                was_acquiring = False
+                try:
+                    cam.EndAcquisition()
+                    was_acquiring = True
+                except Exception:
+                    pass
+
+                self._configure_camera_for_live(cam)
+
+                if was_acquiring:
+                    cam.BeginAcquisition()
+            except Exception as exc:
+                print(f"Live apply_params failed: {exc}")
+            return
 
     @staticmethod
     def _to_display_uint8(arr: np.ndarray, subtraction_mode: bool = False) -> np.ndarray:
@@ -127,15 +203,19 @@ class LiveCameraStreamer:
         else:
             print("Live: AcquisitionFrameRateEnable unavailable; keeping camera default behavior")
 
-        # Live preview should free-run; hardware-triggered mode severely limits preview FPS.
+        # Live preview defaults to free-running. Optionally keep hardware trigger when requested.
         trig_mode = PySpin.CEnumerationPtr(nodemap.GetNode("TriggerMode"))
         if PySpin.IsAvailable(trig_mode) and PySpin.IsWritable(trig_mode):
-            trig_mode_off = trig_mode.GetEntryByName("Off")
-            if PySpin.IsAvailable(trig_mode_off) and PySpin.IsReadable(trig_mode_off):
-                trig_mode.SetIntValue(trig_mode_off.GetValue())
-                print("Live: TriggerMode set to Off (free-running preview)")
+            mode_name = "On" if self.hardware_trigger else "Off"
+            trig_mode_entry = trig_mode.GetEntryByName(mode_name)
+            if PySpin.IsAvailable(trig_mode_entry) and PySpin.IsReadable(trig_mode_entry):
+                trig_mode.SetIntValue(trig_mode_entry.GetValue())
+                if self.hardware_trigger:
+                    print("Live: TriggerMode set to On (hardware trigger preview)")
+                else:
+                    print("Live: TriggerMode set to Off (free-running preview)")
             else:
-                print("Live: TriggerMode Off entry unavailable; keeping existing trigger mode")
+                print(f"Live: TriggerMode {mode_name} entry unavailable; keeping existing trigger mode")
         else:
             print("Live: TriggerMode node unavailable; keeping existing trigger mode")
 
@@ -144,6 +224,7 @@ class LiveCameraStreamer:
         cam_list = None
         cam = None
         stream_sock = None
+        control_sock = None
         frame_counter = 0
         t_start = perf_counter()
 
@@ -155,6 +236,9 @@ class LiveCameraStreamer:
 
             stream_sock = self._connect_stream_socket()
             print(f"Connected to Quantrol stream at {self.stream_host}:{self.stream_port}")
+            control_sock = self._create_control_socket()
+            self._control_socket = control_sock
+            print(f"Live control listener on {self.control_host}:{self.control_port}")
 
             system = PySpin.System.GetInstance()
             cam_list = system.GetCameras()
@@ -172,6 +256,7 @@ class LiveCameraStreamer:
             print("Live camera acquisition started")
 
             while self._running:
+                self._poll_control_commands(cam)
                 t_get_start = perf_counter()
                 try:
                     image = cam.GetNextImage(100)
@@ -260,6 +345,13 @@ class LiveCameraStreamer:
                 except Exception:
                     pass
 
+            if control_sock is not None:
+                try:
+                    control_sock.close()
+                except Exception:
+                    pass
+            self._control_socket = None
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Live FLIR camera acquisition streamer")
@@ -269,8 +361,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exposure-ms", required=True, type=float, help="Exposure time in milliseconds")
     parser.add_argument("--stream-host", required=True, help="Quantrol host for frame stream")
     parser.add_argument("--stream-port", required=True, type=int, help="Quantrol TCP port for frame stream")
+    parser.add_argument("--control-host", required=True, help="Quantrol host for control commands")
+    parser.add_argument("--control-port", required=True, type=int, help="Quantrol UDP port for control commands")
     parser.add_argument("--display-max-width", type=int, default=1024, help="Maximum streamed frame width")
     parser.add_argument("--display-max-height", type=int, default=768, help="Maximum streamed frame height")
+    parser.add_argument("--hardware-trigger", action="store_true", help="Use hardware trigger for live preview")
     parser.add_argument("--subtract-enabled", action="store_true", help="Enable subtraction at startup")
     return parser.parse_args()
 
@@ -284,8 +379,11 @@ def main() -> int:
         exposure_ms=args.exposure_ms,
         stream_host=args.stream_host,
         stream_port=args.stream_port,
+        control_host=args.control_host,
+        control_port=args.control_port,
         display_max_width=args.display_max_width,
         display_max_height=args.display_max_height,
+        hardware_trigger=args.hardware_trigger,
         subtract_enabled=args.subtract_enabled,
     )
     signal.signal(signal.SIGTERM, streamer.stop)

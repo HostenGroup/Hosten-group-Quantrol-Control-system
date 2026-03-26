@@ -44,9 +44,12 @@ def handle_save_sequence_button_clicked(self):
     user needs to specify its location and name. Otherwise it will orverwrite the sequence that was opened
     '''
     # Prepare experiment for saving (capture UI state)
+    if hasattr(self, "_persist_live_camera_settings_from_ui"):
+        self._persist_live_camera_settings_from_ui()
     camera_box = self.camera_box if hasattr(self, "camera_box") else None
+    live_camera_box = self.live_camera_checkbox if hasattr(self, "live_camera_checkbox") else None
     texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
-    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box)
     
     if self.experiment.file_name == "":
         self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0]
@@ -157,6 +160,27 @@ def handle_load_sequence_button_clicked(self):
                         index = self.format_combo.findText(cam.format_name)
                         if index >= 0:
                             self.format_combo.setCurrentIndex(index)
+
+            if hasattr(self, "live_camera_checkbox"):
+                self.live_camera_checkbox.setChecked(getattr(self.experiment, "live_camera_enabled", False))
+                if hasattr(self.experiment.experimental_data, 'live_camera'):
+                    lcam = self.experiment.experimental_data.live_camera
+                    if hasattr(lcam, 'camera_name') and lcam.camera_name:
+                        index = self.live_which_cam_combo.findText(lcam.camera_name)
+                        if index >= 0:
+                            self.live_which_cam_combo.setCurrentIndex(index)
+                    if hasattr(lcam, 'gain_db') and lcam.gain_db is not None:
+                        self.live_gain_edit.setText(str(lcam.gain_db))
+                    if hasattr(lcam, 'exposure_time_ms') and lcam.exposure_time_ms is not None:
+                        self.live_exposure_edit.setText(str(lcam.exposure_time_ms))
+                    if hasattr(lcam, 'format_name') and lcam.format_name:
+                        index = self.live_format_combo.findText(lcam.format_name)
+                        if index >= 0:
+                            self.live_format_combo.setCurrentIndex(index)
+                    if hasattr(self, "live_hardware_trigger_checkbox") and hasattr(lcam, "hardware_trigger"):
+                        self.live_hardware_trigger_checkbox.setChecked(bool(lcam.hardware_trigger))
+                    if hasattr(self, "live_subtract_checkbox") and hasattr(lcam, "subtraction_enabled"):
+                        self.live_subtract_checkbox.setChecked(bool(lcam.subtraction_enabled))
             # Restore T_exp_ lock state
             if hasattr(self, "lock_cb"):
                 self.lock_cb.setChecked(self.experiment.texp_locked)
@@ -179,8 +203,12 @@ def handle_save_sequence_as_button_clicked(self):
     # Save camera state before pickling
     if hasattr(self, "camera_box"):
         self.experiment.camera_enabled = self.camera_box.isChecked()
+    if hasattr(self, "live_camera_checkbox"):
+        self.experiment.live_camera_enabled = self.live_camera_checkbox.isChecked()
     if hasattr(self, "_texp_locked"):
         self.experiment.texp_locked = self._texp_locked
+    if hasattr(self, "_persist_live_camera_settings_from_ui"):
+        self._persist_live_camera_settings_from_ui()
     
     self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0] # always ask for filename
     if self.experiment.file_name != "": #self.experiment.file_name = ""happens when no file name was given (canceled)

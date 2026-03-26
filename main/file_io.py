@@ -16,6 +16,7 @@ import pickle
 from pathlib import Path
 from typing import Optional, Tuple
 from copy import deepcopy
+from data_structures import ExperimentalData, Camera, LiveCamera
 
 
 def save_experiment(experiment, file_path: str = None) -> Tuple[bool, str, Optional[str]]:
@@ -95,11 +96,27 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(experiment, 'camera_enabled'):
         experiment.camera_enabled = False
         notes.append("Added camera_enabled attribute")
+
+    # Add live_camera_enabled attribute if missing
+    if not hasattr(experiment, 'live_camera_enabled'):
+        experiment.live_camera_enabled = False
+        notes.append("Added live_camera_enabled attribute")
     
     # Add texp_locked attribute if missing
     if not hasattr(experiment, 'texp_locked'):
         experiment.texp_locked = False
         notes.append("Added texp_locked attribute")
+
+    # Ensure experimental_data and camera/live_camera payloads exist
+    if not hasattr(experiment, 'experimental_data') or experiment.experimental_data is None:
+        experiment.experimental_data = ExperimentalData()
+        notes.append("Added experimental_data attribute")
+    if not hasattr(experiment.experimental_data, 'camera') or experiment.experimental_data.camera is None:
+        experiment.experimental_data.camera = Camera()
+        notes.append("Added experimental_data.camera attribute")
+    if not hasattr(experiment.experimental_data, 'live_camera') or experiment.experimental_data.live_camera is None:
+        experiment.experimental_data.live_camera = LiveCamera()
+        notes.append("Added experimental_data.live_camera attribute")
     
     return notes
 
@@ -186,7 +203,7 @@ def apply_default_to_experiment(experiment, default_experiment) -> None:
         experiment.title_slow_dds_tab = deepcopy(default_experiment.title_slow_dds_tab)
 
 
-def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None) -> None:
+def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, live_camera_box=None) -> None:
     '''
     Prepare experiment object for saving by capturing current UI state.
     
@@ -197,6 +214,8 @@ def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None) -
     '''
     if camera_box is not None:
         experiment.camera_enabled = camera_box.isChecked()
+    if live_camera_box is not None:
+        experiment.live_camera_enabled = live_camera_box.isChecked()
     if texp_locked is not None:
         experiment.texp_locked = texp_locked
 

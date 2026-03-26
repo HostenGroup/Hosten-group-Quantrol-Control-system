@@ -1712,14 +1712,17 @@ def acquisition_tab_build(self):
     self.live_which_cam_combo.lineEdit().setReadOnly(True)
     self.live_which_cam_combo.lineEdit().setPlaceholderText("Select camera...")
     self.live_which_cam_combo.setCurrentIndex(-1)
+    self.live_which_cam_combo.currentTextChanged.connect(lambda: self.handle_live_camera_parameter_changed())
     live_form.addRow("Which camera", self.live_which_cam_combo)
 
     self.live_gain_edit = QLineEdit(self.live_camera_box)
     self.live_gain_edit.setPlaceholderText("e.g. 20")
+    self.live_gain_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
     live_form.addRow("Gain, dB", self.live_gain_edit)
 
     self.live_exposure_edit = QLineEdit(self.live_camera_box)
     self.live_exposure_edit.setPlaceholderText("e.g. 0.35")
+    self.live_exposure_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
     live_form.addRow("Exposure time, ms", self.live_exposure_edit)
 
     self.live_format_combo = QComboBox(self.live_camera_box)
@@ -1728,6 +1731,7 @@ def acquisition_tab_build(self):
     self.live_format_combo.lineEdit().setPlaceholderText("Select image format...")
     self.live_format_combo.addItems(["Mono8", "Mono16"])
     self.live_format_combo.setCurrentIndex(-1)
+    self.live_format_combo.currentTextChanged.connect(lambda: self.handle_live_camera_parameter_changed())
     live_form.addRow("Image format", self.live_format_combo)
 
     self.live_subtract_checkbox = QCheckBox("Enable subtraction", self.live_camera_box)
@@ -1735,6 +1739,13 @@ def acquisition_tab_build(self):
     self.live_subtract_checkbox.setEnabled(False)
     self.live_subtract_checkbox.toggled.connect(self.handle_live_subtraction_toggled)
     live_form.addRow("", self.live_subtract_checkbox)
+
+    self.live_hardware_trigger_checkbox = QCheckBox("Use hardware trigger", self.live_camera_box)
+    self.live_hardware_trigger_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_hardware_trigger_checkbox.setEnabled(False)
+    self.live_hardware_trigger_checkbox.setChecked(False)
+    self.live_hardware_trigger_checkbox.toggled.connect(self.handle_live_hardware_trigger_toggled)
+    live_form.addRow("", self.live_hardware_trigger_checkbox)
 
     self.live_subtract_reset_button = QPushButton("Reset subtraction", self.live_camera_box)
     self.live_subtract_reset_button.setFont(QFont('Arial', self.scale_font(12)))
@@ -1748,20 +1759,24 @@ def acquisition_tab_build(self):
     self.live_start_button.clicked.connect(self.handle_live_camera_start_clicked)
     live_form.addRow("", self.live_start_button)
 
-    cam_defaults = getattr(self.experiment.experimental_data, "camera", None)
-    if cam_defaults is not None:
-        if getattr(cam_defaults, "camera_name", ""):
-            live_index = self.live_which_cam_combo.findText(cam_defaults.camera_name)
+    live_defaults = getattr(self.experiment.experimental_data, "live_camera", None)
+    if live_defaults is not None:
+        if getattr(live_defaults, "camera_name", ""):
+            live_index = self.live_which_cam_combo.findText(live_defaults.camera_name)
             if live_index >= 0:
                 self.live_which_cam_combo.setCurrentIndex(live_index)
-        if getattr(cam_defaults, "gain_db", None) is not None:
-            self.live_gain_edit.setText(str(cam_defaults.gain_db))
-        if getattr(cam_defaults, "exposure_time_ms", None) is not None:
-            self.live_exposure_edit.setText(str(cam_defaults.exposure_time_ms))
-        if getattr(cam_defaults, "format_name", ""):
-            live_index = self.live_format_combo.findText(cam_defaults.format_name)
+        if getattr(live_defaults, "gain_db", None) is not None:
+            self.live_gain_edit.setText(str(live_defaults.gain_db))
+        if getattr(live_defaults, "exposure_time_ms", None) is not None:
+            self.live_exposure_edit.setText(str(live_defaults.exposure_time_ms))
+        if getattr(live_defaults, "format_name", ""):
+            live_index = self.live_format_combo.findText(live_defaults.format_name)
             if live_index >= 0:
                 self.live_format_combo.setCurrentIndex(live_index)
+        if hasattr(live_defaults, "hardware_trigger"):
+            self.live_hardware_trigger_checkbox.setChecked(bool(live_defaults.hardware_trigger))
+        if hasattr(live_defaults, "subtraction_enabled"):
+            self.live_subtract_checkbox.setChecked(bool(live_defaults.subtraction_enabled))
 
     self.which_cam_combo = QComboBox(self.camera_box)
     self.which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))

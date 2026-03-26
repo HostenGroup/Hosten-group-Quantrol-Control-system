@@ -47,7 +47,7 @@ from pathlib import Path
 from data_structures import (
     Edge, Experiment, SlowDDS, ExperimentalData,
     DerivedVariable, LookupVariable, ScannedVariable, RampedVariable,
-    Variable, CustomThread, Camera, Digital, Analog, DDS
+    Variable, CustomThread, Camera, LiveCamera, Digital, Analog, DDS
 )
 
 # Import validation functions
@@ -153,10 +153,14 @@ class LiveCameraDisplayWindow(QMainWindow):
         self._heatmap_enabled = True
         self._heatmap_table = self._build_heatmap_color_table()
         self._last_draw_time = None
+        self._last_image = None
+        self._last_fps = 0.0
+        self._last_get_ms = 0.0
+        self._last_proc_ms = 0.0
 
         self.image_label = QLabel("Waiting for live camera frames...")
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setMinimumSize(640, 480)
+        self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.image_label.setStyleSheet("background-color: black; color: white;")
 
         self.status_label = QLabel("Idle")
@@ -170,6 +174,14 @@ class LiveCameraDisplayWindow(QMainWindow):
         self.setCentralWidget(root)
 
     def update_frame(self, image, fps, get_ms, proc_ms):
+        self._last_image = image
+        self._last_fps = float(fps)
+        self._last_get_ms = float(get_ms)
+        self._last_proc_ms = float(proc_ms)
+
+        self._render_frame(image, fps, get_ms, proc_ms)
+
+    def _render_frame(self, image, fps, get_ms, proc_ms):
         image_to_draw = image
         if self._heatmap_enabled and image.format() in (QImage.Format_Grayscale8, QImage.Format_Indexed8):
             image_to_draw = image.convertToFormat(QImage.Format_Indexed8)
@@ -198,6 +210,11 @@ class LiveCameraDisplayWindow(QMainWindow):
             f"Get: {get_ms:.1f} ms | Proc: {proc_ms:.1f} ms | Bottleneck: {bottleneck} | "
             f"Size: {image.width()}x{image.height()}"
         )
+
+    def resizeEvent(self, event):  # type: ignore[override]
+        super().resizeEvent(event)
+        if self._last_image is not None:
+            self._render_frame(self._last_image, self._last_fps, self._last_get_ms, self._last_proc_ms)
 
     def set_status(self, text):
         self.status_label.setText(text)
@@ -339,12 +356,15 @@ class MainWindow(QMainWindow):
         self.live_camera_thread = None
         self.live_stream_receiver = None
         self._live_internal_close = False
+        self.live_control_host = None
+        self.live_control_port = None
 
 
         self.experiment.variables['id0'] = Variable(name = "id0", value = 0.0, for_python = 0.0)
         self.experiment.variables[''] = Variable(name = '', value = 0.0, for_python = 0.0)   #in order to be able to process expressions like -5 we need to have it as first item in decode will be "" that should be 0    
         self.experiment.experimental_data = ExperimentalData()
         self.experiment.experimental_data.camera = Camera()
+        self.experiment.experimental_data.live_camera = LiveCamera()
         self.experiment.sequence = [Edge(name = "Default")]
         
         self.init_default_values() #Reads the default state file and initializes the values
@@ -1142,6 +1162,7 @@ class MainWindow(QMainWindow):
             self.experiment.camera_enabled = self.camera_box.isChecked()
         if hasattr(self, "_texp_locked"):
             self.experiment.texp_locked = self._texp_locked
+        self._persist_live_camera_settings_from_ui()
         
         success, message = file_io.save_default_settings(self.experiment, self.repo_path)
         self.message_to_logger(message)
@@ -1564,24 +1585,79 @@ class MainWindow(QMainWindow):
             raise ValueError(f"Camera '{camera_name}' is not configured in config.camera_serial_numbers_dict.")
 
         gain_text = (gain_edit.text() or "").strip()
-        gain_default = getattr(self.experiment.experimental_data.camera, "gain_db", 0.0)
+        gain_default = getattr(getattr(self.experiment.experimental_data, "live_camera", None), "gain_db", 0.0)
         gain_value = _coerce_float(gain_text, gain_default)
 
         exposure_text = (exposure_edit.text() or "").strip()
-        exposure_default = getattr(self.experiment.experimental_data.camera, "exposure_time_ms", 0.0)
+        exposure_default = getattr(getattr(self.experiment.experimental_data, "live_camera", None), "exposure_time_ms", 0.0)
         exposure_value = _coerce_float(exposure_text, exposure_default)
 
         format_name = (format_combo.currentText() or "").strip()
         if not format_name:
             format_name = "Mono8"
 
-        self.experiment.experimental_data.camera.camera_name = camera_name
-        self.experiment.experimental_data.camera.serial_number = serial_number
-        self.experiment.experimental_data.camera.gain_db = gain_value
-        self.experiment.experimental_data.camera.exposure_time_ms = exposure_value
-        self.experiment.experimental_data.camera.format_name = format_name
+        self._persist_live_camera_settings_from_ui(
+            camera_name=camera_name,
+            serial_number=serial_number,
+            gain_value=gain_value,
+            exposure_value=exposure_value,
+            format_name=format_name,
+        )
 
         return camera_name, format_name, gain_value, exposure_value
+
+    def _persist_live_camera_settings_from_ui(
+        self,
+        camera_name=None,
+        serial_number=None,
+        gain_value=None,
+        exposure_value=None,
+        format_name=None,
+    ):
+        """Persist live camera UI fields into experiment.experimental_data.live_camera."""
+        if not hasattr(self.experiment, "live_camera_enabled"):
+            self.experiment.live_camera_enabled = False
+        if hasattr(self, "live_camera_checkbox"):
+            self.experiment.live_camera_enabled = bool(self.live_camera_checkbox.isChecked())
+
+        if not hasattr(self.experiment, "experimental_data") or self.experiment.experimental_data is None:
+            self.experiment.experimental_data = ExperimentalData()
+        if not hasattr(self.experiment.experimental_data, "live_camera") or self.experiment.experimental_data.live_camera is None:
+            self.experiment.experimental_data.live_camera = LiveCamera()
+
+        live_camera_data = self.experiment.experimental_data.live_camera
+
+        if camera_name is None and hasattr(self, "live_which_cam_combo"):
+            camera_name = (self.live_which_cam_combo.currentText() or "").strip()
+        if serial_number is None and camera_name:
+            serial_number = config.camera_serial_numbers_dict.get(camera_name)
+        if gain_value is None and hasattr(self, "live_gain_edit"):
+            try:
+                gain_value = float((self.live_gain_edit.text() or "").strip())
+            except Exception:
+                gain_value = getattr(live_camera_data, "gain_db", None)
+        if exposure_value is None and hasattr(self, "live_exposure_edit"):
+            try:
+                exposure_value = float((self.live_exposure_edit.text() or "").strip())
+            except Exception:
+                exposure_value = getattr(live_camera_data, "exposure_time_ms", None)
+        if format_name is None and hasattr(self, "live_format_combo"):
+            format_name = (self.live_format_combo.currentText() or "").strip()
+
+        if camera_name is not None:
+            live_camera_data.camera_name = camera_name
+        if serial_number is not None:
+            live_camera_data.serial_number = serial_number
+        if gain_value is not None:
+            live_camera_data.gain_db = gain_value
+        if exposure_value is not None:
+            live_camera_data.exposure_time_ms = exposure_value
+        if format_name:
+            live_camera_data.format_name = format_name
+        if hasattr(self, "live_hardware_trigger_checkbox"):
+            live_camera_data.hardware_trigger = bool(self.live_hardware_trigger_checkbox.isChecked())
+        if hasattr(self, "live_subtract_checkbox"):
+            live_camera_data.subtraction_enabled = bool(self.live_subtract_checkbox.isChecked())
 
     def _open_live_camera_window(self):
         """Launch live camera acquisition and show frames in Quantrol window."""
@@ -1623,6 +1699,8 @@ class MainWindow(QMainWindow):
             self.live_camera_thread = None
             self.live_camera_window = None
             self._live_internal_close = False
+            self.live_control_host = None
+            self.live_control_port = None
         self.message_to_logger("Live camera window closed")
 
     def _is_live_camera_running(self):
@@ -1647,6 +1725,8 @@ class MainWindow(QMainWindow):
         camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters()
         stream_host = "127.0.0.1"
         stream_port = self._find_free_local_port()
+        control_host = "127.0.0.1"
+        control_port = self._find_free_local_port()
 
         argv = [
             str(camera_python),
@@ -1657,9 +1737,14 @@ class MainWindow(QMainWindow):
             "--exposure-ms", f"{exposure_value}",
             "--stream-host", stream_host,
             "--stream-port", str(stream_port),
+            "--control-host", control_host,
+            "--control-port", str(control_port),
             "--display-max-width", "1024",
             "--display-max-height", "768",
         ]
+
+        if hasattr(self, "live_hardware_trigger_checkbox") and self.live_hardware_trigger_checkbox.isChecked():
+            argv.append("--hardware-trigger")
 
         if hasattr(self, "live_subtract_checkbox") and self.live_subtract_checkbox.isChecked():
             argv.append("--subtract-enabled")
@@ -1669,6 +1754,8 @@ class MainWindow(QMainWindow):
             "cwd": str(live_script.parent),
             "stream_host": stream_host,
             "stream_port": stream_port,
+            "control_host": control_host,
+            "control_port": control_port,
             "camera_name": camera_name,
         }
 
@@ -1707,12 +1794,48 @@ class MainWindow(QMainWindow):
         thread = threading.Thread(target=runner)
         thread.start()
         self.live_camera_thread = thread
+        self.live_control_host = launch_info.get("control_host")
+        self.live_control_port = launch_info.get("control_port")
         return thread
 
     def _find_free_local_port(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock_:
             sock_.bind(("127.0.0.1", 0))
             return int(sock_.getsockname()[1])
+
+    def _send_live_control_command(self, payload):
+        if not self._is_live_camera_running():
+            return False
+        host = self.live_control_host
+        port = self.live_control_port
+        if not host or not port:
+            return False
+        try:
+            packet = json.dumps(payload).encode("utf-8")
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock_:
+                sock_.sendto(packet, (host, int(port)))
+            return True
+        except Exception as exc:
+            self.message_to_logger(f"Live control command failed: {exc}")
+            return False
+
+    def _apply_live_runtime_parameters(self):
+        if not self._is_live_camera_running():
+            return False
+        try:
+            _camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters()
+        except Exception as exc:
+            self.error_message(str(exc), "Live camera")
+            return False
+
+        payload = {
+            "cmd": "apply_params",
+            "gain_db": gain_value,
+            "exposure_ms": exposure_value,
+            "pixel_format": format_name,
+            "hardware_trigger": bool(getattr(self, "live_hardware_trigger_checkbox", None) and self.live_hardware_trigger_checkbox.isChecked()),
+        }
+        return self._send_live_control_command(payload)
 
     def _ensure_live_camera_window(self, camera_name):
         if self.live_camera_window is not None:
@@ -1764,6 +1887,8 @@ class MainWindow(QMainWindow):
         """Enable/disable live camera controls; acquisition starts only from the button."""
         if hasattr(self, "live_subtract_checkbox"):
             self.live_subtract_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_hardware_trigger_checkbox"):
+            self.live_hardware_trigger_checkbox.setEnabled(bool(checked))
         if hasattr(self, "live_start_button"):
             self.live_start_button.setEnabled(bool(checked))
         if hasattr(self, "live_subtract_reset_button"):
@@ -1798,9 +1923,13 @@ class MainWindow(QMainWindow):
         if not self._is_live_camera_running():
             return
 
-        # The helper process accepts subtraction mode at startup; restart to apply changes.
-        self._close_live_camera_window()
-        self._open_live_camera_window()
+        self._send_live_control_command(
+            {
+                "cmd": "set_subtraction",
+                "enabled": bool(enabled),
+                "capture_reference_next": bool(enabled),
+            }
+        )
         if enabled:
             self.message_to_logger("Live subtraction enabled")
         else:
@@ -1816,10 +1945,20 @@ class MainWindow(QMainWindow):
             self.live_subtract_checkbox.setChecked(True)
             return
 
-        # Reset is implemented by restarting with subtraction enabled so first frame becomes reference.
-        self._close_live_camera_window()
-        self._open_live_camera_window()
+        self._send_live_control_command({"cmd": "reset_subtraction"})
         self.message_to_logger("Live subtraction reset")
+
+    def handle_live_camera_parameter_changed(self):
+        """Apply live parameters immediately when UI fields change while streaming."""
+        self._persist_live_camera_settings_from_ui()
+        if self._apply_live_runtime_parameters():
+            self.message_to_logger("Live camera parameters updated")
+
+    def handle_live_hardware_trigger_toggled(self, _enabled):
+        """Apply hardware trigger mode immediately for the running live stream."""
+        self._persist_live_camera_settings_from_ui()
+        if self._apply_live_runtime_parameters():
+            self.message_to_logger("Live hardware trigger mode updated")
 
 
     def _prepare_camera_launch(self):
