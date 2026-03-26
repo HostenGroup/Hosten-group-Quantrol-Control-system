@@ -1740,6 +1740,13 @@ def acquisition_tab_build(self):
     self.live_subtract_checkbox.toggled.connect(self.handle_live_subtraction_toggled)
     live_form.addRow("", self.live_subtract_checkbox)
 
+    self.live_dynamic_subtract_checkbox = QCheckBox("Dynamic background subtraction", self.live_camera_box)
+    self.live_dynamic_subtract_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_dynamic_subtract_checkbox.setEnabled(False)
+    self.live_dynamic_subtract_checkbox.setChecked(False)
+    self.live_dynamic_subtract_checkbox.toggled.connect(self.handle_live_dynamic_subtraction_toggled)
+    live_form.addRow("", self.live_dynamic_subtract_checkbox)
+
     self.live_hardware_trigger_checkbox = QCheckBox("Use hardware trigger", self.live_camera_box)
     self.live_hardware_trigger_checkbox.setFont(QFont('Arial', self.scale_font(12)))
     self.live_hardware_trigger_checkbox.setEnabled(False)
@@ -1823,6 +1830,8 @@ def acquisition_tab_build(self):
             self.live_hardware_trigger_checkbox.setChecked(bool(live_defaults.hardware_trigger))
         if hasattr(live_defaults, "subtraction_enabled"):
             self.live_subtract_checkbox.setChecked(bool(live_defaults.subtraction_enabled))
+        if hasattr(live_defaults, "dynamic_subtraction_enabled"):
+            self.live_dynamic_subtract_checkbox.setChecked(bool(live_defaults.dynamic_subtraction_enabled))
         if hasattr(live_defaults, "gaussian_enabled"):
             self.live_gaussian_checkbox.setChecked(bool(live_defaults.gaussian_enabled))
         if hasattr(live_defaults, "gaussian_sigma") and live_defaults.gaussian_sigma is not None:

@@ -174,6 +174,7 @@ def handle_load_sequence_button_clicked(self):
                     getattr(self, "live_format_combo", None),
                     getattr(self, "live_hardware_trigger_checkbox", None),
                     getattr(self, "live_subtract_checkbox", None),
+                    getattr(self, "live_dynamic_subtract_checkbox", None),
                     getattr(self, "live_gaussian_checkbox", None),
                     getattr(self, "live_gaussian_sigma_edit", None),
                     getattr(self, "live_gaussian_kernel_edit", None),
@@ -205,6 +206,8 @@ def handle_load_sequence_button_clicked(self):
                         self.live_hardware_trigger_checkbox.setChecked(bool(lcam.hardware_trigger))
                     if hasattr(self, "live_subtract_checkbox") and hasattr(lcam, "subtraction_enabled"):
                         self.live_subtract_checkbox.setChecked(bool(lcam.subtraction_enabled))
+                    if hasattr(self, "live_dynamic_subtract_checkbox") and hasattr(lcam, "dynamic_subtraction_enabled"):
+                        self.live_dynamic_subtract_checkbox.setChecked(bool(lcam.dynamic_subtraction_enabled))
                     if hasattr(self, "live_gaussian_checkbox") and hasattr(lcam, "gaussian_enabled"):
                         self.live_gaussian_checkbox.setChecked(bool(lcam.gaussian_enabled))
                     if hasattr(self, "live_gaussian_sigma_edit") and hasattr(lcam, "gaussian_sigma") and lcam.gaussian_sigma is not None:
@@ -229,6 +232,8 @@ def handle_load_sequence_button_clicked(self):
 
                 if hasattr(self, "handle_live_camera_toggled"):
                     self.handle_live_camera_toggled(self.live_camera_checkbox.isChecked())
+                if hasattr(self, "handle_live_dynamic_subtraction_toggled"):
+                    self.handle_live_dynamic_subtraction_toggled(self.live_dynamic_subtract_checkbox.isChecked())
                 if hasattr(self, "handle_live_gaussian_toggled"):
                     self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
                 if hasattr(self, "handle_live_fps_limit_toggled"):
@@ -344,7 +349,11 @@ def handle_go_to_edge_button_clicked(self):
     After a successful execution the edge will be highlighted in green. The function recognizes the tab that is being currently displayed
     and assigns the hardware to the state of the last selected edge in that particular tab.
     '''
-    try:                
+    try:
+        try:
+            self._reset_live_dynamic_subtraction_counter()
+        except Exception:
+            pass
         if self.main_window.currentIndex() == 0:
             edge_num = self.sequence_table.selectedIndexes()[0].row()
         elif self.main_window.currentIndex() == 1:
@@ -396,6 +405,10 @@ def handle_run_experiment_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -457,6 +470,10 @@ def handle_init_hardware_button_clicked(self):
     default edge state and then sets the hardware in that state by running something similar to go_to_edge.py
     '''
     try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
+    try:
         write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
         self.message_to_logger("init_hardware.py file generated")
         try:
@@ -513,6 +530,10 @@ def handle_submit_run_experiment_py_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -569,6 +590,10 @@ def handle_continuous_run_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -610,6 +635,10 @@ def handle_multiple_runs_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter

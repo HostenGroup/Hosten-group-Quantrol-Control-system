@@ -444,6 +444,7 @@ class LiveCamera:
         enabled=False,
         hardware_trigger=False,
         subtraction_enabled=False,
+        dynamic_subtraction_enabled=False,
         gaussian_enabled=False,
         gaussian_sigma=1.0,
         gaussian_kernel=5,
@@ -460,6 +461,7 @@ class LiveCamera:
         self.enabled = bool(enabled)
         self.hardware_trigger = bool(hardware_trigger)
         self.subtraction_enabled = bool(subtraction_enabled)
+        self.dynamic_subtraction_enabled = bool(dynamic_subtraction_enabled)
         self.gaussian_enabled = bool(gaussian_enabled)
         self.gaussian_sigma = gaussian_sigma
         self.gaussian_kernel = gaussian_kernel

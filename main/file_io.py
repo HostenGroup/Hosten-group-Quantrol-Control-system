@@ -143,6 +143,9 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(live_camera, 'subtraction_enabled'):
         live_camera.subtraction_enabled = False
         notes.append("Added live_camera.subtraction_enabled attribute")
+    if not hasattr(live_camera, 'dynamic_subtraction_enabled'):
+        live_camera.dynamic_subtraction_enabled = False
+        notes.append("Added live_camera.dynamic_subtraction_enabled attribute")
     if not hasattr(live_camera, 'gaussian_enabled'):
         live_camera.gaussian_enabled = False
         notes.append("Added live_camera.gaussian_enabled attribute")

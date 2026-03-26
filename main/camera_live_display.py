@@ -36,6 +36,8 @@ class LiveCameraStreamer:
         gaussian_sigma: float = 1.0,
         gaussian_kernel: int = 5,
         display_gain: float = 0.0,
+        dynamic_subtraction_enabled: bool = False,
+        sequence_trigger_count: int = 0,
         fps_limit_enabled: bool = False,
         subtract_enabled: bool = False,
     ) -> None:
@@ -62,12 +64,17 @@ class LiveCameraStreamer:
         if self.gaussian_kernel % 2 == 0:
             self.gaussian_kernel += 1
         self.display_gain = float(display_gain)
+        self.dynamic_subtraction_enabled = bool(dynamic_subtraction_enabled)
+        self.sequence_trigger_count = int(sequence_trigger_count)
+        if self.sequence_trigger_count < 0:
+            self.sequence_trigger_count = 0
         self.fps_limit_enabled = bool(fps_limit_enabled)
 
         self._running = True
         self._subtract_enabled = bool(subtract_enabled)
         self._subtract_reference = None
         self._capture_reference_next = bool(subtract_enabled)
+        self._dynamic_frame_index = 0
         self._control_socket = None
 
     def stop(self, *_args) -> None:
@@ -122,6 +129,8 @@ class LiveCameraStreamer:
         command = str(payload.get("cmd", "")).strip().lower()
         if command == "set_subtraction":
             self._subtract_enabled = bool(payload.get("enabled", False))
+            if not self._subtract_enabled:
+                self._dynamic_frame_index = 0
             if bool(payload.get("capture_reference_next", False)):
                 self._capture_reference_next = True
             return
@@ -130,6 +139,12 @@ class LiveCameraStreamer:
             self._subtract_reference = None
             self._capture_reference_next = True
             self._subtract_enabled = True
+            self._dynamic_frame_index = 0
+            return
+
+        if command == "reset_dynamic_subtraction_counter":
+            self._dynamic_frame_index = 0
+            self._subtract_reference = None
             return
 
         if command == "apply_params":
@@ -142,6 +157,17 @@ class LiveCameraStreamer:
                     self.pixel_format = str(payload.get("pixel_format") or self.pixel_format)
                 if "hardware_trigger" in payload:
                     self.hardware_trigger = bool(payload.get("hardware_trigger"))
+                if "dynamic_subtraction_enabled" in payload:
+                    self.dynamic_subtraction_enabled = bool(payload.get("dynamic_subtraction_enabled"))
+                    self._dynamic_frame_index = 0
+                    if self.dynamic_subtraction_enabled:
+                        self._subtract_reference = None
+                if "sequence_trigger_count" in payload:
+                    count_value = int(payload.get("sequence_trigger_count"))
+                    self.sequence_trigger_count = count_value if count_value >= 0 else 0
+                    self._dynamic_frame_index = 0
+                    if self.dynamic_subtraction_enabled:
+                        self._subtract_reference = None
                 if "gaussian_enabled" in payload:
                     self.gaussian_enabled = bool(payload.get("gaussian_enabled"))
                 if "gaussian_sigma" in payload:
@@ -433,7 +459,27 @@ class LiveCameraStreamer:
                         subtraction_full_scale = 65535.0
                     arr = self._apply_gaussian_if_enabled(arr)
 
-                    if self._subtract_enabled or self._capture_reference_next:
+                    if self.dynamic_subtraction_enabled and self._subtract_enabled:
+                        cycle_count = int(self.sequence_trigger_count)
+                        if cycle_count < 2:
+                            cycle_count = 2
+                        arrf = arr.astype(np.float32, copy=False)
+                        cycle_pos = self._dynamic_frame_index % cycle_count
+                        if cycle_pos == 0 or self._subtract_reference is None:
+                            self._subtract_reference = arrf.copy()
+                            self._dynamic_frame_index = (self._dynamic_frame_index + 1) % cycle_count
+                            # First trigger in each cycle is the dynamic background; do not display it.
+                            continue
+
+                        frame_for_display = arrf - self._subtract_reference
+                        self._dynamic_frame_index = (self._dynamic_frame_index + 1) % cycle_count
+                        frame_for_display = self._apply_display_gain(frame_for_display)
+                        frame8 = self._to_display_uint8(
+                            frame_for_display,
+                            subtraction_mode=True,
+                            subtraction_full_scale=subtraction_full_scale,
+                        )
+                    elif self._subtract_enabled or self._capture_reference_next:
                         arrf = arr.astype(np.float32, copy=False)
                         if self._capture_reference_next:
                             self._subtract_reference = arrf.copy()
@@ -530,6 +576,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--downsample-factor", type=float, default=2.0, help="Uniform display downsampling factor (float > 0)")
     parser.add_argument("--target-fps", type=float, default=12.0, help="Target camera FPS when FPS limit is enabled")
     parser.add_argument("--display-gain", type=float, default=0.0, help="Display-only digital gain in camera-style dB (20 dB = 10x)")
+    parser.add_argument("--dynamic-subtraction-enabled", dest="dynamic_subtraction_enabled", action="store_true", help="Enable dynamic background subtraction mode")
+    parser.add_argument("--dynamic-subtraction-disabled", dest="dynamic_subtraction_enabled", action="store_false", help="Disable dynamic background subtraction mode")
+    parser.set_defaults(dynamic_subtraction_enabled=False)
+    parser.add_argument("--sequence-trigger-count", type=int, default=0, help="Number of camera trigger events in one sequence cycle")
     parser.add_argument("--fps-limit-enabled", dest="fps_limit_enabled", action="store_true", help="Enable camera FPS limiting")
     parser.add_argument("--fps-limit-disabled", dest="fps_limit_enabled", action="store_false", help="Disable camera FPS limiting")
     parser.set_defaults(fps_limit_enabled=False)
@@ -559,6 +609,8 @@ def main() -> int:
         gaussian_sigma=args.gaussian_sigma,
         gaussian_kernel=args.gaussian_kernel,
         display_gain=args.display_gain,
+        dynamic_subtraction_enabled=args.dynamic_subtraction_enabled,
+        sequence_trigger_count=args.sequence_trigger_count,
         fps_limit_enabled=args.fps_limit_enabled,
         subtract_enabled=args.subtract_enabled,
     )

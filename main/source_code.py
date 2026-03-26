@@ -1167,6 +1167,7 @@ class MainWindow(QMainWindow):
             write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
             self.message_to_logger("init_hardware.py file generated")
             try:
+                self._reset_live_dynamic_subtraction_counter()
                 if config.package_manager == "conda":
                     submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'init_hardware.py')])
                 elif config.package_manager == "clang64":
@@ -1652,6 +1653,7 @@ class MainWindow(QMainWindow):
         gain_value=None,
         exposure_value=None,
         format_name=None,
+        dynamic_subtraction_enabled=None,
         gaussian_sigma=None,
         gaussian_kernel=None,
         display_gain=None,
@@ -1694,6 +1696,10 @@ class MainWindow(QMainWindow):
             format_name = (self.live_format_combo.currentText() or "").strip()
         if not format_name:
             format_name = getattr(live_camera_data, "format_name", "")
+        if dynamic_subtraction_enabled is None and hasattr(self, "live_dynamic_subtract_checkbox"):
+            dynamic_subtraction_enabled = bool(self.live_dynamic_subtract_checkbox.isChecked())
+        if dynamic_subtraction_enabled is None:
+            dynamic_subtraction_enabled = bool(getattr(live_camera_data, "dynamic_subtraction_enabled", False))
         if gaussian_sigma is None and hasattr(self, "live_gaussian_sigma_edit"):
             try:
                 gaussian_sigma = float((self.live_gaussian_sigma_edit.text() or "").strip())
@@ -1783,6 +1789,7 @@ class MainWindow(QMainWindow):
             live_camera_data.hardware_trigger = bool(self.live_hardware_trigger_checkbox.isChecked())
         if hasattr(self, "live_subtract_checkbox"):
             live_camera_data.subtraction_enabled = bool(self.live_subtract_checkbox.isChecked())
+        live_camera_data.dynamic_subtraction_enabled = bool(dynamic_subtraction_enabled)
         if hasattr(self, "live_gaussian_checkbox"):
             live_camera_data.gaussian_enabled = bool(self.live_gaussian_checkbox.isChecked())
         if hasattr(self, "live_fps_limit_checkbox"):
@@ -1861,6 +1868,7 @@ class MainWindow(QMainWindow):
         stream_port = self._find_free_local_port()
         control_host = "127.0.0.1"
         control_port = self._find_free_local_port()
+        sequence_trigger_count = self._count_sequence_camera_trigger_events()
 
         argv = [
             str(camera_python),
@@ -1878,6 +1886,7 @@ class MainWindow(QMainWindow):
             "--gaussian-sigma", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_sigma", 1.0)),
             "--gaussian-kernel", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_kernel", 5)),
             "--display-gain", str(getattr(self.experiment.experimental_data.live_camera, "display_gain", 0.0)),
+            "--sequence-trigger-count", str(int(sequence_trigger_count)),
         ]
 
         if hasattr(self, "live_hardware_trigger_checkbox") and self.live_hardware_trigger_checkbox.isChecked():
@@ -1885,6 +1894,10 @@ class MainWindow(QMainWindow):
 
         if hasattr(self, "live_subtract_checkbox") and self.live_subtract_checkbox.isChecked():
             argv.append("--subtract-enabled")
+        if bool(getattr(self.experiment.experimental_data.live_camera, "dynamic_subtraction_enabled", False)):
+            argv.append("--dynamic-subtraction-enabled")
+        else:
+            argv.append("--dynamic-subtraction-disabled")
         if hasattr(self, "live_gaussian_checkbox") and self.live_gaussian_checkbox.isChecked():
             argv.append("--gaussian-enabled")
         if hasattr(self, "live_fps_limit_checkbox") and self.live_fps_limit_checkbox.isChecked():
@@ -1962,6 +1975,12 @@ class MainWindow(QMainWindow):
             self.message_to_logger(f"Live control command failed: {exc}")
             return False
 
+    def _reset_live_dynamic_subtraction_counter(self):
+        """Reset live helper dynamic subtraction cycle so next trigger is captured as background."""
+        if not self._is_live_camera_running():
+            return False
+        return self._send_live_control_command({"cmd": "reset_dynamic_subtraction_counter"})
+
     def _apply_live_runtime_parameters(self):
         if not self._is_live_camera_running():
             return False
@@ -1976,6 +1995,8 @@ class MainWindow(QMainWindow):
         gaussian_enabled = bool(getattr(live_data, "gaussian_enabled", False))
         gaussian_sigma = float(getattr(live_data, "gaussian_sigma", 1.0))
         gaussian_kernel = int(getattr(live_data, "gaussian_kernel", 5))
+        dynamic_subtraction_enabled = bool(getattr(live_data, "dynamic_subtraction_enabled", False))
+        sequence_trigger_count = self._count_sequence_camera_trigger_events()
         downsample_factor = float(getattr(live_data, "downsample_factor", 2.0))
         fps_limit_enabled = bool(getattr(live_data, "fps_limit_enabled", False))
         target_fps = float(getattr(live_data, "target_fps", 12.0))
@@ -1987,6 +2008,8 @@ class MainWindow(QMainWindow):
             "exposure_ms": exposure_value,
             "pixel_format": format_name,
             "hardware_trigger": bool(getattr(self, "live_hardware_trigger_checkbox", None) and self.live_hardware_trigger_checkbox.isChecked()),
+            "dynamic_subtraction_enabled": dynamic_subtraction_enabled,
+            "sequence_trigger_count": int(sequence_trigger_count),
             "gaussian_enabled": gaussian_enabled,
             "gaussian_sigma": gaussian_sigma,
             "gaussian_kernel": gaussian_kernel,
@@ -2048,6 +2071,8 @@ class MainWindow(QMainWindow):
         """Enable/disable live camera controls; acquisition starts only from the button."""
         if hasattr(self, "live_subtract_checkbox"):
             self.live_subtract_checkbox.setEnabled(bool(checked))
+        if hasattr(self, "live_dynamic_subtract_checkbox"):
+            self.live_dynamic_subtract_checkbox.setEnabled(bool(checked))
         if hasattr(self, "live_hardware_trigger_checkbox"):
             self.live_hardware_trigger_checkbox.setEnabled(bool(checked))
         if hasattr(self, "live_gaussian_checkbox"):
@@ -2092,6 +2117,11 @@ class MainWindow(QMainWindow):
 
     def handle_live_subtraction_toggled(self, enabled):
         """Enable/disable live subtraction for the external live camera process."""
+        if hasattr(self, "live_dynamic_subtract_checkbox") and self.live_dynamic_subtract_checkbox.isChecked() and not enabled:
+            self.live_dynamic_subtract_checkbox.blockSignals(True)
+            self.live_dynamic_subtract_checkbox.setChecked(False)
+            self.live_dynamic_subtract_checkbox.blockSignals(False)
+
         if hasattr(self, "live_subtract_reset_button"):
             self.live_subtract_reset_button.setEnabled(bool(enabled) and self._is_live_camera_running())
 
@@ -2109,6 +2139,57 @@ class MainWindow(QMainWindow):
             self.message_to_logger("Live subtraction enabled")
         else:
             self.message_to_logger("Live subtraction disabled")
+
+    def handle_live_dynamic_subtraction_toggled(self, enabled):
+        """Enable/disable dynamic background subtraction for live subtraction mode."""
+        if enabled and hasattr(self, "live_subtract_checkbox") and not self.live_subtract_checkbox.isChecked():
+            self.live_subtract_checkbox.setChecked(True)
+
+        self._persist_live_camera_settings_from_ui(dynamic_subtraction_enabled=bool(enabled))
+        if self._apply_live_runtime_parameters():
+            if enabled:
+                self.message_to_logger("Dynamic background subtraction enabled")
+            else:
+                self.message_to_logger("Dynamic background subtraction disabled")
+
+    def _count_sequence_camera_trigger_events(self):
+        """Count camera-trigger rising edges (0->1) in the current sequence for configured trigger TTL channels."""
+        ttl_candidates = getattr(config, "camera_trigger_ttl", [])
+        if not isinstance(ttl_candidates, (list, tuple)):
+            ttl_candidates = [ttl_candidates]
+
+        trigger_channels = []
+        for value in ttl_candidates:
+            try:
+                index = int(value)
+            except Exception:
+                continue
+            if index < 0:
+                continue
+            trigger_channels.append(index)
+
+        sequence = getattr(self.experiment, "sequence", [])
+        if not sequence or not trigger_channels:
+            return 0
+
+        count = 0
+        previous_states = {channel: 0 for channel in trigger_channels}
+
+        for edge in sequence:
+            digital_channels = getattr(edge, "digital", [])
+            for channel in trigger_channels:
+                if channel >= len(digital_channels):
+                    continue
+                try:
+                    raw_value = float(getattr(digital_channels[channel], "value", 0.0))
+                except Exception:
+                    raw_value = 0.0
+                state = 1 if raw_value > 0.5 else 0
+                if previous_states[channel] == 0 and state == 1:
+                    count += 1
+                previous_states[channel] = state
+
+        return count
 
     def handle_live_subtraction_reset_clicked(self):
         """Reset subtraction by capturing a new reference from the next acquired frame."""
