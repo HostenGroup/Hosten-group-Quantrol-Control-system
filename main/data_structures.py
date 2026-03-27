@@ -79,6 +79,7 @@ class Experiment:
         self.lookup_variables = []
         self.names_of_lookup_variables = set()
         self.camera_enabled = False
+        self.live_camera_enabled = False
         self.texp_locked = False
         self.slow_dds = [SlowDDS() for i in range(config.slow_dds_channels_number)]
 
@@ -294,11 +295,13 @@ class ExperimentalData:
         comment         :   An object that is used to describe the comment on the experiment
         experiment_id   :   An object that is used to describe the unique id of the experiment
     '''
-    def __init__(self, path=None, experiment_name=None, comment=None, experiment_id=None):
+    def __init__(self, path=None, experiment_name=None, comment=None, experiment_id=None, camera=None, live_camera=None):
         self.path = path
         self.experiment_name = experiment_name
         self.comment = comment
         self.experiment_id = experiment_id
+        self.camera = camera
+        self.live_camera = live_camera
 
 
 
@@ -432,3 +435,44 @@ class Camera:
         self.exposure_time_ms = exposure_time_ms
         self.serial_number = serial_number
         self.camera_name = camera_name
+
+
+class LiveCamera:
+    '''
+    An object that is used to describe live camera configuration
+    '''
+    def __init__(
+        self,
+        gain_db=None,
+        format_name=None,
+        exposure_time_ms=None,
+        serial_number=None,
+        camera_name=None,
+        enabled=False,
+        hardware_trigger=False,
+        subtraction_enabled=False,
+        dynamic_subtraction_enabled=False,
+        gaussian_enabled=False,
+        gaussian_sigma=1.0,
+        gaussian_kernel=5,
+        display_gain=0.0,
+        downsample_factor=2.0,
+        fps_limit_enabled=False,
+        target_fps=12.0,
+    ):
+        self.gain_db = gain_db
+        self.format_name = format_name
+        self.exposure_time_ms = exposure_time_ms
+        self.serial_number = serial_number
+        self.camera_name = camera_name
+        self.enabled = bool(enabled)
+        self.hardware_trigger = bool(hardware_trigger)
+        self.subtraction_enabled = bool(subtraction_enabled)
+        self.dynamic_subtraction_enabled = bool(dynamic_subtraction_enabled)
+        self.gaussian_enabled = bool(gaussian_enabled)
+        self.gaussian_sigma = gaussian_sigma
+        self.gaussian_kernel = gaussian_kernel
+        self.display_gain = display_gain
+        self.downsample_factor = downsample_factor
+        self.fps_limit_enabled = bool(fps_limit_enabled)
+        self.target_fps = target_fps

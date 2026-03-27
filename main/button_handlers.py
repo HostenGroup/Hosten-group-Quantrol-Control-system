@@ -44,9 +44,12 @@ def handle_save_sequence_button_clicked(self):
     user needs to specify its location and name. Otherwise it will orverwrite the sequence that was opened
     '''
     # Prepare experiment for saving (capture UI state)
+    if hasattr(self, "_persist_live_camera_settings_from_ui"):
+        self._persist_live_camera_settings_from_ui()
     camera_box = self.camera_box if hasattr(self, "camera_box") else None
+    live_camera_box = self.live_camera_checkbox if hasattr(self, "live_camera_checkbox") else None
     texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
-    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box)
     
     if self.experiment.file_name == "":
         self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0]
@@ -157,6 +160,84 @@ def handle_load_sequence_button_clicked(self):
                         index = self.format_combo.findText(cam.format_name)
                         if index >= 0:
                             self.format_combo.setCurrentIndex(index)
+
+            if hasattr(self, "live_camera_checkbox"):
+                live_enabled = getattr(self.experiment, "live_camera_enabled", False)
+                if hasattr(self.experiment.experimental_data, 'live_camera') and hasattr(self.experiment.experimental_data.live_camera, 'enabled'):
+                    live_enabled = bool(getattr(self.experiment.experimental_data.live_camera, 'enabled'))
+
+                live_widgets = [
+                    getattr(self, "live_camera_checkbox", None),
+                    getattr(self, "live_which_cam_combo", None),
+                    getattr(self, "live_gain_edit", None),
+                    getattr(self, "live_exposure_edit", None),
+                    getattr(self, "live_format_combo", None),
+                    getattr(self, "live_hardware_trigger_checkbox", None),
+                    getattr(self, "live_subtract_checkbox", None),
+                    getattr(self, "live_dynamic_subtract_checkbox", None),
+                    getattr(self, "live_gaussian_checkbox", None),
+                    getattr(self, "live_gaussian_sigma_edit", None),
+                    getattr(self, "live_gaussian_kernel_edit", None),
+                    getattr(self, "live_display_gain_edit", None),
+                    getattr(self, "live_downsample_factor_edit", None),
+                    getattr(self, "live_fps_limit_checkbox", None),
+                    getattr(self, "live_target_fps_edit", None),
+                ]
+                live_widgets = [w for w in live_widgets if w is not None]
+                for widget in live_widgets:
+                    widget.blockSignals(True)
+
+                self.live_camera_checkbox.setChecked(bool(live_enabled))
+                if hasattr(self.experiment.experimental_data, 'live_camera'):
+                    lcam = self.experiment.experimental_data.live_camera
+                    if hasattr(lcam, 'camera_name') and lcam.camera_name:
+                        index = self.live_which_cam_combo.findText(lcam.camera_name)
+                        if index >= 0:
+                            self.live_which_cam_combo.setCurrentIndex(index)
+                    if hasattr(lcam, 'gain_db') and lcam.gain_db is not None:
+                        self.live_gain_edit.setText(str(lcam.gain_db))
+                    if hasattr(lcam, 'exposure_time_ms') and lcam.exposure_time_ms is not None:
+                        self.live_exposure_edit.setText(str(lcam.exposure_time_ms))
+                    if hasattr(lcam, 'format_name') and lcam.format_name:
+                        index = self.live_format_combo.findText(lcam.format_name)
+                        if index >= 0:
+                            self.live_format_combo.setCurrentIndex(index)
+                    if hasattr(self, "live_hardware_trigger_checkbox") and hasattr(lcam, "hardware_trigger"):
+                        self.live_hardware_trigger_checkbox.setChecked(bool(lcam.hardware_trigger))
+                    if hasattr(self, "live_subtract_checkbox") and hasattr(lcam, "subtraction_enabled"):
+                        self.live_subtract_checkbox.setChecked(bool(lcam.subtraction_enabled))
+                    if hasattr(self, "live_dynamic_subtract_checkbox") and hasattr(lcam, "dynamic_subtraction_enabled"):
+                        self.live_dynamic_subtract_checkbox.setChecked(bool(lcam.dynamic_subtraction_enabled))
+                    if hasattr(self, "live_gaussian_checkbox") and hasattr(lcam, "gaussian_enabled"):
+                        self.live_gaussian_checkbox.setChecked(bool(lcam.gaussian_enabled))
+                    if hasattr(self, "live_gaussian_sigma_edit") and hasattr(lcam, "gaussian_sigma") and lcam.gaussian_sigma is not None:
+                        self.live_gaussian_sigma_edit.setText(str(lcam.gaussian_sigma))
+                    if hasattr(self, "live_gaussian_kernel_edit") and hasattr(lcam, "gaussian_kernel") and lcam.gaussian_kernel is not None:
+                        self.live_gaussian_kernel_edit.setText(str(lcam.gaussian_kernel))
+                    if hasattr(self, "live_display_gain_edit") and hasattr(lcam, "display_gain") and lcam.display_gain is not None:
+                        self.live_display_gain_edit.setText(str(lcam.display_gain))
+                    if hasattr(self, "live_downsample_factor_edit") and hasattr(lcam, "downsample_factor") and lcam.downsample_factor is not None:
+                        self.live_downsample_factor_edit.setText(str(lcam.downsample_factor))
+                    if hasattr(self, "live_fps_limit_checkbox") and hasattr(lcam, "fps_limit_enabled"):
+                        self.live_fps_limit_checkbox.setChecked(bool(lcam.fps_limit_enabled))
+                    if hasattr(self, "live_target_fps_edit") and hasattr(lcam, "target_fps") and lcam.target_fps is not None:
+                        self.live_target_fps_edit.setText(str(lcam.target_fps))
+
+                for widget in live_widgets:
+                    widget.blockSignals(False)
+
+                self.experiment.live_camera_enabled = bool(self.live_camera_checkbox.isChecked())
+                if hasattr(self.experiment.experimental_data, 'live_camera'):
+                    self.experiment.experimental_data.live_camera.enabled = bool(self.live_camera_checkbox.isChecked())
+
+                if hasattr(self, "handle_live_camera_toggled"):
+                    self.handle_live_camera_toggled(self.live_camera_checkbox.isChecked())
+                if hasattr(self, "handle_live_dynamic_subtraction_toggled"):
+                    self.handle_live_dynamic_subtraction_toggled(self.live_dynamic_subtract_checkbox.isChecked())
+                if hasattr(self, "handle_live_gaussian_toggled"):
+                    self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
+                if hasattr(self, "handle_live_fps_limit_toggled"):
+                    self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked())
             # Restore T_exp_ lock state
             if hasattr(self, "lock_cb"):
                 self.lock_cb.setChecked(self.experiment.texp_locked)
@@ -179,8 +260,12 @@ def handle_save_sequence_as_button_clicked(self):
     # Save camera state before pickling
     if hasattr(self, "camera_box"):
         self.experiment.camera_enabled = self.camera_box.isChecked()
+    if hasattr(self, "live_camera_checkbox"):
+        self.experiment.live_camera_enabled = self.live_camera_checkbox.isChecked()
     if hasattr(self, "_texp_locked"):
         self.experiment.texp_locked = self._texp_locked
+    if hasattr(self, "_persist_live_camera_settings_from_ui"):
+        self._persist_live_camera_settings_from_ui()
     
     self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0] # always ask for filename
     if self.experiment.file_name != "": #self.experiment.file_name = ""happens when no file name was given (canceled)
@@ -404,6 +489,10 @@ def handle_run_experiment_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -470,6 +559,10 @@ def handle_init_hardware_button_clicked(self):
     default edge state and then sets the hardware in that state by running something similar to go_to_edge.py
     '''
     try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
+    try:
         write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
         self.message_to_logger("init_hardware.py file generated")
         try:
@@ -528,6 +621,10 @@ def handle_submit_run_experiment_py_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -588,6 +685,10 @@ def handle_continuous_run_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -629,6 +730,10 @@ def handle_multiple_runs_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    try:
+        self._reset_live_dynamic_subtraction_counter()
+    except Exception:
+        pass
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
