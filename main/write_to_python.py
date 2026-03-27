@@ -432,19 +432,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write('\n' + indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
     if not run_continuous:
-        file.write('\n' + indentation + "self.print_end_exp()  # print end of experiment in the end of the run \n")
+        file.write('\n' + indentation + 'print("End of experiment")  # print end of experiment in the end of the run \n')
         file.write('\n')
-
-        indentation = indentation[:-4]
-        file.write(indentation + "@rpc\n")
-        file.write(indentation + "def print_end_exp(self):\n")
-        indentation += '    '
-        file.write(indentation + "print(\"End of experiment\")\n")
-        indentation = indentation[:-4]
     
     if has_sampled and not run_continuous:
         file.write('\n')
-        file.write(indentation + "@rpc\n")
+        file.write("    @rpc\n")
         # determine per-variable step names
         if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
             # determine which step variables exist (step1, step2, ...)
@@ -455,36 +448,31 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         if step_var_names:
             signature_args_list = step_var_names + sampled_names
             signature_args = ", ".join(signature_args_list)
-            file.write(indentation + f"def store_sample(self, run_index, {signature_args}):\n")
-            indentation += '    '
+            file.write(f"    def store_sample(self, run_index, {signature_args}):\n")
             # build tuple for dataset: run_index, all steps as ints, then sampled values
             tuple_parts = ["int(run_index)"] + [f"int({s})" for s in step_var_names]
             if sampled_names:
                 tuple_parts += sampled_names
-            file.write(indentation + f"self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
-            indentation = indentation[:-4]
+            file.write(f"        self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
         else:
             # legacy single step
-            file.write(indentation + "def store_sample(self, run_index%s):\n" % (", " + args_str if args_str else ""))
-            indentation += '    '
-            file.write(indentation + "self.append_to_dataset(\"data\", (int(run_index)%s))\n" % (", " + args_str if args_str else ""))
-            indentation = indentation[:-4]
+            file.write("    def store_sample(self, run_index%s):\n" % (", " + args_str if args_str else ""))
+            file.write("        self.append_to_dataset(\"data\", (int(run_index)%s))\n" % (", " + args_str if args_str else ""))
 
         file.write('\n')
-        file.write(indentation + "@rpc\n")
-        file.write(indentation + "def copy_dataset_file(self):\n")
-        indentation += '    '
-        file.write(indentation + "# Define where you want the copy saved\n")
-        file.write(indentation + "# source_file = Path(__file__).parent.parent / \"dataset_db.pyon\"\n \n") 
+        file.write("    @rpc\n")
+        file.write("    def copy_dataset_file(self):\n")
+        file.write("        # Define where you want the copy saved\n")
+        file.write("        # source_file = Path(__file__).parent.parent / \"dataset_db.pyon\"\n \n")
 
-        file.write(indentation + "today_folder = datetime.now().strftime(\"%Y_%m_%d\")\n")
-        file.write(indentation + "target_directory = Path(config.experiment_data_root) / \"save sampled variables\"  / today_folder \n")
-        file.write(indentation + "target_directory.mkdir(parents=True, exist_ok=True)\n")
-        file.write(indentation + "timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n")
-        file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{timestamp}.txt\"\n")
-        file.write(indentation + "# shutil.copy2(source_file, target_file)\n")
-        file.write(indentation + "data = self.get_dataset('data')\n")
-        file.write(indentation + 'with open(target_file, "w") as f: f.writelines(f"{entry}\\n" for entry in data)\n')
+        file.write("        today_folder = datetime.now().strftime(\"%Y_%m_%d\")\n")
+        file.write("        target_directory = Path(config.experiment_data_root) / \"save sampled variables\"  / today_folder \n")
+        file.write("        target_directory.mkdir(parents=True, exist_ok=True)\n")
+        file.write("        timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n")
+        file.write("        target_file = target_directory / f\"dataset_db_copy_{timestamp}.txt\"\n")
+        file.write("        # shutil.copy2(source_file, target_file)\n")
+        file.write("        data = self.get_dataset('data')\n")
+        file.write('        with open(target_file, "w") as f: f.writelines(f"{entry}\\n" for entry in data)\n')
 
 
 
