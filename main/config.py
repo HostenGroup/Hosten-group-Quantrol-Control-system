@@ -32,7 +32,7 @@ camera_serial_numbers_dict = {
     'XY':'22114656',
     'Z':'22114732'
 }
-experiment_data_root = r"G:/Experimental Data/Atom Interferometer experiment/Raman"
+experiment_data_root = r"G:\Experimental Data\Atom Interferometer experiment\Raman"
 
 experiment_database_path = str(Path(experiment_data_root) / "Raman_exp_db.xlsx")
 
@@ -56,7 +56,7 @@ skip_images_trigger_count = 10
 # If your experiment output directory is on a network drive (e.g. G:\) or is slow because of antivirus scanning,
 # enabling local staging will save images to a local folder first and copy them to the final directory after
 # acquisition finishes.
-camera_stage_locally = True
+camera_stage_locally = False
 camera_stage_dir = str(repository_path / "temp_images")
 
 
