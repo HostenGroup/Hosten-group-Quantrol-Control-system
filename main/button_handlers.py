@@ -455,7 +455,7 @@ def handle_go_to_edge_button_clicked(self):
                 submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'go_to_edge.py')])
             elif config.package_manager == "clang64":
                 #coprint("Current directory:", os.getcwd()) #env_test
-                submit_experiment_thread = threading.Thread(target=os.system, args=[str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'go_to_edge.bat')])
+                submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'go_to_edge.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
             submit_experiment_thread.start()
             self.message_to_logger("Went to edge")
             print("test: went to edge_num :", edge_num)

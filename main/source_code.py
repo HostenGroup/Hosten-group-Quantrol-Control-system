@@ -68,7 +68,7 @@ import change_handlers
 
 class LiveCameraStreamReceiver(QThread):
     """Receive grayscale frames from the acquisition helper process over localhost TCP."""
-    frame_ready = pyqtSignal(object, float, float, float)
+    frame_ready = pyqtSignal(object, float, float, float, float)
     status_ready = pyqtSignal(str)
     error = pyqtSignal(str)
     stopped = pyqtSignal()
@@ -108,11 +108,11 @@ class LiveCameraStreamReceiver(QThread):
 
     def _recv_one_frame(self):
         """Receive a single framed image packet; return tuple or None when stream ends."""
-        header = self._recv_exact(self._client_socket, 24)
+        header = self._recv_exact(self._client_socket, 28)
         if header is None:
             return None
 
-        width, height, payload_len, fps, get_ms, proc_ms = struct.unpack("!IIIfff", header)
+        width, height, payload_len, fps, get_ms, proc_ms, atom_count = struct.unpack("!IIIffff", header)
         if width <= 0 or height <= 0 or payload_len <= 0:
             self.error.emit("Received invalid live camera frame header")
             return None
@@ -121,7 +121,7 @@ class LiveCameraStreamReceiver(QThread):
         if payload is None:
             return None
 
-        return width, height, payload, fps, get_ms, proc_ms
+        return width, height, payload, fps, get_ms, proc_ms, atom_count
 
     def run(self):
         try:
@@ -146,7 +146,7 @@ class LiveCameraStreamReceiver(QThread):
                 frame_tuple = self._recv_one_frame()
                 if frame_tuple is None:
                     break
-                width, height, payload, fps, get_ms, proc_ms = frame_tuple
+                width, height, payload, fps, get_ms, proc_ms, atom_count = frame_tuple
 
                 # Drain already-queued TCP frames and keep only the freshest one.
                 while self._running:
@@ -160,7 +160,7 @@ class LiveCameraStreamReceiver(QThread):
                     newer_tuple = self._recv_one_frame()
                     if newer_tuple is None:
                         break
-                    width, height, payload, fps, get_ms, proc_ms = newer_tuple
+                    width, height, payload, fps, get_ms, proc_ms, atom_count = newer_tuple
                     self._dropped_frames += 1
 
                 now = perf_counter()
@@ -171,7 +171,7 @@ class LiveCameraStreamReceiver(QThread):
 
                 image = QImage(payload, int(width), int(height), int(width), QImage.Format_Grayscale8).copy()
                 self._last_emit_ts = now
-                self.frame_ready.emit(image, float(fps), float(get_ms), float(proc_ms))
+                self.frame_ready.emit(image, float(fps), float(get_ms), float(proc_ms), float(atom_count))
 
         except Exception as exc:
             if self._running:
@@ -203,22 +203,25 @@ class LiveCameraDisplayWindow(QMainWindow):
         self.image_label.setStyleSheet("background-color: black; color: white;")
 
         self.status_label = QLabel("Idle")
+        self.atom_count_label = QLabel("Atom count: N/A")
 
         layout = QVBoxLayout()
         layout.addWidget(self.image_label)
         layout.addWidget(self.status_label)
+        layout.addWidget(self.atom_count_label)
 
         root = QWidget()
         root.setLayout(layout)
         self.setCentralWidget(root)
 
-    def update_frame(self, image, fps, get_ms, proc_ms):
+    def update_frame(self, image, fps, get_ms, proc_ms, atom_count):
         self._last_image = image
         self._last_fps = float(fps)
         self._last_get_ms = float(get_ms)
         self._last_proc_ms = float(proc_ms)
 
         self._render_frame(image, fps, get_ms, proc_ms)
+        self._set_atom_count(atom_count)
 
     def _render_frame(self, image, fps, get_ms, proc_ms):
         image_to_draw = image
@@ -257,6 +260,21 @@ class LiveCameraDisplayWindow(QMainWindow):
 
     def set_status(self, text):
         self.status_label.setText(text)
+
+    def _set_atom_count(self, atom_count):
+        try:
+            value = float(atom_count)
+        except Exception:
+            self.atom_count_label.setText("Atom count: N/A")
+            return
+
+        # NaN fails self-comparison; infinities are filtered explicitly.
+        if value != value or value == float("inf") or value == float("-inf"):
+            self.atom_count_label.setText("Atom count: N/A")
+            return
+
+        mantissa = value / 1e6
+        self.atom_count_label.setText(f"Atom count: {mantissa:.3f}e+6")
 
     def _build_heatmap_color_table(self):
         """Return a SpinView-like pseudocolor lookup table for 8-bit images."""
@@ -2139,10 +2157,10 @@ class MainWindow(QMainWindow):
         receiver.start()
         self.live_stream_receiver = receiver
 
-    def _handle_live_camera_frame_ready(self, image, fps, get_ms, proc_ms):
+    def _handle_live_camera_frame_ready(self, image, fps, get_ms, proc_ms, atom_count):
         if self.live_camera_window is None:
             return
-        self.live_camera_window.update_frame(image, fps, get_ms, proc_ms)
+        self.live_camera_window.update_frame(image, fps, get_ms, proc_ms, atom_count)
 
     def _handle_live_camera_stream_status(self, text):
         if self.live_camera_window is not None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import signal
 import socket
@@ -8,6 +9,7 @@ import struct
 import sys
 import time
 from time import perf_counter
+from pathlib import Path
 
 import numpy as np
 import PySpin
@@ -76,6 +78,41 @@ class LiveCameraStreamer:
         self._capture_reference_next = bool(subtract_enabled)
         self._dynamic_frame_index = 0
         self._control_socket = None
+        self._atom_count_func = self._load_atom_count_function()
+
+    def _load_atom_count_function(self):
+        """Load atom_count() from experiment_specific_files/hybrid_experiment/atom_count.py."""
+        try:
+            atom_count_path = Path(__file__).resolve().parent.parent / "experiment_specific_files" / "hybrid_experiment" / "atom_count.py"
+            if not atom_count_path.exists():
+                return None
+
+            spec = importlib.util.spec_from_file_location("quantrol_live_atom_count", str(atom_count_path))
+            if spec is None or spec.loader is None:
+                return None
+
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            fn = getattr(module, "atom_count", None)
+            return fn if callable(fn) else None
+        except Exception as exc:
+            print(f"Live atom count loader failed: {exc}")
+            return None
+
+    def _compute_atom_count(self, arr_for_count: np.ndarray, pixel_format_for_count: str) -> float:
+        """Compute atom count from the same processed frame shown to the user (before downsampling)."""
+        if self._atom_count_func is None or arr_for_count is None or arr_for_count.size == 0:
+            return float("nan")
+
+        try:
+            camera_counts_number = float(np.sum(arr_for_count, dtype=np.float64))
+            total_gain_db = float(self.gain_db) + float(self.display_gain)
+            t_exp_s = max(float(self.exposure_ms) * 1e-3, 1e-9)
+            pixel_format = str(pixel_format_for_count)
+            value = self._atom_count_func(camera_counts_number, total_gain_db, t_exp_s, pixel_format)
+            return float(value)
+        except Exception:
+            return float("nan")
 
     def stop(self, *_args) -> None:
         self._running = False
@@ -281,12 +318,13 @@ class LiveCameraStreamer:
         fps: float,
         get_ms: float,
         proc_ms: float,
+        atom_count: float,
     ) -> None:
         if frame8.ndim != 2:
             raise RuntimeError("Expected grayscale frame")
         height, width = frame8.shape
         payload = frame8.tobytes(order="C")
-        header = struct.pack("!IIIfff", int(width), int(height), len(payload), float(fps), float(get_ms), float(proc_ms))
+        header = struct.pack("!IIIffff", int(width), int(height), len(payload), float(fps), float(get_ms), float(proc_ms), float(atom_count))
         sock_.sendall(header)
         sock_.sendall(payload)
 
@@ -510,6 +548,8 @@ class LiveCameraStreamer:
                         else:
                             frame8 = self._to_display_uint8(arr.astype(np.float32, copy=False))
 
+                    # Atom count follows the displayed processing chain, but excludes display downsampling.
+                    atom_count_value = self._compute_atom_count(frame8, "Mono8")
                     frame8 = self._downsample_for_display(frame8)
                     t_proc_end = perf_counter()
 
@@ -518,7 +558,7 @@ class LiveCameraStreamer:
                     fps = frame_counter / elapsed
                     get_ms = (t_get_end - t_get_start) * 1000.0
                     proc_ms = (t_proc_end - t_proc_start) * 1000.0
-                    self._send_frame(stream_sock, frame8, fps, get_ms, proc_ms)
+                    self._send_frame(stream_sock, frame8, fps, get_ms, proc_ms, atom_count_value)
                 finally:
                     image.Release()
 
