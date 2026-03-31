@@ -27,7 +27,7 @@ def atom_count(camera_counts_number, gain, t_exp, pixel_format):
     # P5 = 
     # P6 = 
     # P = (P1 + P2 + P3 + P4 + P5 + P6)*1e-3 #total power
-    P = 6e-3 #total power
+    P = 6.3e-3  * 6 #total power
     
     
     I = 2*P/(pi*w0*w0)

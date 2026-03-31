@@ -12,6 +12,7 @@ main/config.py
 main/temp_images
 temp_images/*
 temp_lookup_variables/*
+ignored_files/*
 
 
 # ignore for git when pushing to atom_interferometry branch

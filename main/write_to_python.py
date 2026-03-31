@@ -488,10 +488,9 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     ############################# for continuous run AFTER experiment #############################
     ###############################################################################################
 
-    if self.experiment.do_scan and self.experiment.scanned_variables_count > 0:
-        indentation = indentation[:-4]
-    if not run_continuous and run_loop_added:
-        indentation = indentation[:-4]
+
+    # if not run_continuous and run_loop_added:
+    #     indentation = indentation[:-4]
 
     if self.experiment.cont_run_after_exp and not run_continuous:
         # self.function_to_write_cont_run_after_experiment(file)

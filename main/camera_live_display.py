@@ -75,6 +75,7 @@ class LiveCameraStreamer:
         self._running = True
         self._subtract_enabled = bool(subtract_enabled)
         self._subtract_reference = None
+        self._subtract_reference_raw_counts = None
         self._capture_reference_next = bool(subtract_enabled)
         self._dynamic_frame_index = 0
         self._control_socket = None
@@ -99,20 +100,39 @@ class LiveCameraStreamer:
             print(f"Live atom count loader failed: {exc}")
             return None
 
-    def _compute_atom_count(self, arr_for_count: np.ndarray, pixel_format_for_count: str) -> float:
-        """Compute atom count from the same processed frame shown to the user (before downsampling)."""
-        if self._atom_count_func is None or arr_for_count is None or arr_for_count.size == 0:
+    def _compute_atom_count(self, camera_counts_number: float, pixel_format_for_count: str) -> float:
+        """Compute atom count from integrated camera counts and camera settings."""
+        if self._atom_count_func is None:
             return float("nan")
 
         try:
-            camera_counts_number = float(np.sum(arr_for_count, dtype=np.float64))
-            total_gain_db = float(self.gain_db) + float(self.display_gain)
+            camera_counts_number = float(camera_counts_number)
+            # Display gain is visualization-only and should not enter physics conversion.
+            total_gain_db = float(self.gain_db)
             t_exp_s = max(float(self.exposure_ms) * 1e-3, 1e-9)
             pixel_format = str(pixel_format_for_count)
             value = self._atom_count_func(camera_counts_number, total_gain_db, t_exp_s, pixel_format)
             return float(value)
         except Exception:
             return float("nan")
+
+    def _compute_subtracted_counts(
+        self,
+        image_counts: float,
+        background_counts: float,
+        current_frame_for_reference: np.ndarray,
+    ) -> float:
+        """Compute image-background counts and auto-correct an inverted reference capture."""
+        net_counts = float(image_counts) - float(background_counts)
+        inversion_threshold = 0.05 * max(abs(image_counts), abs(background_counts), 1.0)
+
+        if net_counts < -inversion_threshold:
+            # Reference likely captured on an atom frame; relock on current frame as background.
+            self._subtract_reference = current_frame_for_reference.copy()
+            self._subtract_reference_raw_counts = float(image_counts)
+            return 0.0
+
+        return net_counts
 
     def stop(self, *_args) -> None:
         self._running = False
@@ -168,12 +188,14 @@ class LiveCameraStreamer:
             self._subtract_enabled = bool(payload.get("enabled", False))
             if not self._subtract_enabled:
                 self._dynamic_frame_index = 0
+                self._subtract_reference_raw_counts = None
             if bool(payload.get("capture_reference_next", False)):
                 self._capture_reference_next = True
             return
 
         if command == "reset_subtraction":
             self._subtract_reference = None
+            self._subtract_reference_raw_counts = None
             self._capture_reference_next = True
             self._subtract_enabled = True
             self._dynamic_frame_index = 0
@@ -182,6 +204,7 @@ class LiveCameraStreamer:
         if command == "reset_dynamic_subtraction_counter":
             self._dynamic_frame_index = 0
             self._subtract_reference = None
+            self._subtract_reference_raw_counts = None
             return
 
         if command == "apply_params":
@@ -199,12 +222,14 @@ class LiveCameraStreamer:
                     self._dynamic_frame_index = 0
                     if self.dynamic_subtraction_enabled:
                         self._subtract_reference = None
+                        self._subtract_reference_raw_counts = None
                 if "sequence_trigger_count" in payload:
                     count_value = int(payload.get("sequence_trigger_count"))
                     self.sequence_trigger_count = count_value if count_value >= 0 else 0
                     self._dynamic_frame_index = 0
                     if self.dynamic_subtraction_enabled:
                         self._subtract_reference = None
+                        self._subtract_reference_raw_counts = None
                 if "gaussian_enabled" in payload:
                     self.gaussian_enabled = bool(payload.get("gaussian_enabled"))
                 if "gaussian_sigma" in payload:
@@ -490,12 +515,14 @@ class LiveCameraStreamer:
                     arr = image.GetNDArray()
                     if arr.ndim == 3:
                         arr = arr[:, :, 0]
+                    raw_camera_counts = float(np.sum(arr, dtype=np.float64))
                     subtraction_full_scale = None
                     if arr.dtype == np.uint8:
                         subtraction_full_scale = 255.0
                     elif arr.dtype == np.uint16:
                         subtraction_full_scale = 65535.0
                     arr = self._apply_gaussian_if_enabled(arr)
+                    camera_counts_for_count = raw_camera_counts
 
                     if self.dynamic_subtraction_enabled and self._subtract_enabled:
                         cycle_count = int(self.sequence_trigger_count)
@@ -505,11 +532,19 @@ class LiveCameraStreamer:
                         cycle_pos = self._dynamic_frame_index % cycle_count
                         if cycle_pos == 0 or self._subtract_reference is None:
                             self._subtract_reference = arrf.copy()
+                            self._subtract_reference_raw_counts = raw_camera_counts
                             self._dynamic_frame_index = (self._dynamic_frame_index + 1) % cycle_count
                             # First trigger in each cycle is the dynamic background; do not display it.
                             continue
 
                         frame_for_display = arrf - self._subtract_reference
+                        background_counts = float(self._subtract_reference_raw_counts)
+                        image_counts = raw_camera_counts
+                        camera_counts_for_count = self._compute_subtracted_counts(
+                            image_counts,
+                            background_counts,
+                            arrf,
+                        )
                         self._dynamic_frame_index = (self._dynamic_frame_index + 1) % cycle_count
                         frame_for_display = self._apply_display_gain(frame_for_display)
                         frame8 = self._to_display_uint8(
@@ -521,17 +556,28 @@ class LiveCameraStreamer:
                         arrf = arr.astype(np.float32, copy=False)
                         if self._capture_reference_next:
                             self._subtract_reference = arrf.copy()
+                            self._subtract_reference_raw_counts = raw_camera_counts
                             self._capture_reference_next = False
                             print("Subtraction reference captured")
                             frame_for_display = arrf
+                            camera_counts_for_count = 0.0
                         elif self._subtract_reference is not None:
                             if self._subtract_reference.shape == arrf.shape:
                                 frame_for_display = arrf - self._subtract_reference
+                                background_counts = float(self._subtract_reference_raw_counts)
+                                image_counts = raw_camera_counts
+                                camera_counts_for_count = self._compute_subtracted_counts(
+                                    image_counts,
+                                    background_counts,
+                                    arrf,
+                                )
                             else:
                                 frame_for_display = arrf
+                                camera_counts_for_count = raw_camera_counts
                                 print("Subtraction skipped due to shape mismatch")
                         else:
                             frame_for_display = arrf
+                            camera_counts_for_count = raw_camera_counts
                         frame_for_display = self._apply_display_gain(frame_for_display)
                         frame8 = self._to_display_uint8(
                             frame_for_display,
@@ -548,8 +594,8 @@ class LiveCameraStreamer:
                         else:
                             frame8 = self._to_display_uint8(arr.astype(np.float32, copy=False))
 
-                    # Atom count follows the displayed processing chain, but excludes display downsampling.
-                    atom_count_value = self._compute_atom_count(frame8, "Mono8")
+                    # Atom count uses camera-count subtraction (image minus background) when enabled.
+                    atom_count_value = self._compute_atom_count(camera_counts_for_count, self.pixel_format)
                     frame8 = self._downsample_for_display(frame8)
                     t_proc_end = perf_counter()
 

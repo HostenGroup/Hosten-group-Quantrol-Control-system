@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 from copy import deepcopy
 from data_structures import ExperimentalData, Camera, LiveCamera
+import config
 
 
 def save_experiment(experiment, file_path: str = None) -> Tuple[bool, str, Optional[str]]:
@@ -225,7 +226,7 @@ def get_default_directory(repo_path: Path) -> Path:
     Returns:
         Path to the sequences directory
     '''
-    sequences_dir = repo_path / "sequences"
+    sequences_dir = repo_path / 'experiment_specific_files' / config.which_project / "sequences"
     sequences_dir.mkdir(exist_ok=True)
     return sequences_dir
 
