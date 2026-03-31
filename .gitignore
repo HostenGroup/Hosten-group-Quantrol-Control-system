@@ -4,12 +4,15 @@ dataset_db*
 default/
 repository/
 results/
-sequences/
-ARTIQ_scripts/
+/sequences/
+/ARTIQ_scripts/*
 /device_db.py
-/logs
+/logs/*
 main/config.py
 main/temp_images
+temp_images/*
+temp_lookup_variables/*
+
 
 # ignore for git when pushing to atom_interferometry branch
 #__pycache__/
