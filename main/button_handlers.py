@@ -33,6 +33,50 @@ from data_structures import Variable, ScannedVariable, RampedVariable, DerivedVa
 import config
 
 
+def _sync_runtime_ui_state(self):
+    """
+    Capture runtime UI toggles into the experiment object before generating/submitting scripts.
+    """
+    camera_box = self.camera_box if hasattr(self, "camera_box") else None
+    save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
+    texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, save_sampled_box, texp_locked)
+
+
+def _prepare_sampled_run_paths(self):
+    """
+    Prepare the same date/time run folder that camera-backed runs use, but without camera-specific validation.
+    """
+    timestamp = datetime.now()
+    date_part = timestamp.strftime("%Y_%m_%d")
+    time_part = timestamp.strftime("%H_%M_%S")
+
+    experiment_name = (getattr(self.experiment.experimental_data, "experiment_name", "") or self.experiment_list_chosen_line.text() or "").strip()
+    base_path = (getattr(self.experiment.experimental_data, "path", "") or "").strip()
+    if not base_path:
+        data_root = getattr(config, "experiment_data_root", "")
+        if data_root:
+            base_path = str(Path(data_root) / experiment_name) if experiment_name else data_root
+        else:
+            base_path = str(self.repo_path / "logs")
+
+    run_base_dir = Path(base_path) / date_part / time_part
+    run_base_dir.mkdir(parents=True, exist_ok=True)
+
+    self.experiment.experimental_data.path = base_path
+    self.experiment.experimental_data.current_run_path = str(run_base_dir)
+    self.experiment.experimental_data.current_run_metadata_path = str(run_base_dir)
+    self.experiment.experimental_data.current_run_timestamp = timestamp.isoformat()
+    if not self.experiment.experimental_data.experiment_name:
+        self.experiment.experimental_data.experiment_name = experiment_name
+
+    return {
+        "metadata_dir": str(run_base_dir),
+        "output_dir": str(run_base_dir),
+        "timestamp": timestamp.isoformat(),
+    }
+
+
 
 # ============================================================================
 # SEQUENCE TAB BUTTON HANDLERS
@@ -413,6 +457,21 @@ def handle_run_experiment_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    _sync_runtime_ui_state(self)
+    camera_launch_info = None
+    delay_before_artiq = 0.0
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
+        try:
+            camera_launch_info = self._prepare_camera_launch()
+            delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif save_sampled_enabled:
+        camera_launch_info = _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -422,17 +481,6 @@ def handle_run_experiment_button_clicked(self):
             self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
             raise ValueError("startID is not next to endID")
         self.message_to_logger("Python file generated")
-
-        camera_launch_info = None
-        delay_before_artiq = 0.0
-        if hasattr(self, "camera_box") and self.camera_box.isChecked():
-            try:
-                camera_launch_info = self._prepare_camera_launch()
-                delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
-            except ValueError as exc:
-                self.error_message(str(exc), "Camera acquisition")
-                self.message_to_logger(f"Camera acquisition aborted: {exc}")
-                return
 
         try:
             if camera_launch_info and camera_launch_info.get("metadata_dir"):
@@ -451,7 +499,7 @@ def handle_run_experiment_button_clicked(self):
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
 
             self._record_experiment_run(metadata_dir, is_multiple_run=False)
-            if camera_launch_info:
+            if camera_enabled and camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
 
@@ -507,6 +555,18 @@ def handle_generate_run_experiment_py_button_clicked(self):
     Function is used to generate the run_experiment.py according to the experimental descirption without
     running it. It is usefull for debugging purposes.
     '''
+    _sync_runtime_ui_state(self)
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
+        try:
+            self._prepare_camera_launch()
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif save_sampled_enabled:
+        _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #specifically used to update for_python version of each parameter in the sequence
@@ -537,13 +597,12 @@ def handle_submit_run_experiment_py_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
-    self.count_scanned_variables()
-    self.count_ramped_variables()
-    update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
-    
+    _sync_runtime_ui_state(self)
     camera_launch_info = None
     delay_before_artiq = 0.0
-    if hasattr(self, "camera_box") and self.camera_box.isChecked():
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
         try:
             camera_launch_info = self._prepare_camera_launch()
             delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
@@ -551,7 +610,12 @@ def handle_submit_run_experiment_py_button_clicked(self):
             self.error_message(str(exc), "Camera acquisition")
             self.message_to_logger(f"Camera acquisition aborted: {exc}")
             return
-
+    elif save_sampled_enabled:
+        camera_launch_info = _prepare_sampled_run_paths(self)
+    self.count_scanned_variables()
+    self.count_ramped_variables()
+    update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
+    
     try:
         if camera_launch_info and camera_launch_info.get("metadata_dir"):
             metadata_dir = Path(camera_launch_info["metadata_dir"])
@@ -568,7 +632,7 @@ def handle_submit_run_experiment_py_button_clicked(self):
         with open(metadata_dir / metadata_filename, "w") as outfile:
             json.dump(self.to_dict(self.experiment),outfile,indent=4)
         self._record_experiment_run(metadata_dir, is_multiple_run=False)
-        if camera_launch_info:
+        if camera_enabled and camera_launch_info:
             self._start_camera_subprocess(camera_launch_info)
             self.message_to_logger("Camera acquisition started")
 
@@ -597,6 +661,16 @@ def handle_continuous_run_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    _sync_runtime_ui_state(self)
+    if hasattr(self, "camera_box") and self.camera_box.isChecked():
+        try:
+            self._prepare_camera_launch()
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked():
+        _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -638,6 +712,21 @@ def handle_multiple_runs_button_clicked(self):
     if not self._ensure_camera_experiment_selected():
         self.message_to_logger("Experiment start aborted: no experiment chosen while camera enabled")
         return
+    _sync_runtime_ui_state(self)
+    camera_launch_info = None
+    delay_before_artiq = 0.0
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
+        try:
+            camera_launch_info = self._prepare_camera_launch()
+            delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif save_sampled_enabled:
+        camera_launch_info = _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -647,17 +736,6 @@ def handle_multiple_runs_button_clicked(self):
             self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
             raise ValueError("startID is not next to endID")
         self.message_to_logger("Python file generated")
-
-        camera_launch_info = None
-        delay_before_artiq = 0.0
-        if hasattr(self, "camera_box") and self.camera_box.isChecked():
-            try:
-                camera_launch_info = self._prepare_camera_launch()
-                delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
-            except ValueError as exc:
-                self.error_message(str(exc), "Camera acquisition")
-                self.message_to_logger(f"Camera acquisition aborted: {exc}")
-                return
 
         try:
             if camera_launch_info and camera_launch_info.get("metadata_dir"):
@@ -676,7 +754,7 @@ def handle_multiple_runs_button_clicked(self):
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
 
             self._record_experiment_run(metadata_dir, is_multiple_run=True)
-            if camera_launch_info:
+            if camera_enabled and camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
 

@@ -24,7 +24,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "import numpy as np\n")
     file.write(indentation + "from scipy.io import loadmat\n")
     file.write(indentation + "import os\n")
-    file.write(indentation + "import shutil\n")
     file.write(indentation + "from datetime import datetime\n")
     file.write(indentation + "from pathlib import Path \n")
     file.write(indentation + "import sys \n")
@@ -34,11 +33,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     # Persisted flags from GUI
     save_sampled_flag = bool(getattr(self.experiment, 'save_sampled_variables', False))
     exp_name_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
-    # If the GUI has already recorded a current_run_metadata_path (set when camera was prepared), embed it
+    # If the GUI has already recorded a current_run_path (set when camera was prepared), embed it
+    run_path_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_path', '')) or ""
     metadata_path_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_metadata_path', '')) or ""
     # write literals into generated script
     file.write(indentation + f"save_sampled = {save_sampled_flag}\n")
     file.write(indentation + f"experiment_name = {repr(exp_name_literal)}\n")
+    file.write(indentation + f"embedded_run_path = {repr(run_path_literal)}\n")
     file.write(indentation + f"embedded_metadata_path = {repr(metadata_path_literal)}\n")
 
     file.write("\n")
@@ -99,6 +100,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
     # Overwriting the run method
     file.write(indentation + "@kernel\n")
+    indentation_kernel = indentation
     file.write(indentation + "def run(self):\n")
     indentation += "    "
     file.write(indentation + "self.core.reset()\n")
@@ -446,7 +448,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write('\n' + indentation + "self.print_end_exp()  # print end of experiment in the end of the run \n")
         file.write('\n')
 
-        indentation = indentation[:-4]
+        indentation = indentation_kernel
         file.write(indentation + "@rpc\n")
         file.write(indentation + "def print_end_exp(self):\n")
         indentation += '    '
@@ -485,28 +487,32 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "@rpc\n")
         file.write(indentation + "def copy_dataset_file(self):\n")
         indentation += '    '
-        file.write(indentation + "# Define where you want the copy saved\n")
-
+        file.write(indentation + "# Save sampled data to run and metadata folders when available\n")
         file.write(indentation + "today_folder = datetime.now().strftime(\"%Y_%m_%d\")\n")
-        file.write(indentation + "# Save into experiment date folder: <experiment_name>/<YYYY_MM_DD>\n")
         file.write(indentation + "exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
-        file.write(indentation + "# Prefer embedded camera metadata date-folder when available (embedded_metadata_path -> base/date/time)")
-        file.write('\n')
+        file.write(indentation + "target_directories = []\n")
+        file.write(indentation + "if embedded_run_path:\n")
+        file.write(indentation + "    target_directories.append(Path(embedded_run_path))\n")
         file.write(indentation + "if embedded_metadata_path:\n")
-        file.write(indentation + "    try:\n")
-        file.write(indentation + "        meta = Path(embedded_metadata_path)\n")
-        file.write(indentation + "        # metadata_path is run_base_dir = <base>/<YYYY_MM_DD>/<HH_MM_SS> -> parent is date folder\n")
-        file.write(indentation + "        target_directory = meta.parent if meta.parent else Path(config.experiment_data_root) / exp_dir / today_folder\n")
-        file.write(indentation + "    except Exception:\n")
-        file.write(indentation + "        target_directory = Path(config.experiment_data_root) / exp_dir / today_folder\n")
-        file.write(indentation + "else:\n")
-        file.write(indentation + "    target_directory = Path(config.experiment_data_root) / exp_dir / today_folder\n")
-        file.write(indentation + "target_directory.mkdir(parents=True, exist_ok=True)\n")
+        file.write(indentation + "    target_directories.append(Path(embedded_metadata_path))\n")
+        file.write(indentation + "if not target_directories:\n")
+        file.write(indentation + "    target_directories.append(Path(config.experiment_data_root) / exp_dir / today_folder)\n")
         file.write(indentation + "timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n")
-        file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{timestamp}.txt\"\n")
-        file.write(indentation + "# shutil.copy2(source_file, target_file)\n")
         file.write(indentation + "data = self.get_dataset('data')\n")
-        file.write(indentation + 'with open(target_file, "w") as f: f.writelines(f"{entry}\\n" for entry in data)\n')
+        file.write(indentation + "written_targets = set()\n")
+        file.write(indentation + "for target_directory in target_directories:\n")
+        file.write(indentation + "    try:\n")
+        file.write(indentation + "        target_directory = target_directory.resolve()\n")
+        file.write(indentation + "        target_key = str(target_directory)\n")
+        file.write(indentation + "        if target_key in written_targets:\n")
+        file.write(indentation + "            continue\n")
+        file.write(indentation + "        target_directory.mkdir(parents=True, exist_ok=True)\n")
+        file.write(indentation + "        target_file = target_directory / f\"dataset_db_copy_{timestamp}.txt\"\n")
+        file.write(indentation + "        with open(target_file, \"w\") as f:\n")
+        file.write(indentation + "            f.writelines(f\"{entry}\\n\" for entry in data)\n")
+        file.write(indentation + "        written_targets.add(target_key)\n")
+        file.write(indentation + "    except Exception as exc:\n")
+        file.write(indentation + "        print(f\"Could not save sampled dataset in {target_directory}: {exc}\")\n")
 
 
 
