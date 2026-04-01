@@ -45,8 +45,9 @@ def handle_save_sequence_button_clicked(self):
     '''
     # Prepare experiment for saving (capture UI state)
     camera_box = self.camera_box if hasattr(self, "camera_box") else None
+    save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
     texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
-    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, save_sampled_box, texp_locked)
     
     if self.experiment.file_name == "":
         self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0]
@@ -157,6 +158,12 @@ def handle_load_sequence_button_clicked(self):
                         index = self.format_combo.findText(cam.format_name)
                         if index >= 0:
                             self.format_combo.setCurrentIndex(index)
+            # Restore save-sampled checkbox state if present
+            if hasattr(self, "save_sampled_box"):
+                try:
+                    self.save_sampled_box.setChecked(getattr(self.experiment, 'save_sampled_variables', False))
+                except Exception:
+                    self.save_sampled_box.setChecked(False)
             # Restore T_exp_ lock state
             if hasattr(self, "lock_cb"):
                 self.lock_cb.setChecked(self.experiment.texp_locked)
@@ -179,6 +186,8 @@ def handle_save_sequence_as_button_clicked(self):
     # Save camera state before pickling
     if hasattr(self, "camera_box"):
         self.experiment.camera_enabled = self.camera_box.isChecked()
+    if hasattr(self, "save_sampled_box"):
+        self.experiment.save_sampled_variables = self.save_sampled_box.isChecked()
     if hasattr(self, "_texp_locked"):
         self.experiment.texp_locked = self._texp_locked
     

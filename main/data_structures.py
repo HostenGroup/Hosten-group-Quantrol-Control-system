@@ -79,6 +79,8 @@ class Experiment:
         self.lookup_variables = []
         self.names_of_lookup_variables = set()
         self.camera_enabled = False
+        # Whether to save sampled-variable dataset copy alongside camera images (date folder)
+        self.save_sampled_variables = False
         self.texp_locked = False
         self.slow_dds = [SlowDDS() for i in range(config.slow_dds_channels_number)]
 

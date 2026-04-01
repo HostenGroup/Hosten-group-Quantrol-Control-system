@@ -1743,6 +1743,22 @@ def acquisition_tab_build(self):
     form.addRow("Image format", self.format_combo)
 
 
+    # Save sampled variables group (checkable QGroupBox similar to Camera)
+    self.save_sampled_box = QGroupBox(self.acquisition_tab_widget)
+    self.save_sampled_box.setTitle("Save sampled variables")
+    self.save_sampled_box.setCheckable(True)
+    self.save_sampled_box.setChecked(False)
+    self.save_sampled_box.setFont(QFont('Arial', self.scale_font(14)))
+    # Place it next to camera_box (below it)
+    self.save_sampled_box.move(int(self.SCALE_W*(self.button_w + 2*self.sep)), int(self.SCALE_H*(self.top_margin + 210)))
+    self.save_sampled_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(120)))
+    form_ss = QFormLayout(self.save_sampled_box)
+    # Small descriptive label inside the group
+    label_desc = QLabel("Save sampled-variable dataset copy into the experiment date folder", self.save_sampled_box)
+    label_desc.setWordWrap(True)
+    form_ss.addRow(label_desc)
+
+
 
 
 

@@ -31,6 +31,16 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "sys.path.append(str(Path(__file__).resolve().parent.parent)) \n")
     file.write(indentation + "import main.config as config \n")
 
+    # Persisted flags from GUI
+    save_sampled_flag = bool(getattr(self.experiment, 'save_sampled_variables', False))
+    exp_name_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
+    # If the GUI has already recorded a current_run_metadata_path (set when camera was prepared), embed it
+    metadata_path_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_metadata_path', '')) or ""
+    # write literals into generated script
+    file.write(indentation + f"save_sampled = {save_sampled_flag}\n")
+    file.write(indentation + f"experiment_name = {repr(exp_name_literal)}\n")
+    file.write(indentation + f"embedded_metadata_path = {repr(metadata_path_literal)}\n")
+
     file.write("\n")
     
     #Creating functions to calculate derived variables
@@ -392,7 +402,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         else:
             step_var_names = []
 
-        file.write(indentation + "if camera_enabled:\n")
+        file.write(indentation + "if save_sampled:\n")
         indentation += '    '
 
         # build call arguments: steps (if any) followed by sampled variable names
@@ -429,7 +439,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation = indentation[:-4*(indentation_flag)]
 
     if has_sampled and not run_continuous:
-        file.write('\n' + indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
+        file.write('\n' + indentation + "if save_sampled:\n")
+        file.write(indentation + "    self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
     if not run_continuous:
         file.write('\n' + indentation + "self.print_end_exp()  # print end of experiment in the end of the run \n")
@@ -475,10 +486,21 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "def copy_dataset_file(self):\n")
         indentation += '    '
         file.write(indentation + "# Define where you want the copy saved\n")
-        file.write(indentation + "# source_file = Path(__file__).parent.parent / \"dataset_db.pyon\"\n \n") 
 
         file.write(indentation + "today_folder = datetime.now().strftime(\"%Y_%m_%d\")\n")
-        file.write(indentation + "target_directory = Path(config.experiment_data_root) / \"save sampled variables\"  / today_folder \n")
+        file.write(indentation + "# Save into experiment date folder: <experiment_name>/<YYYY_MM_DD>\n")
+        file.write(indentation + "exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
+        file.write(indentation + "# Prefer embedded camera metadata date-folder when available (embedded_metadata_path -> base/date/time)")
+        file.write('\n')
+        file.write(indentation + "if embedded_metadata_path:\n")
+        file.write(indentation + "    try:\n")
+        file.write(indentation + "        meta = Path(embedded_metadata_path)\n")
+        file.write(indentation + "        # metadata_path is run_base_dir = <base>/<YYYY_MM_DD>/<HH_MM_SS> -> parent is date folder\n")
+        file.write(indentation + "        target_directory = meta.parent if meta.parent else Path(config.experiment_data_root) / exp_dir / today_folder\n")
+        file.write(indentation + "    except Exception:\n")
+        file.write(indentation + "        target_directory = Path(config.experiment_data_root) / exp_dir / today_folder\n")
+        file.write(indentation + "else:\n")
+        file.write(indentation + "    target_directory = Path(config.experiment_data_root) / exp_dir / today_folder\n")
         file.write(indentation + "target_directory.mkdir(parents=True, exist_ok=True)\n")
         file.write(indentation + "timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n")
         file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{timestamp}.txt\"\n")

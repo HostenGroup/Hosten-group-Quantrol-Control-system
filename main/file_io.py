@@ -100,6 +100,11 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(experiment, 'texp_locked'):
         experiment.texp_locked = False
         notes.append("Added texp_locked attribute")
+
+    # Add save_sampled_variables attribute if missing
+    if not hasattr(experiment, 'save_sampled_variables'):
+        experiment.save_sampled_variables = False
+        notes.append("Added save_sampled_variables attribute")
     
     return notes
 
@@ -186,7 +191,7 @@ def apply_default_to_experiment(experiment, default_experiment) -> None:
         experiment.title_slow_dds_tab = deepcopy(default_experiment.title_slow_dds_tab)
 
 
-def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None) -> None:
+def prepare_experiment_for_save(experiment, camera_box=None, save_sampled_box=None, texp_locked=None) -> None:
     '''
     Prepare experiment object for saving by capturing current UI state.
     
@@ -197,6 +202,11 @@ def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None) -
     '''
     if camera_box is not None:
         experiment.camera_enabled = camera_box.isChecked()
+    if save_sampled_box is not None:
+        try:
+            experiment.save_sampled_variables = bool(save_sampled_box.isChecked())
+        except Exception:
+            experiment.save_sampled_variables = False
     if texp_locked is not None:
         experiment.texp_locked = texp_locked
 
