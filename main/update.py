@@ -646,12 +646,19 @@ def scan_table(self):
     self.update_off()
     self.scan_table_parameters.setRowCount(len(self.experiment.scanned_variables))
     for row, variable in enumerate(self.experiment.scanned_variables):
+        # Ensure Dim exists; default to list order if missing
+        dim = getattr(variable, 'Dim', None)
+        if dim is None:
+            variable.Dim = row + 1
+            dim = variable.Dim
+        # Column order: Variable, Min, Max, Steps, Dim
         self.scan_table_parameters.setItem(row,0, QTableWidgetItem(str(variable.name)))
         self.scan_table_parameters.setItem(row,1, QTableWidgetItem(str(variable.min_val)))
         self.scan_table_parameters.setItem(row,2, QTableWidgetItem(str(variable.max_val)))
         # display per-variable number of scans (use `num_scan_steps`, default 1)
         num = getattr(variable, 'num_scan_steps', 1)
         self.scan_table_parameters.setItem(row,3, QTableWidgetItem(str(num)))
+        self.scan_table_parameters.setItem(row,4, QTableWidgetItem(str(dim)))
     self.update_on()
 
 def ramp_table(self):

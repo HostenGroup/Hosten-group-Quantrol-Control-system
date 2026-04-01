@@ -1169,7 +1169,9 @@ def handle_clear_logger_button_clicked(main_window):
 
 def handle_add_scanned_variable_button_pressed(main_window):
     '''Add a scanned variable with name "None" and update scan_table.'''
-    main_window.experiment.scanned_variables.append(ScannedVariable("None", 0.0, 0.0, 0.0))
+    # default Dim is the next position in the scanned_variables list
+    next_dim = len(main_window.experiment.scanned_variables) + 1
+    main_window.experiment.scanned_variables.append(ScannedVariable("None", 0.0, 0.0, 0.0, Dim=next_dim))
     update.scan_table(main_window)
     update.digital_analog_dds_mirny_tabs(main_window)
     update.variable_tables(main_window)

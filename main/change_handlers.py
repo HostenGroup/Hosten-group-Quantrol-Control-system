@@ -305,7 +305,33 @@ def handle_scan_table_changed(main_window, item):
         col = item.column()
         table_item = main_window.scan_table_parameters.item(row, col)
         variable = main_window.experiment.scanned_variables[row]
-        if col == 0: #name of the scanned variable changed
+        if col == 4: # Dim (ordering) changed (Dim is last column)
+            try:
+                new_dim = int(table_item.text())
+                if new_dim <= 0:
+                    raise ValueError
+                variable.Dim = new_dim
+            except Exception:
+                main_window.error_message("Only positive integers larger than 0 are allowed", "Wrong entry")
+                main_window.update_off()
+                # reset display to current value
+                dim_display = getattr(variable, 'Dim', row+1)
+                main_window.scan_table_parameters.item(row, 4).setText(str(dim_display))
+                main_window.update_on()
+            else:
+                # Reorder scanned_variables according to Dim (ascending). Missing dims go to the end preserving original order.
+                enumerated = [(v, i) for i, v in enumerate(main_window.experiment.scanned_variables)]
+                def sort_key(pair):
+                    v, idx = pair
+                    return (v.Dim if (getattr(v, 'Dim', None) is not None) else 10**9, idx)
+                enumerated_sorted = sorted(enumerated, key=sort_key)
+                main_window.experiment.scanned_variables = [v for v, _ in enumerated_sorted]
+                # Reassign per-variable step indices (for_python) for remaining scanned variables
+                for i, rem_var in enumerate(main_window.experiment.scanned_variables):
+                    if rem_var.name != "None" and rem_var.name in main_window.experiment.variables:
+                        main_window.experiment.variables[rem_var.name].is_scanned = True
+                        main_window.experiment.variables[rem_var.name].for_python = "self.%s[step%d]" % (rem_var.name, i+1)
+        elif col == 0: #name of the scanned variable changed
             new_variable_name = main_window.remove_restricted_characters(table_item.text())
             table_item.setText(new_variable_name)
             if main_window.check_if_already_scanned(new_variable_name) == False: #Check if the given variable is defined previously or not

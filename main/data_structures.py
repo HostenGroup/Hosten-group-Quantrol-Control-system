@@ -342,7 +342,7 @@ class ScannedVariable:
         min_val     :   Minimum value assigned to the scanned variable
         max_val     :   Maximum value assigned to the scanned variable
     ''' 
-    def __init__(self, name, min_val, max_val, num_scan_steps):
+    def __init__(self, name, min_val, max_val, num_scan_steps, Dim=None):
         self.name = name
         self.min_val = min_val
         self.max_val = max_val
@@ -353,6 +353,13 @@ class ScannedVariable:
                 self.num_scan_steps = 1
         except Exception:
             self.num_scan_steps = 1
+        # Dim: integer ordering for scanned variables. None means "use list order".
+        try:
+            self.Dim = None if Dim is None else int(Dim)
+            if self.Dim is not None and self.Dim <= 0:
+                self.Dim = None
+        except Exception:
+            self.Dim = None
 
 
 class RampedVariable: 

@@ -353,7 +353,7 @@ def sequence_tab_build(self):
     #file_name label
     self.file_name_lable = QLabel(self.sequence_tab_widget)
     self.file_name_lable.setFont(QFont('Arial', self.scale_font(10)))
-    self.file_name_lable.setGeometry(*self.scale_geom(200, 2, width_of_table+200, self.top_margin))
+    self.file_name_lable.setGeometry(*self.scale_geom(200, 2, width_of_table+800, self.top_margin))
 
     #SEQUENCE TAB LAYOUT
     self.sequence_table = QTableWidget(self.sequence_tab_widget)
@@ -395,15 +395,16 @@ def sequence_tab_build(self):
 
     #TABLE OF SCANNING PARAMETERS
     self.scan_table_parameters = QTableWidget()
-    self.scan_table_parameters.setColumnCount(4)
+    self.scan_table_parameters.setColumnCount(5)
     self.scan_table_parameters.setRowCount(0)
     self.scan_table_parameters.verticalHeader().setVisible(False)
     self.scan_table_parameters.setFont(QFont('Arial', self.scale_font(14)))
-    self.scan_table_parameters.setHorizontalHeaderLabels(["Variable","Min value", "Max value", "Steps"])
-    self.scan_table_parameters.setColumnWidth(0,int(self.SCALE_W*250))
+    self.scan_table_parameters.setHorizontalHeaderLabels(["Variable","Min value", "Max value", "Steps", "Dim"])
+    self.scan_table_parameters.setColumnWidth(0,int(self.SCALE_W*230))
     self.scan_table_parameters.setColumnWidth(1,int(self.SCALE_W*200))
     self.scan_table_parameters.setColumnWidth(2,int(self.SCALE_W*200))
-    self.scan_table_parameters.setColumnWidth(3,int(self.SCALE_W*100))
+    self.scan_table_parameters.setColumnWidth(3,int(self.SCALE_W*90))
+    self.scan_table_parameters.setColumnWidth(4,int(self.SCALE_W*50))
     self.scan_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_scan_table_changed(self, item))
     
 
@@ -461,11 +462,11 @@ def sequence_tab_build(self):
     self.ramp_table_parameters.verticalHeader().setVisible(False)
     self.ramp_table_parameters.setFont(QFont('Arial', self.scale_font(14)))
     self.ramp_table_parameters.setHorizontalHeaderLabels(["Variable","Start ID", "End ID","Function (use i)", "i"])
-    self.ramp_table_parameters.setColumnWidth(0,int(self.SCALE_W*145))
+    self.ramp_table_parameters.setColumnWidth(0,int(self.SCALE_W*150))
     self.ramp_table_parameters.setColumnWidth(1,int(self.SCALE_W*80))
     self.ramp_table_parameters.setColumnWidth(2,int(self.SCALE_W*80))
     # self.ramp_table_parameters.setColumnWidth(3,int(self.SCALE_W*400))
-    self.ramp_table_parameters.setColumnWidth(4,int(self.SCALE_W*60))
+    self.ramp_table_parameters.setColumnWidth(4,int(self.SCALE_W*50))
     self.ramp_table_parameters.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
     self.ramp_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_ramp_table_changed(self, item))
     
