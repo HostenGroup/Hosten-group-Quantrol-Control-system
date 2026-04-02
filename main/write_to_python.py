@@ -33,7 +33,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
     # Persisted flags from GUI
     save_sampled_box_checked_flag = bool(getattr(self.experiment, 'save_sampled_variables', False))
-    camera_box_checked_flag = bool(getattr(self.experiment, 'camera_checked', False))
+    camera_box_checked_flag = bool(getattr(self.experiment, 'camera_enabled', False))
     file.write(indentation + f"save_sampled_box_checked = {save_sampled_box_checked_flag}\n")
     file.write(indentation + f"camera_box_checked = {camera_box_checked_flag}\n")
 
@@ -484,13 +484,17 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
         
         file.write(indentation + "target_directory = Path(experimental_path) if experimental_path else None\n")
+        file.write(indentation + "if target_directory is None:\n")
+        file.write(indentation + "    today = datetime.now().strftime('%Y_%m_%d')\n")
+        file.write(indentation + "    exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
+        file.write(indentation + "    target_directory = Path(config.experiment_data_root) / exp_dir / today\n")
         file.write(indentation + "try:\n")
         file.write(indentation + "    target_directory.mkdir(parents=True, exist_ok=True)\n")
         file.write(indentation + "except Exception as e:\n")
         file.write(indentation + "    print(f'Could not create target directory {target_directory}: {exc}')\n")
         file.write(indentation + "folder_name = target_directory.name\n")
-        file.write(indentation + "folder_date = folder_name[-19:8] if len(folder_name) >= 19 else datetime.now().strftime('%Y%m%d')\n")
-        file.write(indentation + "folder_time = folder_name[-19:] if len(folder_name) >= 19 else datetime.now().strftime('%H%M%S')\n")
+        file.write(indentation + "folder_date = datetime.now().strftime('%Y%m%d')\n")
+        file.write(indentation + "folder_time = folder_name[-8:].replace('_', '') if len(folder_name) >= 8 else datetime.now().strftime('%H%M%S')\n")
         file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{folder_date}_{folder_time}.txt\"\n")
         file.write(indentation + "data = self.get_dataset('data')\n")
         file.write(indentation + "with open(target_file, \"w\") as f:\n")
