@@ -29,18 +29,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "import sys \n")
     file.write(indentation + "sys.path.append(str(Path(__file__).resolve().parent.parent)) \n")
     file.write(indentation + "import main.config as config \n")
+    file.write(indentation + "\n")
 
     # Persisted flags from GUI
-    save_sampled_flag = bool(getattr(self.experiment, 'save_sampled_variables', False))
-    exp_name_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
-    # If the GUI has already recorded a current_run_path (set when camera was prepared), embed it
-    run_path_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_path', '')) or ""
-    metadata_path_literal = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_metadata_path', '')) or ""
-    # write literals into generated script
-    file.write(indentation + f"save_sampled = {save_sampled_flag}\n")
-    file.write(indentation + f"experiment_name = {repr(exp_name_literal)}\n")
-    file.write(indentation + f"embedded_run_path = {repr(run_path_literal)}\n")
-    file.write(indentation + f"embedded_metadata_path = {repr(metadata_path_literal)}\n")
+    save_sampled_box_checked_flag = bool(getattr(self.experiment, 'save_sampled_variables', False))
+    camera_box_checked_flag = bool(getattr(self.experiment, 'camera_checked', False))
+    file.write(indentation + f"save_sampled_box_checked = {save_sampled_box_checked_flag}\n")
+    file.write(indentation + f"camera_box_checked = {camera_box_checked_flag}\n")
 
     file.write("\n")
     
@@ -82,14 +77,14 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     indentation = indentation[:-4]
 
 
-    #check if there are any sampled variables
+    #check if there are any sampled variables - need?
     has_sampled = any(
         channel != "0"
         for edge in self.experiment.sequence
         for channel in edge.sampler)
     
     # If a varialbe is sampled, we create an array for it to store the sampled values 
-    if has_sampled and not run_continuous:
+    if save_sampled_box_checked_flag == True and not run_continuous:
         file.write("\n")
         file.write(indentation + "def prepare(self): \n")
         indentation += "    "
@@ -392,7 +387,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             for indent in range(count_indent):
                 indentation = indentation[:-4] 
 
-    if has_sampled and not run_continuous:
+    if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n' + indentation + "# For save sample variables\n")
         args_str = ""
         if sampled_names:
@@ -404,19 +399,14 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         else:
             step_var_names = []
 
-        file.write(indentation + "if save_sampled:\n")
-        indentation += '    '
-
         # build call arguments: steps (if any) followed by sampled variable names
         if step_var_names:
             call_args_list = step_var_names + sampled_names
             call_args = ", ".join(call_args_list)
             file.write(indentation + "self.store_sample(run_index_no_warumup, %s)\n" % (call_args if call_args else ""))
-            
         else:
             # no per-variable steps: keep legacy single `step` argument
             file.write(indentation + "self.store_sample(run_index_no_warumup%s)\n" % (", " + args_str if args_str else ""))
-        indentation = indentation[:-4]
 
 
     for variable in self.experiment.derived_variables: # to print the values of all arguments in dervied variables (feedback)
@@ -440,9 +430,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             indentation_flag -= 1
         indentation = indentation[:-4*(indentation_flag)]
 
-    if has_sampled and not run_continuous:
-        file.write('\n' + indentation + "if save_sampled:\n")
-        file.write(indentation + "    self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
+    if save_sampled_box_checked_flag == True and not run_continuous:
+        file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
     if not run_continuous:
         file.write('\n' + indentation + "self.print_end_exp()  # print end of experiment in the end of the run \n")
@@ -455,7 +444,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "print(\"End of experiment\")\n")
         indentation = indentation[:-4]
     
-    if has_sampled and not run_continuous:
+    if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n')
         file.write(indentation + "@rpc\n")
         # determine per-variable step names
@@ -487,32 +476,29 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "@rpc\n")
         file.write(indentation + "def copy_dataset_file(self):\n")
         indentation += '    '
-        file.write(indentation + "# Save sampled data to run and metadata folders when available\n")
-        file.write(indentation + "today_folder = datetime.now().strftime(\"%Y_%m_%d\")\n")
-        file.write(indentation + "exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
-        file.write(indentation + "target_directories = []\n")
-        file.write(indentation + "if embedded_run_path:\n")
-        file.write(indentation + "    target_directories.append(Path(embedded_run_path))\n")
-        file.write(indentation + "if embedded_metadata_path:\n")
-        file.write(indentation + "    target_directories.append(Path(embedded_metadata_path))\n")
-        file.write(indentation + "if not target_directories:\n")
-        file.write(indentation + "    target_directories.append(Path(config.experiment_data_root) / exp_dir / today_folder)\n")
-        file.write(indentation + "timestamp = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n")
+
+        exp_name = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
+        experimental_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_path', '')) or ""
+        file.write(indentation + f"experiment_name = {repr(exp_name)}\n")
+        file.write(indentation + f"experimental_path = {repr(experimental_path)}\n")
+
+        
+        file.write(indentation + "target_directory = Path(experimental_path) if experimental_path else None\n")
+        file.write(indentation + "try:\n")
+        file.write(indentation + "    target_directory.mkdir(parents=True, exist_ok=True)\n")
+        file.write(indentation + "except Exception as e:\n")
+        file.write(indentation + "    print(f'Could not create target directory {target_directory}: {exc}')\n")
+        file.write(indentation + "folder_name = target_directory.name\n")
+        file.write(indentation + "folder_date = folder_name[-19:8] if len(folder_name) >= 19 else datetime.now().strftime('%Y%m%d')\n")
+        file.write(indentation + "folder_time = folder_name[-19:] if len(folder_name) >= 19 else datetime.now().strftime('%H%M%S')\n")
+        file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{folder_date}_{folder_time}.txt\"\n")
         file.write(indentation + "data = self.get_dataset('data')\n")
-        file.write(indentation + "written_targets = set()\n")
-        file.write(indentation + "for target_directory in target_directories:\n")
-        file.write(indentation + "    try:\n")
-        file.write(indentation + "        target_directory = target_directory.resolve()\n")
-        file.write(indentation + "        target_key = str(target_directory)\n")
-        file.write(indentation + "        if target_key in written_targets:\n")
-        file.write(indentation + "            continue\n")
-        file.write(indentation + "        target_directory.mkdir(parents=True, exist_ok=True)\n")
-        file.write(indentation + "        target_file = target_directory / f\"dataset_db_copy_{timestamp}.txt\"\n")
-        file.write(indentation + "        with open(target_file, \"w\") as f:\n")
-        file.write(indentation + "            f.writelines(f\"{entry}\\n\" for entry in data)\n")
-        file.write(indentation + "        written_targets.add(target_key)\n")
-        file.write(indentation + "    except Exception as exc:\n")
-        file.write(indentation + "        print(f\"Could not save sampled dataset in {target_directory}: {exc}\")\n")
+        file.write(indentation + "with open(target_file, \"w\") as f:\n")
+        file.write(indentation + "    f.writelines(f\"{entry}\\n\" for entry in data)\n")
+
+
+
+
 
 
 
