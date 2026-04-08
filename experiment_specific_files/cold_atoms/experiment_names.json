@@ -54,5 +54,13 @@
     "13": {
         "name": "MOT",
         "plot_x_caption": ""
+    },
+    "14": {
+        "name": "Raman transition",
+        "plot_x_caption": ""
+    },
+    "15": {
+        "name": "dds_test",
+        "plot_x_caption": ""
     }
 }

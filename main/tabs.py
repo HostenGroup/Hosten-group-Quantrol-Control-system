@@ -353,7 +353,7 @@ def sequence_tab_build(self):
     #file_name label
     self.file_name_lable = QLabel(self.sequence_tab_widget)
     self.file_name_lable.setFont(QFont('Arial', self.scale_font(10)))
-    self.file_name_lable.setGeometry(*self.scale_geom(200, 2, width_of_table+200, self.top_margin))
+    self.file_name_lable.setGeometry(*self.scale_geom(200, 2, width_of_table+800, self.top_margin))
 
     #SEQUENCE TAB LAYOUT
     self.sequence_table = QTableWidget(self.sequence_tab_widget)
@@ -395,15 +395,16 @@ def sequence_tab_build(self):
 
     #TABLE OF SCANNING PARAMETERS
     self.scan_table_parameters = QTableWidget()
-    self.scan_table_parameters.setColumnCount(4)
+    self.scan_table_parameters.setColumnCount(5)
     self.scan_table_parameters.setRowCount(0)
     self.scan_table_parameters.verticalHeader().setVisible(False)
     self.scan_table_parameters.setFont(QFont('Arial', self.scale_font(14)))
-    self.scan_table_parameters.setHorizontalHeaderLabels(["Variable","Min value", "Max value", "Steps"])
-    self.scan_table_parameters.setColumnWidth(0,int(self.SCALE_W*250))
+    self.scan_table_parameters.setHorizontalHeaderLabels(["Variable","Min value", "Max value", "Steps", "Dim"])
+    self.scan_table_parameters.setColumnWidth(0,int(self.SCALE_W*230))
     self.scan_table_parameters.setColumnWidth(1,int(self.SCALE_W*200))
     self.scan_table_parameters.setColumnWidth(2,int(self.SCALE_W*200))
-    self.scan_table_parameters.setColumnWidth(3,int(self.SCALE_W*100))
+    self.scan_table_parameters.setColumnWidth(3,int(self.SCALE_W*90))
+    self.scan_table_parameters.setColumnWidth(4,int(self.SCALE_W*50))
     self.scan_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_scan_table_changed(self, item))
     
 
@@ -461,11 +462,11 @@ def sequence_tab_build(self):
     self.ramp_table_parameters.verticalHeader().setVisible(False)
     self.ramp_table_parameters.setFont(QFont('Arial', self.scale_font(14)))
     self.ramp_table_parameters.setHorizontalHeaderLabels(["Variable","Start ID", "End ID","Function (use i)", "i"])
-    self.ramp_table_parameters.setColumnWidth(0,int(self.SCALE_W*145))
+    self.ramp_table_parameters.setColumnWidth(0,int(self.SCALE_W*150))
     self.ramp_table_parameters.setColumnWidth(1,int(self.SCALE_W*80))
     self.ramp_table_parameters.setColumnWidth(2,int(self.SCALE_W*80))
     # self.ramp_table_parameters.setColumnWidth(3,int(self.SCALE_W*400))
-    self.ramp_table_parameters.setColumnWidth(4,int(self.SCALE_W*60))
+    self.ramp_table_parameters.setColumnWidth(4,int(self.SCALE_W*50))
     self.ramp_table_parameters.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
     self.ramp_table_parameters.itemChanged.connect(lambda item: change_handlers.handle_ramp_table_changed(self, item))
     
@@ -1896,6 +1897,22 @@ def acquisition_tab_build(self):
     self.format_combo.setCurrentIndex(-1) 
     self.format_combo.currentTextChanged.connect(lambda: change_handlers.handle_camera_image_format_changed(self))
     form.addRow("Image format", self.format_combo)
+
+
+    # Save sampled variables group (checkable QGroupBox similar to Camera)
+    self.save_sampled_box = QGroupBox(self.acquisition_tab_widget)
+    self.save_sampled_box.setTitle("Save sampled variables")
+    self.save_sampled_box.setCheckable(True)
+    self.save_sampled_box.setChecked(False)
+    self.save_sampled_box.setFont(QFont('Arial', self.scale_font(14)))
+    # Place it next to camera_box (below it)
+    self.save_sampled_box.move(int(self.SCALE_W*(self.button_w + 2*self.sep)), int(self.SCALE_H*(self.top_margin + 210)))
+    self.save_sampled_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(120)))
+    form_ss = QFormLayout(self.save_sampled_box)
+    # Small descriptive label inside the group
+    label_desc = QLabel("Save sampled-variable dataset copy into the  - only if there is a sampled variable", self.save_sampled_box)
+    label_desc.setWordWrap(True)
+    form_ss.addRow(label_desc)
 
 
 

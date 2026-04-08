@@ -1016,8 +1016,9 @@ class MainWindow(QMainWindow):
 
             if reply == QMessageBox.Yes:
                 camera_box = getattr(self, 'camera_box', None)
+                save_sampled_box = getattr(self, 'save_sampled_box', None)
                 texp_locked = getattr(self, '_texp_locked', None)
-                file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
+                file_io.prepare_experiment_for_save(self.experiment, camera_box, save_sampled_box, texp_locked)
                 # If no file path set, ask Save As starting in default sequences directory
                 if not getattr(self.experiment, 'file_name', ''):
                     start_dir = str(file_io.get_default_directory(self.repo_path))

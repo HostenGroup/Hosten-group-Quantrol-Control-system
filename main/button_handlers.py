@@ -33,6 +33,50 @@ from data_structures import Variable, ScannedVariable, RampedVariable, DerivedVa
 import config
 
 
+def _sync_runtime_ui_state(self):
+    """
+    Capture runtime UI toggles into the experiment object before generating/submitting scripts.
+    """
+    camera_box = self.camera_box if hasattr(self, "camera_box") else None
+    save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
+    texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, save_sampled_box, texp_locked)
+
+
+def _prepare_sampled_run_paths(self):
+    """
+    Prepare the same date/time run folder that camera-backed runs use, but without camera-specific validation.
+    """
+    timestamp = datetime.now()
+    date_part = timestamp.strftime("%Y_%m_%d")
+    time_part = timestamp.strftime("%H_%M_%S")
+
+    experiment_name = (getattr(self.experiment.experimental_data, "experiment_name", "") or self.experiment_list_chosen_line.text() or "").strip()
+    base_path = (getattr(self.experiment.experimental_data, "path", "") or "").strip()
+    if not base_path:
+        data_root = getattr(config, "experiment_data_root", "")
+        if data_root:
+            base_path = str(Path(data_root) / experiment_name) if experiment_name else data_root
+        else:
+            base_path = str(self.repo_path / "logs")
+
+    run_base_dir = Path(base_path) / date_part / time_part
+    run_base_dir.mkdir(parents=True, exist_ok=True)
+
+    self.experiment.experimental_data.path = base_path
+    self.experiment.experimental_data.current_run_path = str(run_base_dir)
+    self.experiment.experimental_data.current_run_metadata_path = str(run_base_dir)
+    self.experiment.experimental_data.current_run_timestamp = timestamp.isoformat()
+    if not self.experiment.experimental_data.experiment_name:
+        self.experiment.experimental_data.experiment_name = experiment_name
+
+    return {
+        "metadata_dir": str(run_base_dir),
+        "output_dir": str(run_base_dir),
+        "timestamp": timestamp.isoformat(),
+    }
+
+
 
 # ============================================================================
 # SEQUENCE TAB BUTTON HANDLERS
@@ -47,9 +91,14 @@ def handle_save_sequence_button_clicked(self):
     if hasattr(self, "_persist_live_camera_settings_from_ui"):
         self._persist_live_camera_settings_from_ui()
     camera_box = self.camera_box if hasattr(self, "camera_box") else None
-    live_camera_box = self.live_camera_checkbox if hasattr(self, "live_camera_checkbox") else None
+
     texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
-    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box)
+
+    live_camera_box = self.live_camera_checkbox if hasattr(self, "live_camera_checkbox") else None
+    
+    save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
+
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box)
     
     if self.experiment.file_name == "":
         self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0]
@@ -238,6 +287,12 @@ def handle_load_sequence_button_clicked(self):
                     self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
                 if hasattr(self, "handle_live_fps_limit_toggled"):
                     self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked())
+            # Restore save-sampled checkbox state if present
+            if hasattr(self, "save_sampled_box"):
+                try:
+                    self.save_sampled_box.setChecked(getattr(self.experiment, 'save_sampled_variables', False))
+                except Exception:
+                    self.save_sampled_box.setChecked(False)
             # Restore T_exp_ lock state
             if hasattr(self, "lock_cb"):
                 self.lock_cb.setChecked(self.experiment.texp_locked)
@@ -262,6 +317,8 @@ def handle_save_sequence_as_button_clicked(self):
         self.experiment.camera_enabled = self.camera_box.isChecked()
     if hasattr(self, "live_camera_checkbox"):
         self.experiment.live_camera_enabled = self.live_camera_checkbox.isChecked()
+    if hasattr(self, "save_sampled_box"):
+        self.experiment.save_sampled_variables = self.save_sampled_box.isChecked()
     if hasattr(self, "_texp_locked"):
         self.experiment.texp_locked = self._texp_locked
     if hasattr(self, "_persist_live_camera_settings_from_ui"):
@@ -493,6 +550,21 @@ def handle_run_experiment_button_clicked(self):
         self._reset_live_dynamic_subtraction_counter()
     except Exception:
         pass
+    _sync_runtime_ui_state(self)
+    camera_launch_info = None
+    delay_before_artiq = 0.0
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
+        try:
+            camera_launch_info = self._prepare_camera_launch()
+            delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif save_sampled_enabled:
+        camera_launch_info = _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -502,17 +574,6 @@ def handle_run_experiment_button_clicked(self):
             self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
             raise ValueError("startID is not next to endID")
         self.message_to_logger("Python file generated")
-
-        camera_launch_info = None
-        delay_before_artiq = 0.0
-        if hasattr(self, "camera_box") and self.camera_box.isChecked():
-            try:
-                camera_launch_info = self._prepare_camera_launch()
-                delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
-            except ValueError as exc:
-                self.error_message(str(exc), "Camera acquisition")
-                self.message_to_logger(f"Camera acquisition aborted: {exc}")
-                return
 
         try:
             if camera_launch_info and camera_launch_info.get("metadata_dir"):
@@ -531,7 +592,7 @@ def handle_run_experiment_button_clicked(self):
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
 
             self._record_experiment_run(metadata_dir, is_multiple_run=False)
-            if camera_launch_info:
+            if camera_enabled and camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
 
@@ -591,6 +652,18 @@ def handle_generate_run_experiment_py_button_clicked(self):
     Function is used to generate the run_experiment.py according to the experimental descirption without
     running it. It is usefull for debugging purposes.
     '''
+    _sync_runtime_ui_state(self)
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
+        try:
+            self._prepare_camera_launch()
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif save_sampled_enabled:
+        _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #specifically used to update for_python version of each parameter in the sequence
@@ -625,13 +698,16 @@ def handle_submit_run_experiment_py_button_clicked(self):
         self._reset_live_dynamic_subtraction_counter()
     except Exception:
         pass
-    self.count_scanned_variables()
-    self.count_ramped_variables()
-    update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
+    # self.count_scanned_variables()
+    # self.count_ramped_variables()
+    # update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
     
+    _sync_runtime_ui_state(self)
     camera_launch_info = None
     delay_before_artiq = 0.0
-    if hasattr(self, "camera_box") and self.camera_box.isChecked():
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
         try:
             camera_launch_info = self._prepare_camera_launch()
             delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
@@ -639,7 +715,12 @@ def handle_submit_run_experiment_py_button_clicked(self):
             self.error_message(str(exc), "Camera acquisition")
             self.message_to_logger(f"Camera acquisition aborted: {exc}")
             return
-
+    elif save_sampled_enabled:
+        camera_launch_info = _prepare_sampled_run_paths(self)
+    self.count_scanned_variables()
+    self.count_ramped_variables()
+    update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
+    
     try:
         if camera_launch_info and camera_launch_info.get("metadata_dir"):
             metadata_dir = Path(camera_launch_info["metadata_dir"])
@@ -656,7 +737,7 @@ def handle_submit_run_experiment_py_button_clicked(self):
         with open(metadata_dir / metadata_filename, "w") as outfile:
             json.dump(self.to_dict(self.experiment),outfile,indent=4)
         self._record_experiment_run(metadata_dir, is_multiple_run=False)
-        if camera_launch_info:
+        if camera_enabled and camera_launch_info:
             self._start_camera_subprocess(camera_launch_info)
             self.message_to_logger("Camera acquisition started")
 
@@ -689,6 +770,16 @@ def handle_continuous_run_button_clicked(self):
         self._reset_live_dynamic_subtraction_counter()
     except Exception:
         pass
+    _sync_runtime_ui_state(self)
+    if hasattr(self, "camera_box") and self.camera_box.isChecked():
+        try:
+            self._prepare_camera_launch()
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked():
+        _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -734,6 +825,21 @@ def handle_multiple_runs_button_clicked(self):
         self._reset_live_dynamic_subtraction_counter()
     except Exception:
         pass
+    _sync_runtime_ui_state(self)
+    camera_launch_info = None
+    delay_before_artiq = 0.0
+    camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
+    save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
+    if camera_enabled:
+        try:
+            camera_launch_info = self._prepare_camera_launch()
+            delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
+        except ValueError as exc:
+            self.error_message(str(exc), "Camera acquisition")
+            self.message_to_logger(f"Camera acquisition aborted: {exc}")
+            return
+    elif save_sampled_enabled:
+        camera_launch_info = _prepare_sampled_run_paths(self)
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -743,17 +849,6 @@ def handle_multiple_runs_button_clicked(self):
             self.message_to_logger("Ramp: End ID edge is not right after Start ID edge!")
             raise ValueError("startID is not next to endID")
         self.message_to_logger("Python file generated")
-
-        camera_launch_info = None
-        delay_before_artiq = 0.0
-        if hasattr(self, "camera_box") and self.camera_box.isChecked():
-            try:
-                camera_launch_info = self._prepare_camera_launch()
-                delay_before_artiq = float(getattr(config, "camera_launch_delay_s", 5))
-            except ValueError as exc:
-                self.error_message(str(exc), "Camera acquisition")
-                self.message_to_logger(f"Camera acquisition aborted: {exc}")
-                return
 
         try:
             if camera_launch_info and camera_launch_info.get("metadata_dir"):
@@ -772,7 +867,7 @@ def handle_multiple_runs_button_clicked(self):
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
 
             self._record_experiment_run(metadata_dir, is_multiple_run=True)
-            if camera_launch_info:
+            if camera_enabled and camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
 
@@ -1274,7 +1369,9 @@ def handle_clear_logger_button_clicked(main_window):
 
 def handle_add_scanned_variable_button_pressed(main_window):
     '''Add a scanned variable with name "None" and update scan_table.'''
-    main_window.experiment.scanned_variables.append(ScannedVariable("None", 0.0, 0.0, 0.0))
+    # default Dim is the next position in the scanned_variables list
+    next_dim = len(main_window.experiment.scanned_variables) + 1
+    main_window.experiment.scanned_variables.append(ScannedVariable("None", 0.0, 0.0, 0.0, Dim=next_dim))
     update.scan_table(main_window)
     update.digital_analog_dds_mirny_tabs(main_window)
     update.variable_tables(main_window)

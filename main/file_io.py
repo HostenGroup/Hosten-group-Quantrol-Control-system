@@ -168,6 +168,10 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(live_camera, 'target_fps'):
         live_camera.target_fps = 12.0
         notes.append("Added live_camera.target_fps attribute")
+    # Add save_sampled_variables attribute if missing
+    if not hasattr(experiment, 'save_sampled_variables'):
+        experiment.save_sampled_variables = False
+        notes.append("Added save_sampled_variables attribute")
     
     return notes
 
@@ -254,7 +258,7 @@ def apply_default_to_experiment(experiment, default_experiment) -> None:
         experiment.title_slow_dds_tab = deepcopy(default_experiment.title_slow_dds_tab)
 
 
-def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, live_camera_box=None) -> None:
+def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, live_camera_box=None, save_sampled_box=None) -> None:
     '''
     Prepare experiment object for saving by capturing current UI state.
     
@@ -270,6 +274,11 @@ def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, l
         if hasattr(experiment, "experimental_data") and experiment.experimental_data is not None:
             if hasattr(experiment.experimental_data, "live_camera") and experiment.experimental_data.live_camera is not None:
                 experiment.experimental_data.live_camera.enabled = bool(experiment.live_camera_enabled)
+    if save_sampled_box is not None:
+        try:
+            experiment.save_sampled_variables = bool(save_sampled_box.isChecked())
+        except Exception:
+            experiment.save_sampled_variables = False
     if texp_locked is not None:
         experiment.texp_locked = texp_locked
 

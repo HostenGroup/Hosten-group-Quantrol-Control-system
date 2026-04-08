@@ -31,7 +31,8 @@ camera_serial_numbers_dict = {
     'X':'22433340',
     'Y':'22433344'
 }
-experiment_data_root = r"G:\Experimental Data\Hybrid\MOT_images"
+# experiment_data_root = r"G:\Experimental Data\Hybrid\MOT_images"
+experiment_data_root = r"G:\Experimental Data\Atom Interferometer experiment\Raman"
 
 experiment_database_path = str(Path(experiment_data_root).parent / "Hybrid_exp_db.xlsx")
 
