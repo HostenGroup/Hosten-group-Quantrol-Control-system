@@ -4,8 +4,8 @@ dataset_db*
 default/
 repository/
 results/
-sequences/
-ARTIQ_scripts/*
+/sequences/
+/ARTIQ_scripts/*
 !ARTIQ_scripts/.gitkeep
 /device_db.py
 /logs/*

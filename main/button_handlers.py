@@ -38,9 +38,11 @@ def _sync_runtime_ui_state(self):
     Capture runtime UI toggles into the experiment object before generating/submitting scripts.
     """
     camera_box = self.camera_box if hasattr(self, "camera_box") else None
-    save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
     texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
-    file_io.prepare_experiment_for_save(self.experiment, camera_box, save_sampled_box, texp_locked)
+    live_camera_box = self.live_camera_checkbox if hasattr(self, "live_camera_checkbox") else None
+    save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
+    
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box)
 
 
 def _prepare_sampled_run_paths(self):
@@ -90,6 +92,7 @@ def handle_save_sequence_button_clicked(self):
     # Prepare experiment for saving (capture UI state)
     if hasattr(self, "_persist_live_camera_settings_from_ui"):
         self._persist_live_camera_settings_from_ui()
+        
     camera_box = self.camera_box if hasattr(self, "camera_box") else None
 
     texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None

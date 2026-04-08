@@ -19,8 +19,8 @@ mirny_channels_number = 4
 slow_dds_channels_number = 4
 sampler_channels_number = 8
 
-which_project = 'hybrid_experiment'
-# which_project = 'cold_atoms'
+# which_project = 'hybrid_experiment'
+which_project = 'cold_atoms'
 
 package_manager = "clang64" #it can be either conda or clang64
 artiq_environment_name = "artiq" # it can be either artiq or artiq_5 for Hosten lab systems

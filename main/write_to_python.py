@@ -433,72 +433,10 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
+    
     if not run_continuous:
         file.write('\n' + indentation + 'self.print_end_exp()  # print end of experiment in the end of the run \n')
         file.write('\n')
-
-        indentation = indentation_kernel
-        file.write(indentation + "@rpc\n")
-        file.write(indentation + "def print_end_exp(self):\n")
-        indentation += '    '
-        file.write(indentation + "print(\"End of experiment\")\n")
-        indentation = indentation[:-4]
-    
-    if save_sampled_box_checked_flag == True and not run_continuous:
-        file.write('\n')
-        file.write("    @rpc\n")
-        # determine per-variable step names
-        if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
-            # determine which step variables exist (step1, step2, ...)
-            step_var_names = [f"step{idx+1}" for idx, variable in enumerate(self.experiment.scanned_variables) if getattr(variable, 'name', "") != "None"]
-        else:
-            step_var_names = []
-
-        if step_var_names:
-            signature_args_list = step_var_names + sampled_names
-            signature_args = ", ".join(signature_args_list)
-            file.write(f"    def store_sample(self, run_index, {signature_args}):\n")
-            # build tuple for dataset: run_index, all steps as ints, then sampled values
-            tuple_parts = ["int(run_index)"] + [f"int({s})" for s in step_var_names]
-            if sampled_names:
-                tuple_parts += sampled_names
-            file.write(f"        self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
-        else:
-            # legacy single step
-            file.write("    def store_sample(self, run_index%s):\n" % (", " + args_str if args_str else ""))
-            file.write("        self.append_to_dataset(\"data\", (int(run_index)%s))\n" % (", " + args_str if args_str else ""))
-
-        file.write('\n')
-        file.write(indentation + "@rpc\n")
-        file.write(indentation + "def copy_dataset_file(self):\n")
-        indentation += '    '
-
-        exp_name = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
-        experimental_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_path', '')) or ""
-        experimental_metadata_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_metadata_path', '')) or ""
-        file.write(indentation + f"experiment_name = {repr(exp_name)}\n")
-        file.write(indentation + f"experimental_path = {repr(experimental_path)}\n")
-        file.write(indentation + f"experimental_metadata_path = {repr(experimental_metadata_path)}\n")
-
-        
-        file.write(indentation + "target_directory = Path(experimental_metadata_path) if experimental_metadata_path else (Path(experimental_path) if experimental_path else None)\n")
-        file.write(indentation + "if target_directory is None:\n")
-        file.write(indentation + "    today = datetime.now().strftime('%Y_%m_%d')\n")
-        file.write(indentation + "    exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
-        file.write(indentation + "    target_directory = Path(config.experiment_data_root) / exp_dir / today\n")
-        file.write(indentation + "try:\n")
-        file.write(indentation + "    target_directory.mkdir(parents=True, exist_ok=True)\n")
-        file.write(indentation + "except Exception as e:\n")
-        file.write(indentation + "    print(f'Could not create target directory {target_directory}: {e}')\n")
-        file.write(indentation + "folder_name = target_directory.name\n")
-        file.write(indentation + "folder_date = datetime.now().strftime('%Y%m%d')\n")
-        file.write(indentation + "folder_time = folder_name[-8:].replace('_', '') if len(folder_name) >= 8 else datetime.now().strftime('%H%M%S')\n")
-        file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{folder_date}_{folder_time}.txt\"\n")
-        file.write(indentation + "data = self.get_dataset('data')\n")
-        file.write(indentation + "with open(target_file, \"w\") as f:\n")
-        file.write(indentation + "    f.writelines(f\"{entry}\\n\" for entry in data)\n")
-
-
 
 
 
@@ -520,7 +458,10 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     # if not run_continuous and run_loop_added:
     #     indentation = indentation[:-4]
 
+
     if self.experiment.cont_run_after_exp and not run_continuous:
+        file.write("\n")
+        indentation = indentation_kernel + "    "
         # self.function_to_write_cont_run_after_experiment(file)
 
         # Create an infinite while loop if needs to run continuously
@@ -732,6 +673,74 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 for indent in range(count_indent):
                     indentation = indentation[:-4] 
 
+
+    ##################################################################
+    ##################### RPC functions ##############################
+    ##################################################################
+
+
+    if not run_continuous:
+
+        indentation = indentation_kernel
+        file.write(indentation + "@rpc\n")
+        file.write(indentation + "def print_end_exp(self):\n")
+        indentation += '    '
+        file.write(indentation + "print(\"End of experiment\")\n")
+        indentation = indentation[:-4]
+    
+    if save_sampled_box_checked_flag == True and not run_continuous:
+        file.write('\n')
+        file.write("    @rpc\n")
+        # determine per-variable step names
+        if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
+            # determine which step variables exist (step1, step2, ...)
+            step_var_names = [f"step{idx+1}" for idx, variable in enumerate(self.experiment.scanned_variables) if getattr(variable, 'name', "") != "None"]
+        else:
+            step_var_names = []
+
+        if step_var_names:
+            signature_args_list = step_var_names + sampled_names
+            signature_args = ", ".join(signature_args_list)
+            file.write(f"    def store_sample(self, run_index, {signature_args}):\n")
+            # build tuple for dataset: run_index, all steps as ints, then sampled values
+            tuple_parts = ["int(run_index)"] + [f"int({s})" for s in step_var_names]
+            if sampled_names:
+                tuple_parts += sampled_names
+            file.write(f"        self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
+        else:
+            # legacy single step
+            file.write("    def store_sample(self, run_index%s):\n" % (", " + args_str if args_str else ""))
+            file.write("        self.append_to_dataset(\"data\", (int(run_index)%s))\n" % (", " + args_str if args_str else ""))
+
+        file.write('\n')
+        file.write(indentation + "@rpc\n")
+        file.write(indentation + "def copy_dataset_file(self):\n")
+        indentation += '    '
+
+        exp_name = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
+        experimental_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_path', '')) or ""
+        experimental_metadata_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_metadata_path', '')) or ""
+        file.write(indentation + f"experiment_name = {repr(exp_name)}\n")
+        file.write(indentation + f"experimental_path = {repr(experimental_path)}\n")
+        file.write(indentation + f"experimental_metadata_path = {repr(experimental_metadata_path)}\n")
+
+        
+        file.write(indentation + "target_directory = Path(experimental_metadata_path) if experimental_metadata_path else (Path(experimental_path) if experimental_path else None)\n")
+        file.write(indentation + "if target_directory is None:\n")
+        file.write(indentation + "    today = datetime.now().strftime('%Y_%m_%d')\n")
+        file.write(indentation + "    exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
+        file.write(indentation + "    target_directory = Path(config.experiment_data_root) / exp_dir / today\n")
+        file.write(indentation + "try:\n")
+        file.write(indentation + "    target_directory.mkdir(parents=True, exist_ok=True)\n")
+        file.write(indentation + "except Exception as e:\n")
+        file.write(indentation + "    print(f'Could not create target directory {target_directory}: {e}')\n")
+        file.write(indentation + "folder_name = target_directory.name\n")
+        file.write(indentation + "folder_date = datetime.now().strftime('%Y%m%d')\n")
+        file.write(indentation + "folder_time = folder_name[-8:].replace('_', '') if len(folder_name) >= 8 else datetime.now().strftime('%H%M%S')\n")
+        file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{folder_date}_{folder_time}.txt\"\n")
+        file.write(indentation + "data = self.get_dataset('data')\n")
+        file.write(indentation + "with open(target_file, \"w\") as f:\n")
+        file.write(indentation + "    f.writelines(f\"{entry}\\n\" for entry in data)\n")
         
     file.close()
 
@@ -878,3 +887,8 @@ def set_slow_dds_states(self):
         elif channel.state == 0:
             file.write(indentation + "self.%s"%config.slow_dds_channels[index] + ".cfg_sw(False) \n")
     file.close()
+
+
+
+
+    
