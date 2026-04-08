@@ -479,11 +479,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
         exp_name = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
         experimental_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_path', '')) or ""
+        experimental_metadata_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_metadata_path', '')) or ""
         file.write(indentation + f"experiment_name = {repr(exp_name)}\n")
         file.write(indentation + f"experimental_path = {repr(experimental_path)}\n")
+        file.write(indentation + f"experimental_metadata_path = {repr(experimental_metadata_path)}\n")
 
         
-        file.write(indentation + "target_directory = Path(experimental_path) if experimental_path else None\n")
+        file.write(indentation + "target_directory = Path(experimental_metadata_path) if experimental_metadata_path else (Path(experimental_path) if experimental_path else None)\n")
         file.write(indentation + "if target_directory is None:\n")
         file.write(indentation + "    today = datetime.now().strftime('%Y_%m_%d')\n")
         file.write(indentation + "    exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
@@ -491,7 +493,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "try:\n")
         file.write(indentation + "    target_directory.mkdir(parents=True, exist_ok=True)\n")
         file.write(indentation + "except Exception as e:\n")
-        file.write(indentation + "    print(f'Could not create target directory {target_directory}: {exc}')\n")
+        file.write(indentation + "    print(f'Could not create target directory {target_directory}: {e}')\n")
         file.write(indentation + "folder_name = target_directory.name\n")
         file.write(indentation + "folder_date = datetime.now().strftime('%Y%m%d')\n")
         file.write(indentation + "folder_time = folder_name[-8:].replace('_', '') if len(folder_name) >= 8 else datetime.now().strftime('%H%M%S')\n")

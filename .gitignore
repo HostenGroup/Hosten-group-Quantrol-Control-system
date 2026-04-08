@@ -6,6 +6,7 @@ repository/
 results/
 sequences/
 ARTIQ_scripts/*
+!ARTIQ_scripts/.gitkeep
 /device_db.py
 /logs
 main/config.py
