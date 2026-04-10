@@ -1437,6 +1437,15 @@ def handle_cont_run_after_exp_button_clicked(main_window):
         main_window.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
 
 
+def handle_stop_at_end_of_sequence_button_clicked(main_window):
+    '''Toggle stop at end of sequence. When ON, clicking Stop experiment will set a host flag and stop only at sequence boundary.'''
+    main_window.experiment.stop_at_end_of_sequence = not main_window.experiment.stop_at_end_of_sequence
+    if main_window.experiment.stop_at_end_of_sequence:
+        main_window.stop_at_end_of_sequence_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+    else:
+        main_window.stop_at_end_of_sequence_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+
+
 def handle_add_ramped_variable_button_pressed(main_window):
     '''Add a ramped variable with name "None" and update ramp_table.'''
     main_window.experiment.ramped_variables.append(RampedVariable("None", 0, 0, 0.0, 0))

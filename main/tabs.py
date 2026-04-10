@@ -337,6 +337,15 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.cont_run_after_exp_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""") 
     self.cont_run_after_exp_button.setToolTip("Do automatic continuous run after expriment (run_experiment or multiple_runs). Button's color represents current state where green indicates that cont. run should be done, and red, when it should be avoided.")
     self.experiment.cont_run_after_exp = False  # off at the beginning
+    # stop at end of sequence toggle: when ON, GUI will set a host flag instead of stopping immediately
+    self.stop_at_end_of_sequence_button = QPushButton(self.sequence_tab_widget)
+    self.stop_at_end_of_sequence_button.setFont(QFont('Arial', self.scale_font(14)))
+    self.stop_at_end_of_sequence_button.setGeometry(*self.scale_geom(width_of_table + 20, 790, 200, 30))
+    self.stop_at_end_of_sequence_button.setText("Stop at end of sequence")
+    self.stop_at_end_of_sequence_button.clicked.connect(lambda: button_handlers.handle_stop_at_end_of_sequence_button_clicked(self))
+    self.stop_at_end_of_sequence_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+    self.stop_at_end_of_sequence_button.setToolTip("If enabled, clicking 'Stop experiment' will only take effect at the end of the current sequence. Toggle off to keep immediate stop behaviour.")
+    self.experiment.stop_at_end_of_sequence = False
 
 # SEQUENCE TAB
 def sequence_tab_build(self):
@@ -531,7 +540,7 @@ def sequence_tab_build(self):
     
     self.clear_logger_button = QPushButton(self.sequence_tab_widget)
     self.clear_logger_button.setFont(QFont('Arial', self.scale_font(14)))
-    self.clear_logger_button.setGeometry(*self.scale_geom(10 + width_of_table + 10, 820, self.button_w, self.button_h))
+    self.clear_logger_button.setGeometry(*self.scale_geom(10 + width_of_table + 10, 830, self.button_w, self.button_h))
     self.clear_logger_button.setText("Clear logger")
     self.clear_logger_button.clicked.connect(lambda: button_handlers.handle_clear_logger_button_clicked(self))
 

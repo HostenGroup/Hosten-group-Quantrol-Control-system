@@ -24,6 +24,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "import numpy as np\n")
     file.write(indentation + "from scipy.io import loadmat\n")
     file.write(indentation + "import os\n")
+    file.write(indentation + "import subprocess\n")
     file.write(indentation + "from datetime import datetime\n")
     file.write(indentation + "from pathlib import Path \n")
     file.write(indentation + "import sys \n")
@@ -34,8 +35,10 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     # Persisted flags from GUI
     save_sampled_box_checked_flag = bool(getattr(self.experiment, 'save_sampled_variables', False))
     camera_box_checked_flag = bool(getattr(self.experiment, 'camera_enabled', False))
+    stop_at_end_of_sequence_flag = bool(getattr(self.experiment, 'stop_at_end_of_sequence', False))
     file.write(indentation + f"save_sampled_box_checked = {save_sampled_box_checked_flag}\n")
     file.write(indentation + f"camera_box_checked = {camera_box_checked_flag}\n")
+    # file.write(indentation + f"stop_at_end_of_sequence = {stop_at_end_of_sequence_flag}\n")
 
     file.write("\n")
     
@@ -433,9 +436,14 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
-    
     if not run_continuous:
         file.write('\n' + indentation + 'self.print_end_exp()  # print end of experiment in the end of the run \n')
+
+    # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
+    file.write('\n')
+    if stop_at_end_of_sequence_flag == True:
+        file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
+        file.write(indentation + "    return\n")
         file.write('\n')
 
 
@@ -678,15 +686,59 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     ##################### RPC functions ##############################
     ##################################################################
 
-
     if not run_continuous:
-
         indentation = indentation_kernel
         file.write(indentation + "@rpc\n")
         file.write(indentation + "def print_end_exp(self):\n")
         indentation += '    '
         file.write(indentation + "print(\"End of experiment\")\n")
         indentation = indentation[:-4]
+
+    # RPC helper: check host-side stop flag and run init_hardware if requested
+    if stop_at_end_of_sequence_flag == True:
+        file.write('\n')
+        file.write(indentation + "@rpc\n")
+        file.write(indentation + "def check_host_stop_and_run(self):\n")
+        indentation += '    '
+        file.write(indentation + "stop_file = Path(__file__).resolve().parent / 'stop_flag.txt'\n")
+        file.write(indentation + "try:\n")
+        indentation += '    '
+        file.write(indentation + "if stop_file.exists():\n")
+        indentation += '    '
+        file.write(indentation + "# run init_hardware.py on the host (matches GUI behaviour)\n")
+        file.write(indentation + "init_path = Path(__file__).resolve().parent / 'init_hardware.py'\n")
+        file.write(indentation + "try:\n")
+        indentation += '    '
+        file.write(indentation + "if config.package_manager == 'conda':\n")
+        indentation += '    '
+        file.write(indentation + "os.system('conda activate ' + config.artiq_environment_name + ' && artiq_run ' + str(init_path))\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "elif config.package_manager == 'clang64':\n")
+        indentation += '    '
+        file.write(indentation + "try:\n")
+        indentation += '    '
+        file.write(indentation + "proc = subprocess.run(['cmd', '/c', str(init_path)], check=False)\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception:\n")
+        indentation += '    '
+        file.write(indentation + "os.system('artiq_run ' + str(init_path))\n")
+        indentation = indentation[:-4]
+        indentation = indentation[:-4]
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception as exc:\n")
+        indentation += '    '
+        file.write(indentation + "print('Could not execute init_hardware:', exc)\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "# Do not delete the stop flag here; leave it for manual clearing\n")
+        file.write(indentation + "stop_file.unlink()\n")
+        file.write(indentation + "return True\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "return False  # if there is no file the experiment is not stopped\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception as exc:\n")
+        indentation += '    '
+        file.write(indentation + "print('check_host_stop_and_run error:', exc)\n")
+        file.write(indentation + "return False\n")
     
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n')
