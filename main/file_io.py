@@ -92,6 +92,11 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(experiment, 'cont_run_after_exp'):
         experiment.cont_run_after_exp = False
         notes.append("Added cont_run_after_exp attribute")
+
+    # Add stop_at_end_of_sequence attribute if missing
+    if not hasattr(experiment, 'stop_at_end_of_sequence'):
+        experiment.stop_at_end_of_sequence = False
+        notes.append("Added stop_at_end_of_sequence attribute")
     
     # Add camera_enabled attribute if missing
     if not hasattr(experiment, 'camera_enabled'):

@@ -24,6 +24,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "import numpy as np\n")
     file.write(indentation + "from scipy.io import loadmat\n")
     file.write(indentation + "import os\n")
+    file.write(indentation + "import subprocess\n")
     file.write(indentation + "from datetime import datetime\n")
     file.write(indentation + "from pathlib import Path \n")
     file.write(indentation + "import sys \n")
@@ -34,8 +35,10 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     # Persisted flags from GUI
     save_sampled_box_checked_flag = bool(getattr(self.experiment, 'save_sampled_variables', False))
     camera_box_checked_flag = bool(getattr(self.experiment, 'camera_enabled', False))
+    stop_at_end_of_sequence_flag = bool(getattr(self.experiment, 'stop_at_end_of_sequence', False))
     file.write(indentation + f"save_sampled_box_checked = {save_sampled_box_checked_flag}\n")
     file.write(indentation + f"camera_box_checked = {camera_box_checked_flag}\n")
+    # file.write(indentation + f"stop_at_end_of_sequence = {stop_at_end_of_sequence_flag}\n")
 
     file.write("\n")
     
@@ -331,15 +334,43 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 if number_of_channels_changed > 1:
                     file.write(indentation + "delay(-%d0*ns)\n" %(number_of_channels_changed-1))
             
-        #DDS CHANNEL CHANGES
+        #DDS CHANNEL CHANGES (emit only attributes that differ from previous edge)
         if config.dds_channels_number > 0:
+            prev_edge = None
+            if edge_index > 0:
+                prev_edge = self.experiment.sequence[edge_index - 1]
             for index, channel in enumerate(self.experiment.sequence[edge_index].dds):
-                if channel.changed == True:
-                    urukul_num = int(index // 4)
-                    channel_num = int(index % 4)
-                    file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set_att((" + str(channel.attenuation.for_python) + ")*dB) \n")    
-                    file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set(frequency = (" + str(channel.frequency.for_python) + ")*MHz, amplitude = (" + str(channel.amplitude.for_python) + ")/100 , phase = (" + str(channel.phase.for_python) + ")/360)\n")    
-                    if channel.state.value == 1:
+                urukul_num = int(index // 4)
+                channel_num = int(index % 4)
+
+                # Compare current values to previous edge values (if present). If different, emit the corresponding command.
+                def _val(obj, attr):
+                    try:
+                        return getattr(obj, attr).for_python
+                    except Exception:
+                        # fallback if attribute is plain value
+                        return getattr(obj, attr, None)
+
+                # Attenuation
+                att_changed = True if prev_edge is None else (_val(channel, 'attenuation') != _val(prev_edge.dds[index], 'attenuation'))
+                if att_changed:
+                    file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set_att((" + str(channel.attenuation.for_python) + ")*dB) \n")
+
+                # Frequency/Amplitude/Phase grouped: emit set if any differ
+                def _val_faf(obj):
+                    try:
+                        return (obj.frequency.for_python, obj.amplitude.for_python, obj.phase.for_python)
+                    except Exception:
+                        return (getattr(obj, 'frequency', None), getattr(obj, 'amplitude', None), getattr(obj, 'phase', None))
+
+                faf_changed = True if prev_edge is None else (_val_faf(channel) != _val_faf(prev_edge.dds[index]))
+                if faf_changed:
+                    file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set(frequency = (" + str(channel.frequency.for_python) + ")*MHz, amplitude = (" + str(channel.amplitude.for_python) + ")/100 , phase = (" + str(channel.phase.for_python) + ")/360)\n")
+
+                # State (on/off)
+                state_changed = True if prev_edge is None else (getattr(channel.state, 'value', None) != getattr(prev_edge.dds[index].state, 'value', None))
+                if state_changed:
+                    if getattr(channel.state, 'value', 0) == 1:
                         file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.on() \n")
                     else:
                         file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.off() \n")
@@ -417,31 +448,32 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             file.write(f'{indentation}delay(5*ms)\n')        
             file.write(f'{indentation}print("{arg}:", {arg})\n')        
         
+    # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
+    file.write('\n')
+    if stop_at_end_of_sequence_flag == True:
+        file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
+        file.write(indentation + "    return\n")
+        file.write('\n')
+
     if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
         step_var_names = [f"step{idx+1}" for idx, variable in enumerate(self.experiment.scanned_variables) if getattr(variable, 'name', "") != "None"]
 
         for _ in range(len(step_var_names)):
-            file.write('\n' + indentation + "#exiting the scan at the first step if camera is not enabled \n")            
+            file.write(indentation + "#exiting the scan at the first step if camera is not enabled \n")            
             file.write(indentation + "if not camera_enabled: \n")
             indentation += '    '
             file.write(indentation + "break \n")
             indentation = indentation[:-4]
             indentation = indentation[:-4]
             indentation_flag -= 1
+
         indentation = indentation[:-4*(indentation_flag)]
 
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
-    
     if not run_continuous:
         file.write('\n' + indentation + 'self.print_end_exp()  # print end of experiment in the end of the run \n')
-        file.write('\n')
-
-
-
-
-
 
 
         
@@ -535,33 +567,47 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                         if getattr(variable, 'edge_id', '') == edge_id:
                             file.write(indentation + "%s = calculate_%s(%s)\n" % (variable.name, variable.name, variable.arguments))
 
-            #DIGITAL CHANNEL CHANGES
+            #DDS CHANNEL CHANGES (emit only attributes that differ from previous edge)
             if config.dds_channels_number > 0:
-                for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
-                    if edge_index == 0 and index % 8 == 0: #adding a 1000 ns delay to make changes into TTL channels
-                        file.write(indentation + "delay(1000*ns)\n")
+                prev_edge = None
+                if edge_index > 0:
+                    prev_edge = self.experiment.sequence[edge_index - 1]
+                for index, channel in enumerate(self.experiment.sequence[edge_index].dds):
+                    urukul_num = int(index // 4)
+                    channel_num = int(index % 4)
 
-                    if channel.changed == True:
-                        if index in config.camera_trigger_ttl:
-                            if channel.value == 1:
-                                file.write(indentation + "if camera_enabled:\n")
-                                indentation += "    "
-                                file.write(indentation + "self.ttl" + str(index) + ".on()\n")
-                                indentation = indentation[:-4]
-                                file.write(indentation + "else:\n")
-                                indentation += "    "
-                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
-                                indentation = indentation[:-4]
-                            else:
-                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                    # Compare current values to previous edge values (if present). If different, emit the corresponding command.
+                    def _val(obj, attr):
+                        try:
+                            return getattr(obj, attr).for_python
+                        except Exception:
+                            # fallback if attribute is plain value
+                            return getattr(obj, attr, None)
+
+                    # Attenuation
+                    att_changed = True if prev_edge is None else (_val(channel, 'attenuation') != _val(prev_edge.dds[index], 'attenuation'))
+                    if att_changed:
+                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set_att((" + str(channel.attenuation.for_python) + ")*dB) \n")
+
+                    # Frequency/Amplitude/Phase grouped: emit set if any differ
+                    def _val_faf(obj):
+                        try:
+                            return (obj.frequency.for_python, obj.amplitude.for_python, obj.phase.for_python)
+                        except Exception:
+                            return (getattr(obj, 'frequency', None), getattr(obj, 'amplitude', None), getattr(obj, 'phase', None))
+
+                    faf_changed = True if prev_edge is None else (_val_faf(channel) != _val_faf(prev_edge.dds[index]))
+                    if faf_changed:
+                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set(frequency = (" + str(channel.frequency.for_python) + ")*MHz, amplitude = (" + str(channel.amplitude.for_python) + ")/100 , phase = (" + str(channel.phase.for_python) + ")/360)\n")
+
+                    # State (on/off)
+                    state_changed = True if prev_edge is None else (getattr(channel.state, 'value', None) != getattr(prev_edge.dds[index].state, 'value', None))
+                    if state_changed:
+                        if getattr(channel.state, 'value', 0) == 1:
+                            file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.on() \n")
                         else:
-                            if channel.value == 1: # 1 is on 
-                                file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
-                            else:
-                                file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
-                
-                if edge_index == 0: #adding a 1000 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
-                    file.write(indentation + "delay(1000*ns)\n")
+                            file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.off() \n")
+
         
             #ANALOG CHANNEL CHANGES
             if config.analog_channels_number > 0:
@@ -677,20 +723,67 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     ##################################################################
     ##################### RPC functions ##############################
     ##################################################################
-
+    
+    file.write("\n")
+    indentation = indentation_kernel
 
     if not run_continuous:
-
-        indentation = indentation_kernel
         file.write(indentation + "@rpc\n")
         file.write(indentation + "def print_end_exp(self):\n")
         indentation += '    '
         file.write(indentation + "print(\"End of experiment\")\n")
         indentation = indentation[:-4]
+
+    # RPC helper: check host-side stop flag and run init_hardware if requested
+    if stop_at_end_of_sequence_flag == True:
+        file.write('\n')
+        file.write(indentation + "@rpc\n")
+        file.write(indentation + "def check_host_stop_and_run(self):\n")
+        indentation += '    '
+        file.write(indentation + "stop_file = Path(__file__).resolve().parent / 'stop_flag.txt'\n")
+        file.write(indentation + "try:\n")
+        indentation += '    '
+        file.write(indentation + "if stop_file.exists():\n")
+        indentation += '    '
+        file.write(indentation + "# run init_hardware.py on the host (matches GUI behaviour)\n")
+        file.write(indentation + "init_path = Path(__file__).resolve().parent / 'init_hardware.py'\n")
+        file.write(indentation + "try:\n")
+        indentation += '    '
+        file.write(indentation + "if config.package_manager == 'conda':\n")
+        indentation += '    '
+        file.write(indentation + "os.system('conda activate ' + config.artiq_environment_name + ' && artiq_run ' + str(init_path))\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "elif config.package_manager == 'clang64':\n")
+        indentation += '    '
+        file.write(indentation + "try:\n")
+        indentation += '    '
+        file.write(indentation + "proc = subprocess.run(['cmd', '/c', str(init_path)], check=False)\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception:\n")
+        indentation += '    '
+        file.write(indentation + "os.system('artiq_run ' + str(init_path))\n")
+        indentation = indentation[:-4]
+        indentation = indentation[:-4]
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception as exc:\n")
+        indentation += '    '
+        file.write(indentation + "print('Could not execute init_hardware:', exc)\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "# Do not delete the stop flag here; leave it for manual clearing\n")
+        file.write(indentation + "stop_file.unlink()\n")
+        file.write(indentation + "return True\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "return False  # if there is no file the experiment is not stopped\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception as exc:\n")
+        indentation += '    '
+        file.write(indentation + "print('check_host_stop_and_run error:', exc)\n")
+        file.write(indentation + "return False\n")
     
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n')
-        file.write("    @rpc\n")
+        indentation = '    '
+        file.write(indentation + "@rpc\n")
         # determine per-variable step names
         if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
             # determine which step variables exist (step1, step2, ...)
@@ -701,16 +794,16 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         if step_var_names:
             signature_args_list = step_var_names + sampled_names
             signature_args = ", ".join(signature_args_list)
-            file.write(f"    def store_sample(self, run_index, {signature_args}):\n")
+            file.write(indentation + f"def store_sample(self, run_index, {signature_args}):\n")
             # build tuple for dataset: run_index, all steps as ints, then sampled values
             tuple_parts = ["int(run_index)"] + [f"int({s})" for s in step_var_names]
             if sampled_names:
                 tuple_parts += sampled_names
-            file.write(f"        self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
+            file.write(indentation + f"    self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
         else:
             # legacy single step
-            file.write("    def store_sample(self, run_index%s):\n" % (", " + args_str if args_str else ""))
-            file.write("        self.append_to_dataset(\"data\", (int(run_index)%s))\n" % (", " + args_str if args_str else ""))
+            file.write(indentation + "def store_sample(self, run_index%s):\n" % (", " + args_str if args_str else ""))
+            file.write(indentation + "    self.append_to_dataset(\"data\", (int(run_index)%s))\n" % (", " + args_str if args_str else ""))
 
         file.write('\n')
         file.write(indentation + "@rpc\n")
