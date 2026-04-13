@@ -341,7 +341,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.stop_at_end_of_sequence_button = QPushButton(self.sequence_tab_widget)
     self.stop_at_end_of_sequence_button.setFont(QFont('Arial', self.scale_font(14)))
     self.stop_at_end_of_sequence_button.setGeometry(*self.scale_geom(width_of_table + 20, 790, 200, 30))
-    self.stop_at_end_of_sequence_button.setText("Stop at end of sequence")
+    self.stop_at_end_of_sequence_button.setText("DO NOT USE:Stop sequence") # Stop at end of sequence
     self.stop_at_end_of_sequence_button.clicked.connect(lambda: button_handlers.handle_stop_at_end_of_sequence_button_clicked(self))
     self.stop_at_end_of_sequence_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
     self.stop_at_end_of_sequence_button.setToolTip("If enabled, clicking 'Stop experiment' will only take effect at the end of the current sequence. Toggle off to keep immediate stop behaviour.")
@@ -1071,7 +1071,7 @@ def dds_tab_build(self):
 #VARIABLES TAB
 def variables_tab_build(self):
     
-    derived_variables_table_w = 2*self.sep + 3*self.button_w + int(self.SCALE_W * 250) #increase width to have more space for function
+    derived_variables_table_w = 2*self.sep + 3*self.button_w + int(self.SCALE_W * 380) #increase width of table Derived variables
     lookup_variables_table_w = 2*self.sep + 3*self.button_w
     derived_variables_table_h = self.bottom_buttons_y_val - self.top_margin - 2*self.sep - self.button_h
 
@@ -1090,14 +1090,14 @@ def variables_tab_build(self):
     self.derived_variables_table.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, derived_variables_table_w, derived_variables_table_h)))  #size of the table
     derived_variables_num_columns = 5
     self.derived_variables_table.setColumnCount(derived_variables_num_columns)
-    self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Edge id","Function in python syntax", "Initial value"])
+    self.derived_variables_table.setHorizontalHeaderLabels(["Name", "Arguments", "Id","Function in python syntax", "Initial value"])
     self.derived_variables_table.verticalHeader().setVisible(False)
     self.derived_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.derived_variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.derived_variables_table.setFont(QFont('Arial', self.scale_font(12)))
     self.derived_variables_table.setColumnWidth(0,int(self.SCALE_W*(120)))
-    self.derived_variables_table.setColumnWidth(1,int(self.SCALE_W*(90)))
-    self.derived_variables_table.setColumnWidth(2,int(self.SCALE_W*(70)))
+    self.derived_variables_table.setColumnWidth(1,int(self.SCALE_W*(250)))
+    self.derived_variables_table.setColumnWidth(2,int(self.SCALE_W*(40)))
     # self.derived_variables_table.setColumnWidth(3,int(self.SCALE_W*(310)))
     self.derived_variables_table.setColumnWidth(4,int(self.SCALE_W*(88)))
     self.derived_variables_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
@@ -1154,8 +1154,8 @@ def variables_tab_build(self):
     self.lookup_variables_table.horizontalHeader().setFixedHeight(int(self.SCALE_H*50))
     self.lookup_variables_table.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.lookup_variables_table.setFont(QFont('Arial', self.scale_font(12)))
-    self.lookup_variables_table.setColumnWidth(0,int(self.SCALE_W*(180)))
-    self.lookup_variables_table.setColumnWidth(1,int(self.SCALE_W*(150)))
+    self.lookup_variables_table.setColumnWidth(0,int(self.SCALE_W*(130)))
+    self.lookup_variables_table.setColumnWidth(1,int(self.SCALE_W*(160)))
     # self.lookup_variables_table.setColumnWidth(2,int(self.SCALE_W*(413)))
     self.lookup_variables_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
     self.lookup_variables_table.setRowCount(1)

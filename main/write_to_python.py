@@ -62,7 +62,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     for index, lookup_variable in enumerate(self.experiment.lookup_variables):
         # We first save the lookup list and then load it from the python description of the experiment
         if lookup_variable.lookup_list_name != "":
-            temp_lookup_list_path = "./temp lookup variables/temp_%d_"%index +lookup_variable.lookup_list_name
+            temp_lookup_list_path = "./temp_lookup_variables/temp_%d_"%index +lookup_variable.lookup_list_name
             savemat(temp_lookup_list_path, {'array':lookup_variable.lookup_list})
             file.write(indentation + "self.%s"%lookup_variable.name + " = list(loadmat('%s')['array'][0])\n"%temp_lookup_list_path)
     
@@ -375,6 +375,9 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                     else:
                         file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.off() \n")
 
+            if edge_index == 0:
+                file.write(indentation + "self.sampler0.init()\n")
+
         #MIRNY CHANNEL CHANGES
         if config.mirny_channels_number > 0:
             for index, channel in enumerate(self.experiment.sequence[edge_index].mirny):
@@ -420,9 +423,11 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n' + indentation + "# For save sample variables\n")
+        derived_names = [variable.name for variable in self.experiment.derived_variables if getattr(variable, 'name', "")]
+        data_value_names = sampled_names + derived_names
         args_str = ""
-        if sampled_names:
-            args_str += ", ".join(sampled_names)
+        if data_value_names:
+            args_str += ", ".join(data_value_names)
 
         if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
             # determine which step variables exist (step1, step2, ...)
@@ -432,7 +437,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
         # build call arguments: steps (if any) followed by sampled variable names
         if step_var_names:
-            call_args_list = step_var_names + sampled_names
+            call_args_list = step_var_names + data_value_names
             call_args = ", ".join(call_args_list)
             file.write(indentation + "self.store_sample(run_index_no_warumup, %s)\n" % (call_args if call_args else ""))
         else:
@@ -440,13 +445,17 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             file.write(indentation + "self.store_sample(run_index_no_warumup%s)\n" % (", " + args_str if args_str else ""))
 
 
-    for variable in self.experiment.derived_variables: # to print the values of all arguments in dervied variables (feedback)
+    for variable in self.experiment.derived_variables: # print derived variable value and its arguments (feedback)
         args_list = variable.arguments.split(",")
         file.write('\n')
+        file.write(f'{indentation}delay(10*ms)\n')
+        file.write(f'{indentation}print("{variable.name}:", {variable.name})\n')
         for arg in args_list:
             arg = arg.strip()
-            file.write(f'{indentation}delay(5*ms)\n')        
-            file.write(f'{indentation}print("{arg}:", {arg})\n')        
+            if not arg:
+                continue
+            file.write(f'{indentation}delay(10*ms)\n')
+            file.write(f'{indentation}print("{arg}:", {arg})\n')
         
     # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
     file.write('\n')
@@ -473,6 +482,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
     
     if not run_continuous:
+        indentation = indentation_kernel + "    "
         file.write('\n' + indentation + 'self.print_end_exp()  # print end of experiment in the end of the run \n')
 
 
@@ -567,6 +577,74 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                         if getattr(variable, 'edge_id', '') == edge_id:
                             file.write(indentation + "%s = calculate_%s(%s)\n" % (variable.name, variable.name, variable.arguments))
 
+             #DIGITAL CHANNEL CHANGES
+            if config.dds_channels_number > 0:
+                for index, channel in enumerate(self.experiment.sequence[edge_index].digital):
+                    if edge_index == 0 and index % 8 == 0: #adding a 1000 ns delay to make changes into TTL channels
+                        file.write(indentation + "delay(1000*ns)\n")
+
+                    if channel.changed == True:
+                        if index in config.camera_trigger_ttl:
+                            if channel.value == 1:
+                                file.write(indentation + "if camera_enabled:\n")
+                                indentation += "    "
+                                file.write(indentation + "self.ttl" + str(index) + ".on()\n")
+                                indentation = indentation[:-4]
+                                file.write(indentation + "else:\n")
+                                indentation += "    "
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                                indentation = indentation[:-4]
+                            else:
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                        else:
+                            if channel.value == 1: # 1 is on 
+                                file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
+                            else:
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
+                
+                if edge_index == 0: #adding a 1000 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
+                    file.write(indentation + "delay(1000*ns)\n")
+       
+        
+            #ANALOG CHANNEL CHANGES
+            if config.analog_channels_number > 0:
+                #Assigning zotino card values
+                if config.analog_card == "zotino":
+                    flag_zotino_change_needed = False      
+                    for index, channel in enumerate(self.experiment.sequence[edge_index].analog):
+                        if channel.changed == True:
+                            flag_zotino_change_needed = True
+                            expr = str(channel.for_python)
+                            for sv_idx, sv in enumerate(self.experiment.scanned_variables):
+                                sv_name = getattr(sv, 'name', '')
+                                if sv_name and sv_name != "None":
+                                    expr = expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                    expr = expr.replace(f"self.{sv_name}[step]", sv_name)
+                            file.write(indentation + "self.zotino0.write_dac(%d, %s)\n" %(index, expr)) 
+                            
+                    if flag_zotino_change_needed:
+                        file.write(indentation + "self.zotino0.load()\n")
+                        
+                #Assigning fastino card values
+                elif config.analog_card == "fastino":
+                    first_analog_channel = True          
+                    number_of_channels_changed = 0          
+                    for index, channel in enumerate(self.experiment.sequence[edge_index].analog):
+                        if channel.changed == True:
+                            number_of_channels_changed += 1
+                            if edge_index == 0 or index > 0: #adds a delay only for the default edge and in sace of 
+                                file.write(indentation + "delay(10*ns)\n")    
+                            expr = str(channel.for_python)
+                            for sv_idx, sv in enumerate(self.experiment.scanned_variables):
+                                sv_name = getattr(sv, 'name', '')
+                                if sv_name and sv_name != "None":
+                                    expr = expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
+                                    expr = expr.replace(f"self.{sv_name}[step]", sv_name)
+                            file.write(indentation + "self.fastino0.set_dac(%d, %s)\n" %(index,expr))
+                    #Moving the time cursor back
+                    if number_of_channels_changed > 1:
+                        file.write(indentation + "delay(-%d0*ns)\n" %(number_of_channels_changed-1))
+                
             #DDS CHANNEL CHANGES (emit only attributes that differ from previous edge)
             if config.dds_channels_number > 0:
                 prev_edge = None
@@ -608,73 +686,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                         else:
                             file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.off() \n")
 
-        
-            #ANALOG CHANNEL CHANGES
-            if config.analog_channels_number > 0:
-                #Assigning zotino card values
-                if config.analog_card == "zotino":
-                    flag_zotino_change_needed = False      
-                    for index, channel in enumerate(self.experiment.sequence[edge_index].analog):
-                        if channel.changed == True:
-                            flag_zotino_change_needed = True
-                            expr = str(channel.for_python)
-                            for sv_idx, sv in enumerate(self.experiment.scanned_variables):
-                                sv_name = getattr(sv, 'name', '')
-                                if sv_name and sv_name != "None":
-                                    expr = expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
-                                    expr = expr.replace(f"self.{sv_name}[step]", sv_name)
-                            file.write(indentation + "self.zotino0.write_dac(%d, %s)\n" %(index, expr)) 
-                            
-                    if flag_zotino_change_needed:
-                        file.write(indentation + "self.zotino0.load()\n")
-                        
-                #Assigning fastino card values
-                elif config.analog_card == "fastino":
-                    first_analog_channel = True          
-                    number_of_channels_changed = 0          
-                    for index, channel in enumerate(self.experiment.sequence[edge_index].analog):
-                        if channel.changed == True:
-                            number_of_channels_changed += 1
-                            if edge_index == 0 or index > 0: #adds a delay only for the default edge and in sace of 
-                                file.write(indentation + "delay(10*ns)\n")    
-                            expr = str(channel.for_python)
-                            for sv_idx, sv in enumerate(self.experiment.scanned_variables):
-                                sv_name = getattr(sv, 'name', '')
-                                if sv_name and sv_name != "None":
-                                    expr = expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
-                                    expr = expr.replace(f"self.{sv_name}[step]", sv_name)
-                            file.write(indentation + "self.fastino0.set_dac(%d, %s)\n" %(index,expr))
-                    #Moving the time cursor back
-                    if number_of_channels_changed > 1:
-                        file.write(indentation + "delay(-%d0*ns)\n" %(number_of_channels_changed-1))
-                
-            #DDS CHANNEL CHANGES
-            if config.dds_channels_number > 0:
-                for index, channel in enumerate(self.experiment.sequence[edge_index].dds):
-                    if channel.changed == True:
-                        urukul_num = int(index // 4)
-                        channel_num = int(index % 4)
-                        att_expr = str(channel.attenuation.for_python)
-                        freq_expr = str(channel.frequency.for_python)
-                        amp_expr = str(channel.amplitude.for_python)
-                        phase_expr = str(channel.phase.for_python)
-                        for sv_idx, sv in enumerate(self.experiment.scanned_variables):
-                            sv_name = getattr(sv, 'name', '')
-                            if sv_name and sv_name != "None":
-                                att_expr = att_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
-                                att_expr = att_expr.replace(f"self.{sv_name}[step]", sv_name)
-                                freq_expr = freq_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
-                                freq_expr = freq_expr.replace(f"self.{sv_name}[step]", sv_name)
-                                amp_expr = amp_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
-                                amp_expr = amp_expr.replace(f"self.{sv_name}[step]", sv_name)
-                                phase_expr = phase_expr.replace(f"self.{sv_name}[step{sv_idx+1}]", sv_name)
-                                phase_expr = phase_expr.replace(f"self.{sv_name}[step]", sv_name)
-                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set_att((" + att_expr + ")*dB) \n")    
-                        file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".set(frequency = (" + freq_expr + ")*MHz, amplitude = (" + amp_expr + ")/100 , phase = (" + phase_expr + ")/360)\n")    
-                        if channel.state.value == 1:
-                            file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.on() \n")
-                        else:
-                            file.write(indentation + "self.urukul" + str(urukul_num) + "_ch" + str(channel_num) + ".sw.off() \n")
+                if edge_index == 0:
+                    file.write(indentation + "self.sampler0.init()\n")
 
             #MIRNY CHANNEL CHANGES
             if config.mirny_channels_number > 0:
@@ -738,7 +751,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if stop_at_end_of_sequence_flag == True:
         file.write('\n')
         file.write(indentation + "@rpc\n")
-        file.write(indentation + "def check_host_stop_and_run(self):\n")
+        file.write(indentation + "def check_host_stop_and_run(self) -> TBool:\n")
         indentation += '    '
         file.write(indentation + "stop_file = Path(__file__).resolve().parent / 'stop_flag.txt'\n")
         file.write(indentation + "try:\n")
@@ -784,6 +797,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write('\n')
         indentation = '    '
         file.write(indentation + "@rpc\n")
+        derived_names = [variable.name for variable in self.experiment.derived_variables if getattr(variable, 'name', "")]
+        data_value_names = sampled_names + derived_names
         # determine per-variable step names
         if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
             # determine which step variables exist (step1, step2, ...)
@@ -792,13 +807,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             step_var_names = []
 
         if step_var_names:
-            signature_args_list = step_var_names + sampled_names
+            signature_args_list = step_var_names + data_value_names
             signature_args = ", ".join(signature_args_list)
             file.write(indentation + f"def store_sample(self, run_index, {signature_args}):\n")
-            # build tuple for dataset: run_index, all steps as ints, then sampled values
+            # build tuple for dataset: run_index, all steps as ints, then sampled + derived values
             tuple_parts = ["int(run_index)"] + [f"int({s})" for s in step_var_names]
-            if sampled_names:
-                tuple_parts += sampled_names
+            if data_value_names:
+                tuple_parts += data_value_names
             file.write(indentation + f"    self.append_to_dataset(\"data\", ({', '.join(tuple_parts)}))\n")
         else:
             # legacy single step
@@ -831,8 +846,11 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "folder_date = datetime.now().strftime('%Y%m%d')\n")
         file.write(indentation + "folder_time = folder_name[-8:].replace('_', '') if len(folder_name) >= 8 else datetime.now().strftime('%H%M%S')\n")
         file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{folder_date}_{folder_time}.txt\"\n")
-        file.write(indentation + "data = self.get_dataset('data')\n")
+        file.write(indentation + "data = self.get_dataset('data', archive=False)\n")
+        column_names = ["int(run_index)"] + [f"int({s})" for s in step_var_names] + data_value_names
+        file.write(indentation + f"column_names = {repr(column_names)}\n")
         file.write(indentation + "with open(target_file, \"w\") as f:\n")
+        file.write(indentation + "    f.write(\", \".join(column_names) + \"\\n\")\n")
         file.write(indentation + "    f.writelines(f\"{entry}\\n\" for entry in data)\n")
         
     file.close()
