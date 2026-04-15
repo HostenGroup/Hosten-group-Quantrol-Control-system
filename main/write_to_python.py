@@ -444,18 +444,18 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             # no per-variable steps: keep legacy single `step` argument
             file.write(indentation + "self.store_sample(run_index_no_warumup%s)\n" % (", " + args_str if args_str else ""))
 
-
-    for variable in self.experiment.derived_variables: # print derived variable value and its arguments (feedback)
-        args_list = variable.arguments.split(",")
-        file.write('\n')
-        file.write(f'{indentation}delay(10*ms)\n')
-        file.write(f'{indentation}print("{variable.name}:", {variable.name})\n')
-        for arg in args_list:
-            arg = arg.strip()
-            if not arg:
-                continue
-            file.write(f'{indentation}delay(10*ms)\n')
-            file.write(f'{indentation}print("{arg}:", {arg})\n')
+    #printing derived variable values and their arguments in terminal
+    # for variable in self.experiment.derived_variables: # print derived variable value and its arguments (feedback)
+    #     args_list = variable.arguments.split(",")
+    #     file.write('\n')
+    #     file.write(f'{indentation}delay(10*ms)\n')
+    #     file.write(f'{indentation}print("{variable.name}:", {variable.name})\n')
+    #     for arg in args_list:
+    #         arg = arg.strip()
+    #         if not arg:
+    #             continue
+    #         file.write(f'{indentation}delay(10*ms)\n')
+    #         file.write(f'{indentation}print("{arg}:", {arg})\n')
         
     # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
     file.write('\n')

@@ -1093,7 +1093,7 @@ class MainWindow(QMainWindow):
                         output_for_python += "%s" %current + text[index]
                         is_derived = True
                     elif variable.is_lookup: #if lookup assign the self.name[argument] 
-                        output_for_python += "self.%s[(%s-1)/0.1]"%(current, self.experiment.variables[current].argument) + text[index]
+                        output_for_python += "self.%s[int(%s)]"%(current, self.experiment.variables[current].argument) + text[index]
                         is_lookup = True
                     else:
                         output_for_python += str(variable.value) + text[index]

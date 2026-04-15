@@ -1919,7 +1919,7 @@ def acquisition_tab_build(self):
     self.save_sampled_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(120)))
     form_ss = QFormLayout(self.save_sampled_box)
     # Small descriptive label inside the group
-    label_desc = QLabel("Save sampled-variable dataset copy into the  - only if there is a sampled variable", self.save_sampled_box)
+    label_desc = QLabel("Save sampled and derived variables - only if there is a sampled variable", self.save_sampled_box)
     label_desc.setWordWrap(True)
     form_ss.addRow(label_desc)
 
