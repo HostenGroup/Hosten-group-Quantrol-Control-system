@@ -2648,7 +2648,7 @@ class MainWindow(QMainWindow):
                 kwargs = {}
                 if creationflags:
                     kwargs["creationflags"] = creationflags
-                subprocess.Popen(['cmd', '/c', str(bat_path)], **kwargs)
+                subprocess.run(['cmd', '/c', str(bat_path)], check=False, **kwargs)
 
         else:
             raise RuntimeError(f"Unsupported package manager: {config.package_manager}")

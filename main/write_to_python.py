@@ -790,8 +790,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation += '    '
         file.write(indentation + "print('Could not execute init_hardware:', exc)\n")
         indentation = indentation[:-4]
-        file.write(indentation + "# Do not delete the stop flag here; leave it for manual clearing\n")
-        file.write(indentation + "stop_file.unlink()\n")
+        file.write(indentation + "stop_file.unlink()  # delete the stop flag file\n")
         file.write(indentation + "return True\n")
         indentation = indentation[:-4]
         file.write(indentation + "return False  # if there is no file the experiment is not stopped\n")
