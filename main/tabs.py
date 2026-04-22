@@ -341,7 +341,7 @@ def sequence_tab_buttons_build(self,width_of_table):
     self.stop_at_end_of_sequence_button = QPushButton(self.sequence_tab_widget)
     self.stop_at_end_of_sequence_button.setFont(QFont('Arial', self.scale_font(14)))
     self.stop_at_end_of_sequence_button.setGeometry(*self.scale_geom(width_of_table + 20, 790, 200, 30))
-    self.stop_at_end_of_sequence_button.setText("DO NOT USE:Stop sequence") # Stop at end of sequence
+    self.stop_at_end_of_sequence_button.setText("Stop at end of sequence") 
     self.stop_at_end_of_sequence_button.clicked.connect(lambda: button_handlers.handle_stop_at_end_of_sequence_button_clicked(self))
     self.stop_at_end_of_sequence_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
     self.stop_at_end_of_sequence_button.setToolTip("If enabled, clicking 'Stop experiment' will only take effect at the end of the current sequence. Toggle off to keep immediate stop behaviour.")

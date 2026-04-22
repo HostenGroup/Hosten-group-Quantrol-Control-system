@@ -445,17 +445,17 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             file.write(indentation + "self.store_sample(run_index_no_warumup%s)\n" % (", " + args_str if args_str else ""))
 
     #printing derived variable values and their arguments in terminal
-    # for variable in self.experiment.derived_variables: # print derived variable value and its arguments (feedback)
-    #     args_list = variable.arguments.split(",")
-    #     file.write('\n')
-    #     file.write(f'{indentation}delay(10*ms)\n')
-    #     file.write(f'{indentation}print("{variable.name}:", {variable.name})\n')
-    #     for arg in args_list:
-    #         arg = arg.strip()
-    #         if not arg:
-    #             continue
-    #         file.write(f'{indentation}delay(10*ms)\n')
-    #         file.write(f'{indentation}print("{arg}:", {arg})\n')
+    for variable in self.experiment.derived_variables: # print derived variable value and its arguments (feedback)
+        args_list = variable.arguments.split(",")
+        file.write('\n')
+        file.write(f'{indentation}delay(20*ms)\n')
+        file.write(f'{indentation}print("{variable.name}:", {variable.name})\n')
+        for arg in args_list:
+            arg = arg.strip()
+            if not arg:
+                continue
+            file.write(f'{indentation}delay(20*ms)\n')
+            file.write(f'{indentation}print("{arg}:", {arg})\n')
         
     # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
     file.write('\n')
@@ -731,6 +731,14 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 #file.write(indentation + "print('%s %s = ', %s)\n" %(("Value of ramped variable: "), str(flag_ramp_variable.name), flag_ramp_variable.functionramp))
                 for indent in range(count_indent):
                     indentation = indentation[:-4] 
+        
+        file.write('\n')
+        if stop_at_end_of_sequence_flag == True:
+            file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
+            file.write(indentation + "    return\n")
+            file.write('\n')
+
+
 
 
     ##################################################################
@@ -747,7 +755,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "print(\"End of experiment\")\n")
         indentation = indentation[:-4]
 
-    # RPC helper: check host-side stop flag and run init_hardware if requested
+    # RPC helper: check host-side stop flag and run go_to_edge if requested
     if stop_at_end_of_sequence_flag == True:
         file.write('\n')
         file.write(indentation + "@rpc\n")
@@ -758,8 +766,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation += '    '
         file.write(indentation + "if stop_file.exists():\n")
         indentation += '    '
-        file.write(indentation + "# run init_hardware.py on the host (matches GUI behaviour)\n")
-        file.write(indentation + "init_path = Path(__file__).resolve().parent / 'init_hardware.py'\n")
+        file.write(indentation + "# run go_to_edge.py to default edge \n")
+        file.write(indentation + "init_path = Path(__file__).resolve().parent / 'go_to_edge.py'\n")
         file.write(indentation + "try:\n")
         indentation += '    '
         file.write(indentation + "if config.package_manager == 'conda':\n")
@@ -780,10 +788,9 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation = indentation[:-4]
         file.write(indentation + "except Exception as exc:\n")
         indentation += '    '
-        file.write(indentation + "print('Could not execute init_hardware:', exc)\n")
+        file.write(indentation + "print('Could not execute go_to_edge:', exc)\n")
         indentation = indentation[:-4]
-        file.write(indentation + "# Do not delete the stop flag here; leave it for manual clearing\n")
-        file.write(indentation + "stop_file.unlink()\n")
+        file.write(indentation + "stop_file.unlink()  # delete the stop flag file\n")
         file.write(indentation + "return True\n")
         indentation = indentation[:-4]
         file.write(indentation + "return False  # if there is no file the experiment is not stopped\n")

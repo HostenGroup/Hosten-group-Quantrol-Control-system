@@ -1282,23 +1282,11 @@ class MainWindow(QMainWindow):
         right top corner, the dialog was accepted by default.
         '''
         try:
-            # If stop_at_end_of_sequence is enabled, set a host-visible flag instead of stopping immediately
-            if getattr(self.experiment, 'stop_at_end_of_sequence', False):
-                try:
-                    # Pre-generate init_hardware.py so the host can run it at sequence end
-                    try:
-                        write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
-                        self.message_to_logger("init_hardware.py file generated (will be used at end of sequence)")
-                    except Exception as exc:
-                        self.message_to_logger(f"Could not generate init_hardware.py: {exc}")
-                    stop_file = Path(self.repo_path) / 'ARTIQ_scripts' / 'stop_flag.txt'
-                    stop_file.parent.mkdir(parents=True, exist_ok=True)
-                    with open(stop_file, 'w') as f:
-                        f.write(datetime.now().isoformat())
-                    self.message_to_logger("Stop flag set. Experiment will stop at the end of the current sequence.")
-                except Exception as exc:
-                    self.message_to_logger(f"Could not set stop flag: {exc}")
-                # leave GUI toggle state as-is; user turns it off manually
+            # Always prefer go_to_edge behavior over init_hardware.
+            # If a run is active, use the same helper path as start-button re-click handling.
+            if button_handlers._is_artiq_run_thread_active(self):
+                button_handlers._arm_stop_flag_for_running_experiment(self)
+                # self.message_to_logger("Stop request set: run will stop at sequence boundary and go to edge")
                 self.dialog.accept()
                 return
 
@@ -2648,7 +2636,7 @@ class MainWindow(QMainWindow):
                 kwargs = {}
                 if creationflags:
                     kwargs["creationflags"] = creationflags
-                subprocess.Popen(['cmd', '/c', str(bat_path)], **kwargs)
+                subprocess.run(['cmd', '/c', str(bat_path)], check=False, **kwargs)
 
         else:
             raise RuntimeError(f"Unsupported package manager: {config.package_manager}")

@@ -23,7 +23,7 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import QFileDialog, QDialog, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QInputDialog
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import QObject
+from PyQt5.QtCore import QObject, QTimer
 from scipy.io import loadmat
 
 import write_to_python
@@ -77,6 +77,102 @@ def _prepare_sampled_run_paths(self):
         "output_dir": str(run_base_dir),
         "timestamp": timestamp.isoformat(),
     }
+
+
+def _clear_stale_stop_flag_before_run(self):
+    """
+    Clear stale host stop flag before launching a new run.
+    The stop flag is meant to be armed by the host Stop action while a run is active.
+    If an old flag remains from a previous run, the next run may stop after one sequence.
+    """
+    stop_file = Path(self.repo_path) / 'ARTIQ_scripts' / 'stop_flag.txt'
+    try:
+        if stop_file.exists():
+            stop_file.unlink()
+            self.message_to_logger("Cleared stale stop flag before starting experiment")
+    except Exception:
+        # Non-fatal: run can still proceed even if stale-flag cleanup failed.
+        pass
+
+
+def _is_artiq_run_thread_active(self):
+    """Best-effort check whether a previously started ARTIQ run thread is still active."""
+    thread = getattr(self, "_active_artiq_thread", None)
+    return bool(thread is not None and thread.is_alive())
+
+
+def _arm_stop_flag_for_running_experiment(self):
+    """Request stop-at-end for an already running experiment by creating the host stop flag."""
+    try:
+        write_to_python.create_go_to_edge(self, edge_num=0, to_default=False)
+        # self.message_to_logger("go_to_default_edge.py file generated (will be used at end of sequence)")
+    except Exception as exc:
+        self.message_to_logger(f"Could not generate go_to_default_edge.py: {exc}")
+
+    stop_file = Path(self.repo_path) / 'ARTIQ_scripts' / 'stop_flag.txt'
+    try:
+        stop_file.parent.mkdir(parents=True, exist_ok=True)
+        stop_file.touch()
+        self.message_to_logger("Stop flag set. Experiment will stop at the end of the current sequence.")
+    except Exception as exc:
+        self.message_to_logger(f"Could not set stop flag: {exc}")
+
+
+def _dispatch_start_mode(self, start_mode):
+    """Dispatch a queued restart request to the corresponding start handler."""
+    if start_mode == "run_experiment":
+        handle_run_experiment_button_clicked(self)
+    elif start_mode == "multiple_runs":
+        handle_multiple_runs_button_clicked(self)
+    elif start_mode == "continuous_run":
+        handle_continuous_run_button_clicked(self)
+    elif start_mode == "submit_experiment":
+        handle_submit_run_experiment_py_button_clicked(self)
+
+
+def _queue_restart_after_active_run(self, start_mode):
+    """
+    Queue a restart request and execute it after the currently active run thread finishes.
+    """
+    self._pending_restart_mode = start_mode
+
+    if getattr(self, "_pending_restart_polling", False):
+        return
+
+    self._pending_restart_polling = True
+
+    def _poll_active_run_and_restart():
+        if _is_artiq_run_thread_active(self):
+            QTimer.singleShot(300, _poll_active_run_and_restart)
+            return
+
+        self._pending_restart_polling = False
+        mode = getattr(self, "_pending_restart_mode", None)
+        self._pending_restart_mode = None
+        if not mode:
+            return
+
+        self.message_to_logger(f"Previous run ended. Starting queued request: {mode}")
+        _dispatch_start_mode(self, mode)
+
+    QTimer.singleShot(300, _poll_active_run_and_restart)
+
+
+def _maybe_request_stop_at_end_on_reclick(self, start_mode=None):
+    """
+    For start buttons: if stop-at-end is enabled and a run is already active,
+    convert the click into a graceful stop request instead of launching another run.
+    Returns True when the click was handled as stop request and caller should return.
+    """
+    if bool(getattr(self.experiment, 'stop_at_end_of_sequence', False)) and _is_artiq_run_thread_active(self):
+        _arm_stop_flag_for_running_experiment(self)
+        if start_mode:
+            _queue_restart_after_active_run(self, start_mode)
+            self.message_to_logger("Run is active: converted click to stop-at-end request and queued restart")
+        return True
+
+    _clear_stale_stop_flag_before_run(self)
+    return False
 
 
 
@@ -554,6 +650,8 @@ def handle_run_experiment_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
+    if _maybe_request_stop_at_end_on_reclick(self, start_mode="run_experiment"):
+        return
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -568,6 +666,7 @@ def handle_run_experiment_button_clicked(self):
             return
     elif save_sampled_enabled:
         camera_launch_info = _prepare_sampled_run_paths(self)
+
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -595,11 +694,13 @@ def handle_run_experiment_button_clicked(self):
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
 
             self._record_experiment_run(metadata_dir, is_multiple_run=False)
+
             if camera_enabled and camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
 
             submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
+            self._active_artiq_thread = submit_experiment_thread
             #unhighlighting the previously highlighted edge
             if self.experiment.go_to_edge_num != -1:
                 self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
@@ -611,6 +712,7 @@ def handle_run_experiment_button_clicked(self):
                 pass
             #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
             self.message_to_logger("Experiment started")
+
         except Exception as exc:
             self.message_to_logger(f"Was not able to start experiment: {exc}")
     except Exception:
@@ -706,6 +808,8 @@ def handle_submit_run_experiment_py_button_clicked(self):
     # update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
     
     _sync_runtime_ui_state(self)
+    if _maybe_request_stop_at_end_on_reclick(self, start_mode="submit_experiment"):
+        return
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -745,6 +849,7 @@ def handle_submit_run_experiment_py_button_clicked(self):
             self.message_to_logger("Camera acquisition started")
 
         submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
+        self._active_artiq_thread = submit_experiment_thread
         #unhighlighting the previously highlighted edge
         if self.experiment.go_to_edge_num != -1:
             self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
@@ -774,6 +879,8 @@ def handle_continuous_run_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
+    if _maybe_request_stop_at_end_on_reclick(self, start_mode="continuous_run"):
+        return
     if hasattr(self, "camera_box") and self.camera_box.isChecked():
         try:
             self._prepare_camera_launch()
@@ -794,12 +901,8 @@ def handle_continuous_run_button_clicked(self):
         self.message_to_logger("Python file generated")
         try:
             #initialize environment and submit the experiment to run continuously unless it is stopped
-            if config.package_manager == "conda":
-                submit_run_continuously_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'run_experiment.py')])
-            elif config.package_manager == "clang64":
-                # submit_run_continuously_thread = threading.Thread(target=os.system, args=["run_experiment.bat"])
-                submit_run_continuously_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'cont_run.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
-            submit_run_continuously_thread.start()
+            submit_run_continuously_thread = self._start_artiq_thread(run_continuous=True)
+            self._active_artiq_thread = submit_run_continuously_thread
             #unhighlighting the previously highlighted edge
             if self.experiment.go_to_edge_num != -1:
                 self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
@@ -829,6 +932,8 @@ def handle_multiple_runs_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
+    if _maybe_request_stop_at_end_on_reclick(self, start_mode="multiple_runs"):
+        return
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -875,6 +980,7 @@ def handle_multiple_runs_button_clicked(self):
                 self.message_to_logger("Camera acquisition started")
 
             submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
+            self._active_artiq_thread = submit_experiment_thread
             #unhighlighting the previously highlighted edge
             if self.experiment.go_to_edge_num != -1:
                 self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
