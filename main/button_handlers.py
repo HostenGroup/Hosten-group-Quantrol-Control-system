@@ -830,8 +830,6 @@ def handle_submit_run_experiment_py_button_clicked(self):
     # update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
     
     _sync_runtime_ui_state(self)
-    if _maybe_request_stop_at_end_on_reclick(self, start_mode="submit_experiment"):
-        return
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -901,8 +899,6 @@ def handle_continuous_run_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
-    if _maybe_request_stop_at_end_on_reclick(self, start_mode="continuous_run"):
-        return
     if hasattr(self, "camera_box") and self.camera_box.isChecked():
         try:
             self._prepare_camera_launch()
@@ -922,20 +918,25 @@ def handle_continuous_run_button_clicked(self):
             raise ValueError("startID is not next to endID")
         self.message_to_logger("Python file generated")
         try:
-            #initialize environment and submit the experiment to run continuously unless it is stopped
-            submit_run_continuously_thread = self._start_artiq_thread(run_continuous=True)
-            self._active_artiq_thread = submit_run_continuously_thread
-            #unhighlighting the previously highlighted edge
-            if self.experiment.go_to_edge_num != -1:
-                self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
-                self.experiment.go_to_egde_num = 0
-            try:
-                if self.experiment.do_ramp == True:
-                    self.update_sequence_edge_colors()
-            except:
-                pass
-            #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
-            self.message_to_logger("Experiment started")
+            if self.experiment.stop_at_end_of_sequence == False:
+                submit_experiment_thread = self._start_artiq_thread()
+
+                #unhighlighting the previously highlighted edge
+                if self.experiment.go_to_edge_num != -1:
+                    self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
+                    self.experiment.go_to_egde_num = 0
+                try:
+                    if self.experiment.do_ramp == True:
+                        self.update_sequence_edge_colors()
+                except:
+                    pass
+                #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
+                self.message_to_logger("Experiment started")
+
+            else: # if self.experiment.stop_at_end_of_sequence == True:
+                _create_stop_file(self)
+                self.do_next_after_end = True
+
         except:
             self.message_to_logger("Was not able to start experiment")
     except:
@@ -954,8 +955,6 @@ def handle_multiple_runs_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
-    if _maybe_request_stop_at_end_on_reclick(self, start_mode="multiple_runs"):
-        return
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -1001,19 +1000,25 @@ def handle_multiple_runs_button_clicked(self):
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
 
-            submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
-            self._active_artiq_thread = submit_experiment_thread
-            #unhighlighting the previously highlighted edge
-            if self.experiment.go_to_edge_num != -1:
-                self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
-                self.experiment.go_to_edge_num = -1
-            try:
-                if self.experiment.do_ramp == True:
-                    self.update_sequence_edge_colors()
-            except:
-                pass
-            #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
-            self.message_to_logger("Experiment started")
+            if self.experiment.stop_at_end_of_sequence == False:
+                submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
+
+                #unhighlighting the previously highlighted edge
+                if self.experiment.go_to_edge_num != -1:
+                    self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
+                    self.experiment.go_to_edge_num = -1
+                try:
+                    if self.experiment.do_ramp == True:
+                        self.update_sequence_edge_colors()
+                except:
+                    pass
+                #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
+                self.message_to_logger("Experiment started")
+                
+            else: # if self.experiment.stop_at_end_of_sequence == True:
+                _create_stop_file(self)
+                self.do_next_after_end = True
+
         except Exception as exc:
             self.message_to_logger(f"Was not able to start experiment: {exc}")
     except Exception:
