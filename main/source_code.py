@@ -1018,7 +1018,15 @@ class MainWindow(QMainWindow):
                 camera_box = getattr(self, 'camera_box', None)
                 save_sampled_box = getattr(self, 'save_sampled_box', None)
                 texp_locked = getattr(self, '_texp_locked', None)
-                file_io.prepare_experiment_for_save(self.experiment, camera_box, save_sampled_box, texp_locked)
+                stop_button = getattr(self, 'stop_at_end_of_sequence_button', None)
+                file_io.prepare_experiment_for_save(
+                    self.experiment,
+                    camera_box=camera_box,
+                    texp_locked=texp_locked,
+                    live_camera_box=None,
+                    save_sampled_box=save_sampled_box,
+                    stop_at_end_button=stop_button,
+                )
                 # If no file path set, ask Save As starting in default sequences directory
                 if not getattr(self.experiment, 'file_name', ''):
                     start_dir = str(file_io.get_default_directory(self.repo_path))
@@ -1282,38 +1290,33 @@ class MainWindow(QMainWindow):
         right top corner, the dialog was accepted by default.
         '''
         try:
-            # Always prefer go_to_edge behavior over init_hardware.
-            # If a run is active, use the same helper path as start-button re-click handling.
-            if button_handlers._is_artiq_run_thread_active(self):
-                button_handlers._arm_stop_flag_for_running_experiment(self)
-                # self.message_to_logger("Stop request set: run will stop at sequence boundary and go to edge")
-                self.dialog.accept()
-                return
-
-            # default immediate stop behaviour (generate init_hardware and run it)
             write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
             self.message_to_logger("init_hardware.py file generated")
-            try:
-                self._reset_live_dynamic_subtraction_counter()
-                if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'init_hardware.py')])
-                elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
-                submit_experiment_thread.start()
-                self.message_to_logger("Experiment was stopped. Hardware is set to the default values")
-                #unhighlighting the previously highlighted edge
-                if self.experiment.go_to_edge_num != -1:
-                    self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
+            if self.experiment.stop_at_end_of_sequence == False:
                 try:
-                    if self.experiment.do_ramp == True:
-                        self.update_sequence_edge_colors()
+                    self._reset_live_dynamic_subtraction_counter()
+                    if config.package_manager == "conda":
+                        submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'init_hardware.py')])
+                    elif config.package_manager == "clang64":
+                        submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_experiment_thread.start()
+                    self.message_to_logger("Experiment was stopped. Hardware is set to the default values")
+                    #unhighlighting the previously highlighted edge
+                    if self.experiment.go_to_edge_num != -1:
+                        self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
+                    try:
+                        if self.experiment.do_ramp == True:
+                            self.update_sequence_edge_colors()
+                    except:
+                        pass
+                    #Highlighting the default edge and setting the go_to_edge_num to the default edge value (0)
+                    self.experiment.go_to_edge_num = 0
+                    self.set_color_of_the_edge(self.green, 0)
                 except:
-                    pass
-                #Highlighting the default edge and setting the go_to_edge_num to the default edge value (0)
-                self.experiment.go_to_edge_num = 0
-                self.set_color_of_the_edge(self.green, 0)
-            except:
-                self.message_to_logger("Could not stop the experiment.")
+                    self.message_to_logger("Could not stop the experiment.")
+            else: # if self.experiment.stop_at_end_of_sequence == True:
+                button_handlers._create_stop_file(self)
+                self.do_next_after_end = False
         except:
             self.message_to_logger("Could not generate init_hardware.py file")    
         self.dialog.accept()

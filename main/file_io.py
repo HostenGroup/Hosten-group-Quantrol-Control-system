@@ -263,7 +263,7 @@ def apply_default_to_experiment(experiment, default_experiment) -> None:
         experiment.title_slow_dds_tab = deepcopy(default_experiment.title_slow_dds_tab)
 
 
-def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, live_camera_box=None, save_sampled_box=None) -> None:
+def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, live_camera_box=None, save_sampled_box=None, stop_at_end_button=None) -> None:
     '''
     Prepare experiment object for saving by capturing current UI state.
     
@@ -286,6 +286,20 @@ def prepare_experiment_for_save(experiment, camera_box=None, texp_locked=None, l
             experiment.save_sampled_variables = False
     if texp_locked is not None:
         experiment.texp_locked = texp_locked
+    # Persist 'stop at end of sequence' UI state when present.
+    # Prefer the experiment attribute (set by the button handler). If missing,
+    # try to read the button checked state (for checkable widgets).
+    if stop_at_end_button is not None:
+        try:
+            if hasattr(experiment, 'stop_at_end_of_sequence'):
+                # Keep the authoritative model value (button handler toggles it)
+                experiment.stop_at_end_of_sequence = bool(getattr(experiment, 'stop_at_end_of_sequence', False))
+            else:
+                # Fall back to reading UI widget state if the attribute is absent
+                experiment.stop_at_end_of_sequence = bool(stop_at_end_button.isChecked())
+        except Exception:
+            # preserve existing value on failure
+            pass
 
 
 def get_experiment_selection_id(experiment) -> Optional[int]:

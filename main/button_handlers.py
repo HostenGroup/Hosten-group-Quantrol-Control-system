@@ -41,8 +41,9 @@ def _sync_runtime_ui_state(self):
     texp_locked = self._texp_locked if hasattr(self, "_texp_locked") else None
     live_camera_box = self.live_camera_checkbox if hasattr(self, "live_camera_checkbox") else None
     save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
+    stop_button = self.stop_at_end_of_sequence_button if hasattr(self, "stop_at_end_of_sequence_button") else None
     
-    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box)
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box, stop_at_end_button=stop_button)
 
 
 def _prepare_sampled_run_paths(self):
@@ -78,7 +79,20 @@ def _prepare_sampled_run_paths(self):
         "timestamp": timestamp.isoformat(),
     }
 
+def _create_stop_file(self):
+    """Create the host stop flag file to request stop-at-end for the currently running experiment."""
+    stop_file = Path(self.repo_path) / 'ARTIQ_scripts' / 'stop_flag.txt'
+    try:
+        stop_file.parent.mkdir(parents=True, exist_ok=True)
+        stop_file.touch()
+        self.message_to_logger("Stop flag set. Experiment will stop at the end of the current sequence.")
+    except Exception as exc:
+        self.message_to_logger(f"Could not set stop flag: {exc}")
 
+
+
+
+#####################################
 def _clear_stale_stop_flag_before_run(self):
     """
     Clear stale host stop flag before launching a new run.
@@ -109,13 +123,7 @@ def _arm_stop_flag_for_running_experiment(self):
     except Exception as exc:
         self.message_to_logger(f"Could not generate go_to_default_edge.py: {exc}")
 
-    stop_file = Path(self.repo_path) / 'ARTIQ_scripts' / 'stop_flag.txt'
-    try:
-        stop_file.parent.mkdir(parents=True, exist_ok=True)
-        stop_file.touch()
-        self.message_to_logger("Stop flag set. Experiment will stop at the end of the current sequence.")
-    except Exception as exc:
-        self.message_to_logger(f"Could not set stop flag: {exc}")
+    _create_stop_file(self)
 
 
 def _dispatch_start_mode(self, start_mode):
@@ -131,9 +139,7 @@ def _dispatch_start_mode(self, start_mode):
 
 
 def _queue_restart_after_active_run(self, start_mode):
-    """
-    Queue a restart request and execute it after the currently active run thread finishes.
-    """
+    """ Queue a restart request and execute it after the currently active run thread finishes. """
     self._pending_restart_mode = start_mode
 
     if getattr(self, "_pending_restart_polling", False):
@@ -197,7 +203,8 @@ def handle_save_sequence_button_clicked(self):
     
     save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
 
-    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box)
+    stop_button = self.stop_at_end_of_sequence_button if hasattr(self, "stop_at_end_of_sequence_button") else None
+    file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box, stop_at_end_button=stop_button)
     
     if self.experiment.file_name == "":
         self.experiment.file_name = QFileDialog.getSaveFileName(self, 'Save File')[0]
@@ -392,6 +399,15 @@ def handle_load_sequence_button_clicked(self):
                     self.save_sampled_box.setChecked(getattr(self.experiment, 'save_sampled_variables', False))
                 except Exception:
                     self.save_sampled_box.setChecked(False)
+            # Restore stop-at-end button visual state
+            if hasattr(self, 'stop_at_end_of_sequence_button'):
+                try:
+                    if getattr(self.experiment, 'stop_at_end_of_sequence', False):
+                        self.stop_at_end_of_sequence_button.setStyleSheet(""" QPushButton {background-color: green; color: white}  QToolTip {color: black}""")
+                    else:
+                        self.stop_at_end_of_sequence_button.setStyleSheet(""" QPushButton {background-color: red; color: white}  QToolTip {color: black}""")
+                except Exception:
+                    pass
             # Restore T_exp_ lock state
             if hasattr(self, "lock_cb"):
                 self.lock_cb.setChecked(self.experiment.texp_locked)
@@ -420,6 +436,9 @@ def handle_save_sequence_as_button_clicked(self):
         self.experiment.save_sampled_variables = self.save_sampled_box.isChecked()
     if hasattr(self, "_texp_locked"):
         self.experiment.texp_locked = self._texp_locked
+    if hasattr(self, "stop_at_end_of_sequence_button"):
+        # rely on the experiment attribute (the button handler toggles it)
+        self.experiment.stop_at_end_of_sequence = bool(getattr(self.experiment, 'stop_at_end_of_sequence', False))
     if hasattr(self, "_persist_live_camera_settings_from_ui"):
         self._persist_live_camera_settings_from_ui()
     
@@ -650,8 +669,6 @@ def handle_run_experiment_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
-    if _maybe_request_stop_at_end_on_reclick(self, start_mode="run_experiment"):
-        return
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -699,19 +716,24 @@ def handle_run_experiment_button_clicked(self):
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
 
-            submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
-            self._active_artiq_thread = submit_experiment_thread
-            #unhighlighting the previously highlighted edge
-            if self.experiment.go_to_edge_num != -1:
-                self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
-                self.experiment.go_to_edge_num = -1
-            try:
-                if self.experiment.do_ramp == True:
-                    self.update_sequence_edge_colors()
-            except:
-                pass
-            #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
-            self.message_to_logger("Experiment started")
+            if self.experiment.stop_at_end_of_sequence == False:
+                submit_experiment_thread = self._start_artiq_thread(delay_s=delay_before_artiq)
+                
+                #unhighlighting the previously highlighted edge
+                if self.experiment.go_to_edge_num != -1:
+                    self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
+                    self.experiment.go_to_edge_num = -1
+                try:
+                    if self.experiment.do_ramp == True:
+                        self.update_sequence_edge_colors()
+                except:
+                    pass
+                #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
+                self.message_to_logger("Experiment started")
+
+            else: # if self.experiment.stop_at_end_of_sequence == True:
+                _create_stop_file(self)
+                self.do_next_after_end = True
 
         except Exception as exc:
             self.message_to_logger(f"Was not able to start experiment: {exc}")

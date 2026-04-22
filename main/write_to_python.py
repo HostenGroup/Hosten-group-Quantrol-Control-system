@@ -28,6 +28,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "from datetime import datetime\n")
     file.write(indentation + "from pathlib import Path \n")
     file.write(indentation + "import sys \n")
+    file.write(indentation + "import threading \n")
     file.write(indentation + "sys.path.append(str(Path(__file__).resolve().parent.parent)) \n")
     file.write(indentation + "import main.config as config \n")
     file.write(indentation + "\n")
@@ -762,33 +763,35 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "def check_host_stop_and_run(self) -> TBool:\n")
         indentation += '    '
         file.write(indentation + "stop_file = Path(__file__).resolve().parent / 'stop_flag.txt'\n")
+        file.write(indentation + "self.repo_path = Path(__file__).resolve().parent.parent\n")
         file.write(indentation + "try:\n")
         indentation += '    '
         file.write(indentation + "if stop_file.exists():\n")
         indentation += '    '
-        file.write(indentation + "# run go_to_edge.py to default edge \n")
-        file.write(indentation + "init_path = Path(__file__).resolve().parent / 'go_to_edge.py'\n")
+        file.write(indentation + "if self.do_next_after_end == False:  # end experiment \n")
+        indentation += '    '
         file.write(indentation + "try:\n")
         indentation += '    '
         file.write(indentation + "if config.package_manager == 'conda':\n")
         indentation += '    '
-        file.write(indentation + "os.system('conda activate ' + config.artiq_environment_name + ' && artiq_run ' + str(init_path))\n")
+        file.write(indentation + "submit_experiment_thread = threading.Thread(target=os.system, args=['conda activate ' + config.artiq_environment_name + ' && artiq_run ' + str(self.repo_path / 'ARTIQ_scripts' / 'init_hardware.py')])\n")
         indentation = indentation[:-4]
         file.write(indentation + "elif config.package_manager == 'clang64':\n")
         indentation += '    '
-        file.write(indentation + "try:\n")
-        indentation += '    '
-        file.write(indentation + "proc = subprocess.run(['cmd', '/c', str(init_path)], check=False)\n")
+        file.write(indentation + "submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / 'experiment_specific_files' / 'hybrid_experiment' / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))\n")
         indentation = indentation[:-4]
-        file.write(indentation + "except Exception:\n")
-        indentation += '    '
-        file.write(indentation + "os.system('artiq_run ' + str(init_path))\n")
-        indentation = indentation[:-4]
-        indentation = indentation[:-4]
+        file.write(indentation + "submit_experiment_thread.start()\n")
+        file.write(indentation + "print('Experiment was stopped. Hardware is set to the default values')\n")
         indentation = indentation[:-4]
         file.write(indentation + "except Exception as exc:\n")
         indentation += '    '
         file.write(indentation + "print('Could not execute go_to_edge:', exc)\n")
+        indentation = indentation[:-4]
+        indentation = indentation[:-4]
+        file.write(indentation + "if self.do_next_after_end == True:  # continue with next experiment\n")
+        indentation += '    '
+        file.write(indentation + "submit_experiment_thread = self._start_artiq_thread()\n")
+        file.write(indentation + "print('Experiment started')\n \n")
         indentation = indentation[:-4]
         file.write(indentation + "stop_file.unlink()  # delete the stop flag file\n")
         file.write(indentation + "return True\n")
