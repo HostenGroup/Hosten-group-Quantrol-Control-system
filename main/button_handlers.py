@@ -82,7 +82,6 @@ def _prepare_sampled_run_paths(self):
 def _clear_stale_stop_flag_before_run(self):
     """
     Clear stale host stop flag before launching a new run.
-
     The stop flag is meant to be armed by the host Stop action while a run is active.
     If an old flag remains from a previous run, the next run may stop after one sequence.
     """
@@ -105,16 +104,15 @@ def _is_artiq_run_thread_active(self):
 def _arm_stop_flag_for_running_experiment(self):
     """Request stop-at-end for an already running experiment by creating the host stop flag."""
     try:
-        write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
-        self.message_to_logger("init_hardware.py file generated (will be used at end of sequence)")
+        write_to_python.create_go_to_edge(self, edge_num=0, to_default=False)
+        # self.message_to_logger("go_to_default_edge.py file generated (will be used at end of sequence)")
     except Exception as exc:
-        self.message_to_logger(f"Could not generate init_hardware.py: {exc}")
+        self.message_to_logger(f"Could not generate go_to_default_edge.py: {exc}")
 
     stop_file = Path(self.repo_path) / 'ARTIQ_scripts' / 'stop_flag.txt'
     try:
         stop_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(stop_file, 'w') as handle:
-            handle.write(datetime.now().isoformat())
+        stop_file.touch()
         self.message_to_logger("Stop flag set. Experiment will stop at the end of the current sequence.")
     except Exception as exc:
         self.message_to_logger(f"Could not set stop flag: {exc}")
@@ -164,7 +162,6 @@ def _maybe_request_stop_at_end_on_reclick(self, start_mode=None):
     """
     For start buttons: if stop-at-end is enabled and a run is already active,
     convert the click into a graceful stop request instead of launching another run.
-
     Returns True when the click was handled as stop request and caller should return.
     """
     if bool(getattr(self.experiment, 'stop_at_end_of_sequence', False)) and _is_artiq_run_thread_active(self):
@@ -669,6 +666,7 @@ def handle_run_experiment_button_clicked(self):
             return
     elif save_sampled_enabled:
         camera_launch_info = _prepare_sampled_run_paths(self)
+
     self.count_scanned_variables()
     self.count_ramped_variables()
     update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
@@ -696,6 +694,7 @@ def handle_run_experiment_button_clicked(self):
                 json.dump(self.to_dict(self.experiment),outfile,indent=4)
 
             self._record_experiment_run(metadata_dir, is_multiple_run=False)
+
             if camera_enabled and camera_launch_info:
                 self._start_camera_subprocess(camera_launch_info)
                 self.message_to_logger("Camera acquisition started")
@@ -713,6 +712,7 @@ def handle_run_experiment_button_clicked(self):
                 pass
             #needs to be done ---> logging the start of the experiment only if it was started without errors. Checking experiment stages
             self.message_to_logger("Experiment started")
+
         except Exception as exc:
             self.message_to_logger(f"Was not able to start experiment: {exc}")
     except Exception:

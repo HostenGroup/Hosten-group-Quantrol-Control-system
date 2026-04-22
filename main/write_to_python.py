@@ -755,7 +755,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "print(\"End of experiment\")\n")
         indentation = indentation[:-4]
 
-    # RPC helper: check host-side stop flag and run init_hardware if requested
+    # RPC helper: check host-side stop flag and run go_to_edge if requested
     if stop_at_end_of_sequence_flag == True:
         file.write('\n')
         file.write(indentation + "@rpc\n")
@@ -766,8 +766,8 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation += '    '
         file.write(indentation + "if stop_file.exists():\n")
         indentation += '    '
-        file.write(indentation + "# run init_hardware.py on the host (matches GUI behaviour)\n")
-        file.write(indentation + "init_path = Path(__file__).resolve().parent / 'init_hardware.py'\n")
+        file.write(indentation + "# run go_to_edge.py to default edge \n")
+        file.write(indentation + "init_path = Path(__file__).resolve().parent / 'go_to_edge.py'\n")
         file.write(indentation + "try:\n")
         indentation += '    '
         file.write(indentation + "if config.package_manager == 'conda':\n")
@@ -788,7 +788,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation = indentation[:-4]
         file.write(indentation + "except Exception as exc:\n")
         indentation += '    '
-        file.write(indentation + "print('Could not execute init_hardware:', exc)\n")
+        file.write(indentation + "print('Could not execute go_to_edge:', exc)\n")
         indentation = indentation[:-4]
         file.write(indentation + "stop_file.unlink()  # delete the stop flag file\n")
         file.write(indentation + "return True\n")
