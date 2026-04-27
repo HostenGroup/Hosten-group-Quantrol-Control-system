@@ -22,7 +22,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     indentation = ""
     file.write(indentation + "from artiq.experiment import *\n")
     file.write(indentation + "import numpy as np\n")
-    file.write(indentation + "from time import perf_counter\n")
     file.write(indentation + "from scipy.io import loadmat\n")
     file.write(indentation + "import os\n")
     file.write(indentation + "import subprocess\n")
@@ -32,7 +31,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write(indentation + "import threading \n")
     file.write(indentation + "sys.path.append(str(Path(__file__).resolve().parent.parent)) \n")
     file.write(indentation + "import main.config as config \n")
-    file.write(indentation + "from main.run_exp_utility_func import * \n")
+    file.write(indentation + "from main.run_experiment_utils import start_artiq_thread  \n")
     file.write(indentation + "\n")
 
     # Persisted flags from GUI
@@ -156,6 +155,39 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation_flag += 1
         file.write(indentation + "camera_enabled = True   # continuous run\n")
         file.write(indentation + "run_index = 0\n")
+        # file.write(indentation + "self.core.break_realtime()\n")
+        # if warmup_runs > 0:
+        #     file.write(indentation + "if not hasattr(self, '_cam_warmup_remaining'):\n")
+        #     indentation += "    "
+        #     file.write(indentation + "self._cam_warmup_remaining = %d\n" % warmup_runs)
+        #     file.write(indentation + "self._cam_warmup_triggered = False\n")
+        #     indentation = indentation[:-4]
+        #     file.write(indentation + "if self._cam_warmup_remaining > 0:\n")
+        #     indentation += "    "
+        #     file.write(indentation + "camera_enabled = False   # warm-up run\n")
+        #     file.write(indentation + "self._cam_warmup_remaining -= 1\n")
+        #     indentation = indentation[:-4]
+        #     file.write(indentation + "elif not self._cam_warmup_triggered:\n")
+        #     indentation += "    "
+        #     file.write(indentation + "# Camera warm-up trigger: execute once after cam_trigger_off runs\n")
+            
+        #     if config.allow_skipping_images == True and self.experiment.skip_images:
+        #         skip_count = getattr(config, "skip_images_trigger_count", 10)
+        #         file.write(indentation + f"for _ in range({skip_count}):\n")
+        #         indentation += "    "
+        #         for val in config.camera_trigger_ttl:
+        #             file.write(indentation + "self.ttl" + str(val) + ".pulse(10*ms)\n")
+        #         file.write(indentation + "delay(100*ms)\n")
+        #         indentation = indentation[:-4]
+        #     file.write(indentation + "self._cam_warmup_triggered = True\n")
+        #     file.write(indentation + "camera_enabled = True\n")
+        #     indentation = indentation[:-4]
+        #     file.write(indentation + "else:\n")
+        #     indentation += "    "
+        #     file.write(indentation + "camera_enabled = True\n")
+        #     indentation = indentation[:-4]
+        # else:
+        #     file.write(indentation + "camera_enabled = True\n")
 
     if not run_continuous:
         
@@ -168,6 +200,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         if config.allow_skipping_images == True and self.experiment.skip_images:
             skip_count = getattr(config, "skip_images_trigger_count", 10)
             file.write(indentation + f"# Trigger camera {skip_count} times without saving images\n")
+            # file.write(indentation + "self.core.break_realtime()\n")
             file.write(indentation + f"if run_index == {warmup_runs}:\n")
             indentation += "    "
             file.write(indentation + f"for _ in range({skip_count}):\n")
@@ -415,36 +448,29 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             # no per-variable steps: keep legacy single `step` argument
             file.write(indentation + "self.store_sample(run_index_no_warumup%s)\n" % (", " + args_str if args_str else ""))
 
-        #printing derived variable values and their arguments in terminal
+    #printing derived variable values and their arguments in terminal
     for variable in self.experiment.derived_variables: # print derived variable value and its arguments (feedback)
         args_list = variable.arguments.split(",")
         file.write('\n')
-        # file.write(f'{indentation}delay(20*ms)\n')
+        file.write(f'{indentation}delay(20*ms)\n')
         file.write(f'{indentation}print("{variable.name}:", {variable.name})\n')
         for arg in args_list:
             arg = arg.strip()
             if not arg:
                 continue
-            # file.write(f'{indentation}delay(20*ms)\n')
+            file.write(f'{indentation}delay(20*ms)\n')
             file.write(f'{indentation}print("{arg}:", {arg})\n')
-
-    if save_sampled_box_checked_flag == True and not run_continuous:
-        file.write('\n')
-        file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
-
+        
     # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
+    file.write('\n')
     if stop_at_end_of_sequence_flag == True:
-        file.write('\n')
         file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
         file.write(indentation + "    return\n")
-        
-    if save_sampled_box_checked_flag or stop_at_end_of_sequence_flag:
         file.write('\n')
-        file.write(indentation + 'self.core.break_realtime()\n')
-    
+
     if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
         step_var_names = [f"step{idx+1}" for idx, variable in enumerate(self.experiment.scanned_variables) if getattr(variable, 'name', "") != "None"]
-        file.write('\n')
+
         for _ in range(len(step_var_names)):
             file.write(indentation + "#exiting the scan at the first step if camera is not enabled \n")            
             file.write(indentation + "if not camera_enabled: \n")
@@ -455,6 +481,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             indentation_flag -= 1
 
         indentation = indentation[:-4*(indentation_flag)]
+
+    if save_sampled_box_checked_flag == True and not run_continuous:
+        file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
+
+    
+    file.write(indentation + 'self.core.break_realtime()\n')
     
     if not run_continuous:
         indentation = indentation_kernel + "    "
@@ -470,6 +502,10 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     ###############################################################################################
     ############################# for continuous run AFTER experiment #############################
     ###############################################################################################
+
+
+    # if not run_continuous and run_loop_added:
+    #     indentation = indentation[:-4]
 
 
     if self.experiment.cont_run_after_exp and not run_continuous:
@@ -703,15 +739,11 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 for indent in range(count_indent):
                     indentation = indentation[:-4] 
         
-
-        # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
+        file.write('\n')
         if stop_at_end_of_sequence_flag == True:
-            file.write('\n')
             file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
             file.write(indentation + "    return\n")
-            
             file.write('\n')
-            file.write(indentation + 'self.core.break_realtime()\n')
 
 
 
@@ -728,7 +760,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "def print_end_exp(self):\n")
         indentation += '    '
         if stop_at_end_of_sequence_flag == True:
-            file.write(indentation + "delete_run_active_flag_func()\n")
+            file.write(indentation + "self.repo_path = Path(__file__).resolve().parent.parent\n")
+            file.write(indentation + "path = Path(self.repo_path) / 'ARTIQ_scripts' / 'run_active_flag.txt' \n")
+            file.write(indentation + "if path.exists(): \n")
+            indentation += '    '
+            file.write(indentation + "path.unlink() \n")
+            indentation = indentation[:-4]
         file.write(indentation + "print(\"End of experiment\")\n")
         indentation = indentation[:-4]
         
@@ -737,7 +774,17 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "@rpc\n")
         file.write(indentation + "def create_run_active_file(self):\n")
         indentation += '    '
-        file.write(indentation + "create_run_active_flag_func() \n")
+        file.write(indentation + "self.repo_path = Path(__file__).resolve().parent.parent\n")
+        file.write(indentation + "path = Path(self.repo_path) / 'ARTIQ_scripts' / 'run_active_flag.txt' \n")
+        file.write(indentation + "try: \n")
+        indentation += '    '
+        file.write(indentation + "path.parent.mkdir(parents=True, exist_ok=True) \n")
+        file.write(indentation + "path.touch() \n")
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception: \n")
+        indentation += '    '
+        file.write(indentation + "pass \n")
+        indentation = indentation[:-4]
         indentation = indentation[:-4]
 
     # RPC helper: check host-side stop flag and run go_to_edge if requested
@@ -748,18 +795,34 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation += '    '
         file.write(indentation + "stop_exp_file = Path(__file__).resolve().parent / 'stop_exp_flag.txt'\n")
         file.write(indentation + "new_exp_file = Path(__file__).resolve().parent / 'new_exp_flag.txt'\n")
+        file.write(indentation + "self.repo_path = Path(__file__).resolve().parent.parent\n")
         file.write(indentation + "try:\n")
         indentation += '    '
         file.write(indentation + "if stop_exp_file.exists():\n")
-        indentation += '    '       
-        file.write(indentation + "send_int_file_to_artiq_func() \n")
+        indentation += '    '
+        file.write(indentation + "try:\n")
+        indentation += '    '
+        file.write(indentation + "if config.package_manager == 'conda':\n")
+        indentation += '    '
+        file.write(indentation + "submit_experiment_thread = threading.Thread(target=os.system, args=['conda activate ' + config.artiq_environment_name + ' && artiq_run ' + str(self.repo_path / 'ARTIQ_scripts' / 'init_hardware.py')])\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "elif config.package_manager == 'clang64':\n")
+        indentation += '    '
+        file.write(indentation + "submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / 'experiment_specific_files' / 'hybrid_experiment' / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "submit_experiment_thread.start()\n")
+        indentation = indentation[:-4]
+        file.write(indentation + "except Exception as exc:\n")
+        indentation += '    '
+        file.write(indentation + "print('Could not execute go_to_edge:', exc)\n")
+        indentation = indentation[:-4]        
         file.write(indentation + "stop_exp_file.unlink()  # delete the stop flag file\n")
         file.write(indentation + "return True\n \n")
         indentation = indentation[:-4]
         file.write(indentation + "if new_exp_file.exists(): \n")
         indentation += '    '
-        file.write(indentation + "submit_experiment_thread = start_artiq_thread_func()\n")
         file.write(indentation + "new_exp_file.unlink()  # delete the new_exp_file marker file\n")
+        file.write(indentation + "submit_experiment_thread = start_artiq_thread(self.repo_path)\n")
         file.write(indentation + "return True\n \n")
         indentation = indentation[:-4]
         file.write(indentation + "return False  # if there is no file the experiment is not stopped\n")
@@ -800,10 +863,34 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write(indentation + "@rpc\n")
         file.write(indentation + "def copy_dataset_file(self):\n")
         indentation += '    '
-        file.write(indentation + "data = self.get_dataset('data', archive=False) \n")
+
+        exp_name = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'experiment_name', '')) or ""
+        experimental_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_path', '')) or ""
+        experimental_metadata_path = (getattr(self.experiment, 'experimental_data', None) and getattr(self.experiment.experimental_data, 'current_run_metadata_path', '')) or ""
+        file.write(indentation + f"experiment_name = {repr(exp_name)}\n")
+        file.write(indentation + f"experimental_path = {repr(experimental_path)}\n")
+        file.write(indentation + f"experimental_metadata_path = {repr(experimental_metadata_path)}\n")
+
+        
+        file.write(indentation + "target_directory = Path(experimental_metadata_path) if experimental_metadata_path else (Path(experimental_path) if experimental_path else None)\n")
+        file.write(indentation + "if target_directory is None:\n")
+        file.write(indentation + "    today = datetime.now().strftime('%Y_%m_%d')\n")
+        file.write(indentation + "    exp_dir = experiment_name if experiment_name else 'unspecified_experiment'\n")
+        file.write(indentation + "    target_directory = Path(config.experiment_data_root) / exp_dir / today\n")
+        file.write(indentation + "try:\n")
+        file.write(indentation + "    target_directory.mkdir(parents=True, exist_ok=True)\n")
+        file.write(indentation + "except Exception as e:\n")
+        file.write(indentation + "    print(f'Could not create target directory {target_directory}: {e}')\n")
+        file.write(indentation + "folder_name = target_directory.name\n")
+        file.write(indentation + "folder_date = datetime.now().strftime('%Y%m%d')\n")
+        file.write(indentation + "folder_time = folder_name[-8:].replace('_', '') if len(folder_name) >= 8 else datetime.now().strftime('%H%M%S')\n")
+        file.write(indentation + "target_file = target_directory / f\"dataset_db_copy_{folder_date}_{folder_time}.txt\"\n")
+        file.write(indentation + "data = self.get_dataset('data', archive=False)\n")
         column_names = ["int(run_index)"] + [f"int({s})" for s in step_var_names] + data_value_names
         file.write(indentation + f"column_names = {repr(column_names)}\n")
-        file.write(indentation + "copy_dataset_file_func(column_names, data)\n")
+        file.write(indentation + "with open(target_file, \"w\") as f:\n")
+        file.write(indentation + "    f.write(\", \".join(column_names) + \"\\n\")\n")
+        file.write(indentation + "    f.writelines(f\"{entry}\\n\" for entry in data)\n")
         
     file.close()
 

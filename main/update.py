@@ -154,10 +154,27 @@ def sequence_tab(self):
         self.sequence_table.item(row, 4).setText(str(edge.value))
         # self.sequence_table.item(row, 4).setText(str(edge.value))
 
-    # self.number_of_runs_input_sequence.setText(str(self.experiment.number_of_runs))
-
-    try: # try, except in order to be able to use old sequences (before 09/25) for this change
+    try: # try, except: in order to be able to use old sequences (before 09/25) for this change
         self.cam_trigger_off_input.setText(str(self.experiment.cam_trigger_off_runs)) 
+    except:
+        pass
+
+    try: # try, except: in order to be able to use old sequences (before 09/25) for this change
+        tab_names = [
+            "number_of_runs_input",
+            "number_of_runs_input_sequence",
+            "number_of_runs_input_analog",
+            "number_of_runs_input_digital",
+            "number_of_runs_input_dds",
+            "number_of_runs_input_mirny",
+            "number_of_runs_input_sampler",
+            "number_of_runs_input_variables",
+            "number_of_runs_input_acquisition",
+            "number_of_runs_input_slow_dds",
+        ]
+        for var_table_name in tab_names:
+            if hasattr(self, var_table_name):
+                getattr(self, var_table_name).setText(str(self.experiment.number_of_runs))
     except:
         pass
 

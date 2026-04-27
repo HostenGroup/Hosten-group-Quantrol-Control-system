@@ -36,6 +36,8 @@ experiment_data_root = r"G:\Experimental Data\Atom Interferometer experiment\Ram
 
 experiment_database_path = str(Path(experiment_data_root) / "Raman_exp_db.xlsx")
 
+experiment = None
+
 # Construct camera_env_python path based on current Python environment
 
 _current_python = Path(sys.executable)

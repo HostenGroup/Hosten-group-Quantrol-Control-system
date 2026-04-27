@@ -206,7 +206,7 @@ def bottom_buttons_build(self,tab):
     self.number_of_runs_input.setGeometry(*self.scale_geom(5*self.button_w + 60 + int(0.7*self.button_w), y_val, int(0.3*self.button_w), self.button_h))
     self.number_of_runs_input.setFont(QFont('Arial', self.scale_font(14)))
     self.number_of_runs_input.editingFinished.connect(lambda: change_handlers.handle_number_of_runs_input_changed(self))
-    self.number_of_runs_input.setText("10")
+    self.number_of_runs_input.setText(str(getattr(self.experiment, "number_of_runs", 10)))
     return self.number_of_runs_input
 
 

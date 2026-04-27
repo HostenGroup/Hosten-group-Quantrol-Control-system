@@ -168,6 +168,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         if config.allow_skipping_images == True and self.experiment.skip_images:
             skip_count = getattr(config, "skip_images_trigger_count", 10)
             file.write(indentation + f"# Trigger camera {skip_count} times without saving images\n")
+            # file.write(indentation + "self.core.break_realtime()\n")
             file.write(indentation + f"if run_index == {warmup_runs}:\n")
             indentation += "    "
             file.write(indentation + f"for _ in range({skip_count}):\n")
@@ -391,6 +392,11 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             flag_ramp_up = False  
             for indent in range(count_indent):
                 indentation = indentation[:-4] 
+
+    # if stop_at_end_of_sequence_flag == True or save_sampled_box_checked_flag == True:
+    #     file.write('\n')  
+    #     file.write(f'{indentation}delay(20*ms)\n')
+    #     file.write(indentation + 'self.core.break_realtime()\n')
 
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n' + indentation + "# For save sample variables\n")
@@ -706,6 +712,9 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
 
         # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
         if stop_at_end_of_sequence_flag == True:
+            file.write('\n')
+            file.write(indentation + 'self.core.break_realtime()\n')
+
             file.write('\n')
             file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
             file.write(indentation + "    return\n")

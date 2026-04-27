@@ -168,6 +168,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         if config.allow_skipping_images == True and self.experiment.skip_images:
             skip_count = getattr(config, "skip_images_trigger_count", 10)
             file.write(indentation + f"# Trigger camera {skip_count} times without saving images\n")
+            # file.write(indentation + "self.core.break_realtime()\n")
             file.write(indentation + f"if run_index == {warmup_runs}:\n")
             indentation += "    "
             file.write(indentation + f"for _ in range({skip_count}):\n")
@@ -392,6 +393,25 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
             for indent in range(count_indent):
                 indentation = indentation[:-4] 
 
+    if stop_at_end_of_sequence_flag == True:
+        file.write('\n')
+        file.write(indentation + "x = self.check_host_stop_and_run() \n")
+        file.write(indentation + "print(x)\n")
+
+    # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
+    if stop_at_end_of_sequence_flag == True:
+        file.write('\n')
+        file.write(indentation + "if x == 1:\n")
+        file.write(indentation + "    self.core.wait_until_mu(now_mu())\n")
+        file.write(indentation + "    self.print_end_exp()\n")
+        file.write(indentation + "    self.rpc_init_hw()\n")
+        file.write(indentation + "    return\n")
+        file.write(indentation + "if x == 2:\n")
+        file.write(indentation + "    self.core.wait_until_mu(now_mu())\n")
+        file.write(indentation + "    self.print_end_exp()\n")
+        file.write(indentation + "    self.rpc_start_new()\n")
+        file.write(indentation + "    return\n")
+
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n' + indentation + "# For save sample variables\n")
         derived_names = [variable.name for variable in self.experiment.derived_variables if getattr(variable, 'name', "")]
@@ -432,11 +452,6 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         file.write('\n')
         file.write(indentation + "self.copy_dataset_file()  # add saved sampled variables to a txt file \n")
 
-    # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
-    if stop_at_end_of_sequence_flag == True:
-        file.write('\n')
-        file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
-        file.write(indentation + "    return\n")
         
     if save_sampled_box_checked_flag or stop_at_end_of_sequence_flag:
         file.write('\n')
@@ -703,16 +718,27 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                 for indent in range(count_indent):
                     indentation = indentation[:-4] 
         
+        if stop_at_end_of_sequence_flag == True:
+            file.write('\n')
+            file.write(indentation + "x = self.check_host_stop_and_run() \n")
 
         # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
         if stop_at_end_of_sequence_flag == True:
             file.write('\n')
-            file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
+            file.write(indentation + "if x == 1:\n")
+            file.write(indentation + "    self.core.wait_until_mu(now_mu())\n")
+            file.write(indentation + "    self.print_end_exp()\n")
+            file.write(indentation + "    self.rpc_init_hw()\n")
+            file.write(indentation + "    return\n")
+            file.write(indentation + "if x == 2:\n")
+            file.write(indentation + "    self.core.wait_until_mu(now_mu())\n")
+            file.write(indentation + "    self.print_end_exp()\n")
+            file.write(indentation + "    self.rpc_start_new()\n")
             file.write(indentation + "    return\n")
             
+        if save_sampled_box_checked_flag or stop_at_end_of_sequence_flag:
             file.write('\n')
             file.write(indentation + 'self.core.break_realtime()\n')
-
 
 
 
@@ -723,14 +749,14 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.write("\n")
     indentation = indentation_kernel
 
-    if not run_continuous:
-        file.write(indentation + "@rpc\n")
-        file.write(indentation + "def print_end_exp(self):\n")
-        indentation += '    '
-        if stop_at_end_of_sequence_flag == True:
-            file.write(indentation + "delete_run_active_flag_func()\n")
-        file.write(indentation + "print(\"End of experiment\")\n")
-        indentation = indentation[:-4]
+    # if not run_continuous:
+    file.write(indentation + "@rpc\n")
+    file.write(indentation + "def print_end_exp(self):\n")
+    indentation += '    '
+    if stop_at_end_of_sequence_flag == True:
+        file.write(indentation + "delete_run_active_flag_func()\n")
+    file.write(indentation + "print(\"End of experiment\")\n")
+    indentation = indentation[:-4]
         
     if stop_at_end_of_sequence_flag == True:
         file.write('\n')
@@ -744,7 +770,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if stop_at_end_of_sequence_flag == True:
         file.write('\n')
         file.write(indentation + "@rpc\n")
-        file.write(indentation + "def check_host_stop_and_run(self) -> TBool:\n")
+        file.write(indentation + "def check_host_stop_and_run(self) -> TInt32:\n")
         indentation += '    '
         file.write(indentation + "stop_exp_file = Path(__file__).resolve().parent / 'stop_exp_flag.txt'\n")
         file.write(indentation + "new_exp_file = Path(__file__).resolve().parent / 'new_exp_flag.txt'\n")
@@ -752,22 +778,32 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         indentation += '    '
         file.write(indentation + "if stop_exp_file.exists():\n")
         indentation += '    '       
-        file.write(indentation + "send_int_file_to_artiq_func() \n")
         file.write(indentation + "stop_exp_file.unlink()  # delete the stop flag file\n")
-        file.write(indentation + "return True\n \n")
+        file.write(indentation + "return 1\n")
         indentation = indentation[:-4]
         file.write(indentation + "if new_exp_file.exists(): \n")
         indentation += '    '
-        file.write(indentation + "submit_experiment_thread = start_artiq_thread_func()\n")
         file.write(indentation + "new_exp_file.unlink()  # delete the new_exp_file marker file\n")
-        file.write(indentation + "return True\n \n")
+        file.write(indentation + "return 2\n")
         indentation = indentation[:-4]
-        file.write(indentation + "return False  # if there is no file the experiment is not stopped\n")
+        file.write(indentation + "return 0  # if there is no file the experiment is not stopped\n")
         indentation = indentation[:-4]
         file.write(indentation + "except Exception as exc:\n")
         indentation += '    '
         file.write(indentation + "print('check_host_stop_and_run error:', exc)\n")
-        file.write(indentation + "return False\n")
+        file.write(indentation + "return 0\n")
+        indentation = indentation[:-4]
+        indentation = indentation[:-4]
+        file.write('\n')
+        file.write(indentation + "@rpc\n")
+        file.write(indentation + "def rpc_init_hw(self):\n")
+        file.write(indentation + "    send_int_file_to_artiq_func()\n")
+        file.write('\n')
+        file.write(indentation + "@rpc\n")
+        file.write(indentation + "def rpc_start_new(self):\n")
+        file.write(indentation + "    start_artiq_thread_func()\n")
+
+
     
     if save_sampled_box_checked_flag == True and not run_continuous:
         file.write('\n')

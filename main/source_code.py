@@ -44,6 +44,7 @@ from scipy.io import savemat, loadmat
 import json
 from pathlib import Path
 
+
 # Import data structures from data_structures module
 from data_structures import (
     Edge, Experiment, SlowDDS, ExperimentalData,
@@ -330,8 +331,7 @@ class MainWindow(QMainWindow):
         # self.setGeometry(*self.scale_geom(0,0,1920,1200))
         tup = self._fit_to_work_area()
         CURRENT_W = tup[2]
-        CURRENT_H = tup[3]
-        
+        CURRENT_H = tup[3]       
        
 
         #Declaring global variables
@@ -348,17 +348,10 @@ class MainWindow(QMainWindow):
         self.button_font = 12
         self.text_font = 12
 
-
-        
-        
-
-        
         self.repo_path = Path(__file__).resolve().parent.parent
 
-        
-
-
         self.experiment = Experiment()
+        config.experiment = self.experiment
         self.sequence_num_rows = 1
         self.setting_dict = {0:"frequency", 1:"amplitude", 2:"attenuation", 3:"phase", 4:"state"}
         self.max_dict_dds = {0: 500,
@@ -1002,10 +995,11 @@ class MainWindow(QMainWindow):
         show_error_message(text, title)
  
 
-    def closeEvent(self, event):
+    def check_if_save(self, on_confirmed=None, on_cancelled=None):
         '''
         Prompt the user to save the current sequence when the main window is closed.
-        Offers Yes (save), No (discard), and Cancel (abort close).
+        on_confirmed: called if user saves or discards (i.e. it's safe to proceed)
+        on_cancelled: called if user cancels (i.e. abort the action)
         '''
         try:
             file_label = self.experiment.file_name if getattr(self.experiment, 'file_name', '') else '<unsaved>'
@@ -1032,9 +1026,9 @@ class MainWindow(QMainWindow):
                     start_dir = str(file_io.get_default_directory(self.repo_path))
                     path = QFileDialog.getSaveFileName(self, 'Save File', start_dir)[0]
                     if not path:
-                        # user cancelled Save As -> abort close
-                        event.ignore()
-                        return
+                        if on_cancelled:
+                            on_cancelled()
+                        return False
                     self.experiment.file_name = path
                 success, message, _ = file_io.save_experiment(self.experiment)
                 if message:
@@ -1043,16 +1037,26 @@ class MainWindow(QMainWindow):
                     except Exception:
                         pass
                 if success:
-                    event.accept()
+                    if on_confirmed:
+                        on_confirmed()  
+                    return True
                 else:
                     QMessageBox.warning(self, "Save failed", message or "Saving the sequence failed.")
-                    event.ignore()
+                    if on_cancelled:
+                        on_cancelled()
+                    return False
             elif reply == QMessageBox.No:
-                event.accept()
+                if on_confirmed:
+                    on_confirmed()
+                return True
             else:
-                event.ignore()
+                if on_cancelled:
+                    on_cancelled()
+                return False
         except Exception:
-            event.accept()
+            if on_confirmed:
+                on_confirmed()
+            return True
  
 
     def decode_input(self, text):
@@ -1283,7 +1287,7 @@ class MainWindow(QMainWindow):
         self.experiment.ramped_variables_count = countr
     
     
-    def stop_continuous_run(self):
+    def stop_continuous_run(self): # = STOP EXPERIMENT
         '''
         This function is used to trigger the event of button_yes for stop_continuous_run_button_clicked. When using it to accept the dialog and then
         having a flag of self.dialog.accepted in case the window was closed by clicking the close button at the 
@@ -1301,6 +1305,7 @@ class MainWindow(QMainWindow):
                         submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                     submit_experiment_thread.start()
                     self.message_to_logger("Experiment was stopped. Hardware is set to the default values")
+                    
                     #unhighlighting the previously highlighted edge
                     if self.experiment.go_to_edge_num != -1:
                         self.set_color_of_the_edge(self.white, self.experiment.go_to_edge_num)
@@ -1315,8 +1320,9 @@ class MainWindow(QMainWindow):
                 except:
                     self.message_to_logger("Could not stop the experiment.")
             else: # if self.experiment.stop_at_end_of_sequence == True:
-                button_handlers._create_stop_file(self)
-                self.do_next_after_end = False
+                button_handlers._create_stop_exp_flag_file(self)
+                button_handlers._clear_run_active_flag(self)
+                
         except:
             self.message_to_logger("Could not generate init_hardware.py file")    
         self.dialog.accept()
@@ -2795,8 +2801,14 @@ class MainWindow(QMainWindow):
         """Ensure auxiliary windows and worker threads are shut down with the main GUI."""
         try:
             self._close_live_camera_window()
-        finally:
-            super().closeEvent(event)
+        except Exception:
+            pass
+
+        proceed = self.check_if_save()
+        if proceed:
+            event.accept()
+        else:
+            event.ignore()
 
 def run():
     '''
@@ -2810,8 +2822,6 @@ def run():
         
     except:
         print("Exiting")
-
-
 
 
 

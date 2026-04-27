@@ -644,15 +644,15 @@ def record_experiment_run(experiment, repo_path: Path, metadata_dir: str,
         except (TypeError, ValueError):
             scan_points = 1
 
-    number_of_runs_value = getattr(experiment, "number_of_runs", 1)
+    number_of_runs_value = getattr(experiment, "number_of_runs", 10)
     try:
         number_of_runs_value = int(number_of_runs_value)
     except (TypeError, ValueError):
-        number_of_runs_value = 1
+        number_of_runs_value = 10
     if number_of_runs_value <= 0:
-        number_of_runs_value = 1
+        number_of_runs_value = 10
     if not is_multiple_run:
-        number_of_runs_value = 1
+        number_of_runs_value = 10
 
     pending_entries = load_pending_log_entries(repo_path, cache_dict)
 
@@ -723,13 +723,13 @@ def record_experiment_run(experiment, repo_path: Path, metadata_dir: str,
         if scan_points_value <= 0:
             scan_points_value = 1
 
-        number_of_runs_field = entry_dict.get("number_of_runs", 1)
+        number_of_runs_field = entry_dict.get("number_of_runs", 10)
         try:
             number_of_runs_int = int(number_of_runs_field)
         except (TypeError, ValueError):
-            number_of_runs_int = 1
+            number_of_runs_int = 10
         if number_of_runs_int <= 0:
-            number_of_runs_int = 1
+            number_of_runs_int = 10
 
         good_data_value = entry_dict.get("good_data", "") or ""
         comment_value = entry_dict.get("comment", "") or ""
