@@ -745,13 +745,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     file.close()
 
 
-def create_go_to_edge(self, edge_num, to_default = False):
+def create_go_to_edge(self, edge_num, init_hardware = False):
     '''
     Function is used to write a description of experiment that will go to the edge selected in a tab.
     The description is saved as go_to_edge.py   
     The flag to_default is used to be able to go to default edge in the init_hardware function
     '''
-    if to_default:
+    if init_hardware:
         # Set the edge value to default edge
         edge = 0
         file_name = "init_hardware.py"
@@ -787,7 +787,7 @@ def create_go_to_edge(self, edge_num, to_default = False):
     file.write(indentation + "self.core.break_realtime()\n")
    
     # Initializing the devices 
-    if file_name == "init_hardware.py":
+    if init_hardware:
         for device in config.list_of_devices_for_initialization:
             file.write(indentation + "self.%s.init()\n"%device)
    

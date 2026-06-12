@@ -78,32 +78,35 @@ class LiveCameraStreamer:
         self._subtract_reference_raw_counts = None
         self._capture_reference_next = bool(subtract_enabled)
         self._dynamic_frame_index = 0
+        # Suppress reporting of physics metrics for a few frames after resets/captures
+        self._metric_suppression_frames = 0
         self._control_socket = None
-        self._atom_count_func = self._load_atom_count_function()
+        self._atom_count_func, self._total_power_func = self._load_atom_metric_functions()
 
-    def _load_atom_count_function(self):
-        """Load atom_count() from experiment_specific_files/hybrid_experiment/atom_count.py."""
+    def _load_atom_metric_functions(self):
+        """Load atom_count() and total_power() from hybrid_experiment/atom_count.py."""
         try:
             atom_count_path = Path(__file__).resolve().parent.parent / "experiment_specific_files" / "hybrid_experiment" / "atom_count.py"
             if not atom_count_path.exists():
-                return None
+                return None, None
 
             spec = importlib.util.spec_from_file_location("quantrol_live_atom_count", str(atom_count_path))
             if spec is None or spec.loader is None:
-                return None
+                return None, None
 
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            fn = getattr(module, "atom_count", None)
-            return fn if callable(fn) else None
+            atom_fn = getattr(module, "atom_count", None)
+            power_fn = getattr(module, "total_power", None)
+            return (atom_fn if callable(atom_fn) else None), (power_fn if callable(power_fn) else None)
         except Exception as exc:
             print(f"Live atom count loader failed: {exc}")
-            return None
+            return None, None
 
-    def _compute_atom_count(self, camera_counts_number: float, pixel_format_for_count: str) -> float:
-        """Compute atom count from integrated camera counts and camera settings."""
-        if self._atom_count_func is None:
-            return float("nan")
+    def _compute_atom_metrics(self, camera_counts_number: float, pixel_format_for_count: str) -> tuple[float, float]:
+        """Compute atom count and total power from integrated camera counts and camera settings."""
+        if self._atom_count_func is None and self._total_power_func is None:
+            return float("nan"), float("nan")
 
         try:
             camera_counts_number = float(camera_counts_number)
@@ -111,28 +114,43 @@ class LiveCameraStreamer:
             total_gain_db = float(self.gain_db)
             t_exp_s = max(float(self.exposure_ms) * 1e-3, 1e-9)
             pixel_format = str(pixel_format_for_count)
-            value = self._atom_count_func(camera_counts_number, total_gain_db, t_exp_s, pixel_format)
-            return float(value)
+            atom_value = float("nan")
+            total_power_value = float("nan")
+
+            if self._atom_count_func is not None:
+                atom_result = self._atom_count_func(camera_counts_number, total_gain_db, t_exp_s, pixel_format)
+                if isinstance(atom_result, (tuple, list)):
+                    if len(atom_result) >= 1:
+                        atom_value = float(atom_result[0])
+                    if len(atom_result) >= 2:
+                        total_power_value = float(atom_result[1])
+                else:
+                    atom_value = float(atom_result)
+
+            if self._total_power_func is not None:
+                total_power_value = float(self._total_power_func(camera_counts_number, total_gain_db, t_exp_s, pixel_format))
+
+            return atom_value, total_power_value
         except Exception:
-            return float("nan")
+            return float("nan"), float("nan")
 
     def _compute_subtracted_counts(
         self,
         image_counts: float,
         background_counts: float,
         current_frame_for_reference: np.ndarray,
-    ) -> float:
-        """Compute image-background counts and auto-correct an inverted reference capture."""
-        net_counts = float(image_counts) - float(background_counts)
-        inversion_threshold = 0.05 * max(abs(image_counts), abs(background_counts), 1.0)
+    ) -> tuple[float, bool]:
+        """Compute image-background counts using absolute difference.
 
-        if net_counts < -inversion_threshold:
-            # Reference likely captured on an atom frame; relock on current frame as background.
-            self._subtract_reference = current_frame_for_reference.copy()
-            self._subtract_reference_raw_counts = float(image_counts)
-            return 0.0
-
-        return net_counts
+        This uses a simple absolute subtraction metric (|image - background|) and
+        always reports the metric as valid. It intentionally avoids the previous
+        inversion-detection logic which could mark many frames invalid.
+        """
+        try:
+            net_counts = abs(float(image_counts) - float(background_counts))
+            return net_counts, True
+        except Exception:
+            return float('nan'), False
 
     def stop(self, *_args) -> None:
         self._running = False
@@ -189,8 +207,12 @@ class LiveCameraStreamer:
             if not self._subtract_enabled:
                 self._dynamic_frame_index = 0
                 self._subtract_reference_raw_counts = None
+            # When changing subtraction state, suppress a few metric frames so the UI
+            # does not display stale or zero values while subtraction stabilises.
+            self._metric_suppression_frames = 2
             if bool(payload.get("capture_reference_next", False)):
                 self._capture_reference_next = True
+                self._metric_suppression_frames = 2
             return
 
         if command == "reset_subtraction":
@@ -199,12 +221,15 @@ class LiveCameraStreamer:
             self._capture_reference_next = True
             self._subtract_enabled = True
             self._dynamic_frame_index = 0
+            # Suppress metrics for a couple frames while reference is captured/reset.
+            self._metric_suppression_frames = 3
             return
 
         if command == "reset_dynamic_subtraction_counter":
             self._dynamic_frame_index = 0
             self._subtract_reference = None
             self._subtract_reference_raw_counts = None
+            self._metric_suppression_frames = 2
             return
 
         if command == "apply_params":
@@ -223,6 +248,7 @@ class LiveCameraStreamer:
                     if self.dynamic_subtraction_enabled:
                         self._subtract_reference = None
                         self._subtract_reference_raw_counts = None
+                    self._metric_suppression_frames = 2
                 if "sequence_trigger_count" in payload:
                     count_value = int(payload.get("sequence_trigger_count"))
                     self.sequence_trigger_count = count_value if count_value >= 0 else 0
@@ -230,6 +256,7 @@ class LiveCameraStreamer:
                     if self.dynamic_subtraction_enabled:
                         self._subtract_reference = None
                         self._subtract_reference_raw_counts = None
+                    self._metric_suppression_frames = 2
                 if "gaussian_enabled" in payload:
                     self.gaussian_enabled = bool(payload.get("gaussian_enabled"))
                 if "gaussian_sigma" in payload:
@@ -344,12 +371,13 @@ class LiveCameraStreamer:
         get_ms: float,
         proc_ms: float,
         atom_count: float,
+        total_power: float,
     ) -> None:
         if frame8.ndim != 2:
             raise RuntimeError("Expected grayscale frame")
         height, width = frame8.shape
         payload = frame8.tobytes(order="C")
-        header = struct.pack("!IIIffff", int(width), int(height), len(payload), float(fps), float(get_ms), float(proc_ms), float(atom_count))
+        header = struct.pack("!IIIfffff", int(width), int(height), len(payload), float(fps), float(get_ms), float(proc_ms), float(atom_count), float(total_power))
         sock_.sendall(header)
         sock_.sendall(payload)
 
@@ -523,6 +551,7 @@ class LiveCameraStreamer:
                         subtraction_full_scale = 65535.0
                     arr = self._apply_gaussian_if_enabled(arr)
                     camera_counts_for_count = raw_camera_counts
+                    metric_valid = True
 
                     if self.dynamic_subtraction_enabled and self._subtract_enabled:
                         cycle_count = int(self.sequence_trigger_count)
@@ -540,7 +569,7 @@ class LiveCameraStreamer:
                         frame_for_display = arrf - self._subtract_reference
                         background_counts = float(self._subtract_reference_raw_counts)
                         image_counts = raw_camera_counts
-                        camera_counts_for_count = self._compute_subtracted_counts(
+                        camera_counts_for_count, metric_valid = self._compute_subtracted_counts(
                             image_counts,
                             background_counts,
                             arrf,
@@ -561,12 +590,13 @@ class LiveCameraStreamer:
                             print("Subtraction reference captured")
                             frame_for_display = arrf
                             camera_counts_for_count = 0.0
+                            metric_valid = False
                         elif self._subtract_reference is not None:
                             if self._subtract_reference.shape == arrf.shape:
                                 frame_for_display = arrf - self._subtract_reference
                                 background_counts = float(self._subtract_reference_raw_counts)
                                 image_counts = raw_camera_counts
-                                camera_counts_for_count = self._compute_subtracted_counts(
+                                camera_counts_for_count, metric_valid = self._compute_subtracted_counts(
                                     image_counts,
                                     background_counts,
                                     arrf,
@@ -594,8 +624,16 @@ class LiveCameraStreamer:
                         else:
                             frame8 = self._to_display_uint8(arr.astype(np.float32, copy=False))
 
-                    # Atom count uses camera-count subtraction (image minus background) when enabled.
-                    atom_count_value = self._compute_atom_count(camera_counts_for_count, self.pixel_format)
+                    # Atom metrics use camera-count subtraction (image minus background) when enabled.
+                    atom_count_value, total_power_value = self._compute_atom_metrics(camera_counts_for_count, self.pixel_format)
+                    # If marked invalid (reference capture, relock, or immediate post-reset),
+                    # send NaN so the UI displays N/A instead of misleading zeros.
+                    if not locals().get('metric_valid', True) or self._metric_suppression_frames > 0:
+                        atom_count_value = float('nan')
+                        total_power_value = float('nan')
+                    # Decrement suppression counter after preparing metrics for this frame.
+                    if self._metric_suppression_frames > 0:
+                        self._metric_suppression_frames = max(0, self._metric_suppression_frames - 1)
                     frame8 = self._downsample_for_display(frame8)
                     t_proc_end = perf_counter()
 
@@ -604,7 +642,7 @@ class LiveCameraStreamer:
                     fps = frame_counter / elapsed
                     get_ms = (t_get_end - t_get_start) * 1000.0
                     proc_ms = (t_proc_end - t_proc_start) * 1000.0
-                    self._send_frame(stream_sock, frame8, fps, get_ms, proc_ms, atom_count_value)
+                    self._send_frame(stream_sock, frame8, fps, get_ms, proc_ms, atom_count_value, total_power_value)
                 finally:
                     image.Release()
 

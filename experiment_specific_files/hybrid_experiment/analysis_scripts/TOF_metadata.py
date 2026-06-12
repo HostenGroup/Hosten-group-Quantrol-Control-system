@@ -34,8 +34,6 @@ def read_tiff_fallback_safe(path: str) -> np.ndarray:
 
 ATOM_COUNT_FILE = (
     Path(__file__).resolve().parents[1]
-    / "experiment_specific_files"
-    / "hybrid_experiment"
     / "atom_count.py"
 )
 

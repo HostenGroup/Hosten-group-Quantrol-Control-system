@@ -38,5 +38,9 @@
     "9": {
         "name": "dummy_bruh",
         "plot_x_caption": "bruh"
+    },
+    "10": {
+        "name": "cool_scan",
+        "plot_x_caption": "F, MHz"
     }
 }

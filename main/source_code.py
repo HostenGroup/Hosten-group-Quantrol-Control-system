@@ -68,7 +68,7 @@ import change_handlers
 
 class LiveCameraStreamReceiver(QThread):
     """Receive grayscale frames from the acquisition helper process over localhost TCP."""
-    frame_ready = pyqtSignal(object, float, float, float, float)
+    frame_ready = pyqtSignal(object, float, float, float, float, float)
     status_ready = pyqtSignal(str)
     error = pyqtSignal(str)
     stopped = pyqtSignal()
@@ -108,11 +108,11 @@ class LiveCameraStreamReceiver(QThread):
 
     def _recv_one_frame(self):
         """Receive a single framed image packet; return tuple or None when stream ends."""
-        header = self._recv_exact(self._client_socket, 28)
+        header = self._recv_exact(self._client_socket, 32)
         if header is None:
             return None
 
-        width, height, payload_len, fps, get_ms, proc_ms, atom_count = struct.unpack("!IIIffff", header)
+        width, height, payload_len, fps, get_ms, proc_ms, atom_count, total_power = struct.unpack("!IIIfffff", header)
         if width <= 0 or height <= 0 or payload_len <= 0:
             self.error.emit("Received invalid live camera frame header")
             return None
@@ -121,7 +121,7 @@ class LiveCameraStreamReceiver(QThread):
         if payload is None:
             return None
 
-        return width, height, payload, fps, get_ms, proc_ms, atom_count
+        return width, height, payload, fps, get_ms, proc_ms, atom_count, total_power
 
     def run(self):
         try:
@@ -146,7 +146,7 @@ class LiveCameraStreamReceiver(QThread):
                 frame_tuple = self._recv_one_frame()
                 if frame_tuple is None:
                     break
-                width, height, payload, fps, get_ms, proc_ms, atom_count = frame_tuple
+                width, height, payload, fps, get_ms, proc_ms, atom_count, total_power = frame_tuple
 
                 # Drain already-queued TCP frames and keep only the freshest one.
                 while self._running:
@@ -160,7 +160,7 @@ class LiveCameraStreamReceiver(QThread):
                     newer_tuple = self._recv_one_frame()
                     if newer_tuple is None:
                         break
-                    width, height, payload, fps, get_ms, proc_ms, atom_count = newer_tuple
+                    width, height, payload, fps, get_ms, proc_ms, atom_count, total_power = newer_tuple
                     self._dropped_frames += 1
 
                 now = perf_counter()
@@ -171,7 +171,7 @@ class LiveCameraStreamReceiver(QThread):
 
                 image = QImage(payload, int(width), int(height), int(width), QImage.Format_Grayscale8).copy()
                 self._last_emit_ts = now
-                self.frame_ready.emit(image, float(fps), float(get_ms), float(proc_ms), float(atom_count))
+                self.frame_ready.emit(image, float(fps), float(get_ms), float(proc_ms), float(atom_count), float(total_power))
 
         except Exception as exc:
             if self._running:
@@ -204,17 +204,19 @@ class LiveCameraDisplayWindow(QMainWindow):
 
         self.status_label = QLabel("Idle")
         self.atom_count_label = QLabel("Atom count: N/A")
+        self.total_power_label = QLabel("Total power: N/A")
 
         layout = QVBoxLayout()
         layout.addWidget(self.image_label)
         layout.addWidget(self.status_label)
         layout.addWidget(self.atom_count_label)
+        layout.addWidget(self.total_power_label)
 
         root = QWidget()
         root.setLayout(layout)
         self.setCentralWidget(root)
 
-    def update_frame(self, image, fps, get_ms, proc_ms, atom_count):
+    def update_frame(self, image, fps, get_ms, proc_ms, atom_count, total_power):
         self._last_image = image
         self._last_fps = float(fps)
         self._last_get_ms = float(get_ms)
@@ -222,6 +224,7 @@ class LiveCameraDisplayWindow(QMainWindow):
 
         self._render_frame(image, fps, get_ms, proc_ms)
         self._set_atom_count(atom_count)
+        self._set_total_power(total_power)
 
     def _render_frame(self, image, fps, get_ms, proc_ms):
         image_to_draw = image
@@ -275,6 +278,20 @@ class LiveCameraDisplayWindow(QMainWindow):
 
         mantissa = value / 1e6
         self.atom_count_label.setText(f"Atom count: {mantissa:.3f}e+6")
+
+    def _set_total_power(self, total_power):
+        try:
+            value = float(total_power)
+        except Exception:
+            self.total_power_label.setText("Total power: N/A")
+            return
+
+        # NaN fails self-comparison; infinities are filtered explicitly.
+        if value != value or value == float("inf") or value == float("-inf"):
+            self.total_power_label.setText("Total power: N/A")
+            return
+
+        self.total_power_label.setText(f"Total power: {value:.3e} W")
 
     def _build_heatmap_color_table(self):
         """Return a SpinView-like pseudocolor lookup table for 8-bit images."""
@@ -1016,9 +1033,8 @@ class MainWindow(QMainWindow):
 
             if reply == QMessageBox.Yes:
                 camera_box = getattr(self, 'camera_box', None)
-                save_sampled_box = getattr(self, 'save_sampled_box', None)
                 texp_locked = getattr(self, '_texp_locked', None)
-                file_io.prepare_experiment_for_save(self.experiment, camera_box, save_sampled_box, texp_locked)
+                file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked)
                 # If no file path set, ask Save As starting in default sequences directory
                 if not getattr(self.experiment, 'file_name', ''):
                     start_dir = str(file_io.get_default_directory(self.repo_path))
@@ -1282,14 +1298,14 @@ class MainWindow(QMainWindow):
         right top corner, the dialog was accepted by default.
         '''
         try:
-            write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
-            self.message_to_logger("init_hardware.py file generated")
+            write_to_python.create_go_to_edge(self, edge_num=0, init_hardware=False)
+            # self.message_to_logger("init_hardware.py file generated")
             try:
                 self._reset_live_dynamic_subtraction_counter()
                 if config.package_manager == "conda":
-                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'init_hardware.py')])
+                    submit_experiment_thread = threading.Thread(target=os.system, args=["conda activate "+ config.artiq_environment_name +" && artiq_run " + str(self.repo_path / "ARTIQ_scripts" / 'go_to_edge.py')])
                 elif config.package_manager == "clang64":
-                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'init_hardware.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
+                    submit_experiment_thread = threading.Thread(target=lambda: subprocess.Popen(['cmd', '/c', str(self.repo_path / "experiment_specific_files" / "hybrid_experiment" / 'go_to_edge.bat')],creationflags=subprocess.CREATE_NEW_CONSOLE))
                 submit_experiment_thread.start()
                 self.message_to_logger("Experiment was stopped. Hardware is set to the default values")
                 #unhighlighting the previously highlighted edge
@@ -1306,7 +1322,7 @@ class MainWindow(QMainWindow):
             except:
                 self.message_to_logger("Could not stop the experiment.")
         except:
-            self.message_to_logger("Could not generate init_hardware.py file")    
+            self.message_to_logger("Could not generate go_to_edge.py file")    
         self.dialog.accept()    
     
     def saving_default(self):
@@ -1986,7 +2002,7 @@ class MainWindow(QMainWindow):
         stream_port = self._find_free_local_port()
         control_host = "127.0.0.1"
         control_port = self._find_free_local_port()
-        sequence_trigger_count = self._count_sequence_camera_trigger_events()
+        sequence_trigger_count = self._count_sequence_camera_trigger_events(camera_name)
 
         argv = [
             str(camera_python),
@@ -2114,7 +2130,7 @@ class MainWindow(QMainWindow):
         gaussian_sigma = float(getattr(live_data, "gaussian_sigma", 1.0))
         gaussian_kernel = int(getattr(live_data, "gaussian_kernel", 5))
         dynamic_subtraction_enabled = bool(getattr(live_data, "dynamic_subtraction_enabled", False))
-        sequence_trigger_count = self._count_sequence_camera_trigger_events()
+        sequence_trigger_count = self._count_sequence_camera_trigger_events(_camera_name)
         downsample_factor = float(getattr(live_data, "downsample_factor", 2.0))
         fps_limit_enabled = bool(getattr(live_data, "fps_limit_enabled", False))
         target_fps = float(getattr(live_data, "target_fps", 12.0))
@@ -2158,10 +2174,10 @@ class MainWindow(QMainWindow):
         receiver.start()
         self.live_stream_receiver = receiver
 
-    def _handle_live_camera_frame_ready(self, image, fps, get_ms, proc_ms, atom_count):
+    def _handle_live_camera_frame_ready(self, image, fps, get_ms, proc_ms, atom_count, total_power):
         if self.live_camera_window is None:
             return
-        self.live_camera_window.update_frame(image, fps, get_ms, proc_ms, atom_count)
+        self.live_camera_window.update_frame(image, fps, get_ms, proc_ms, atom_count, total_power)
 
     def _handle_live_camera_stream_status(self, text):
         if self.live_camera_window is not None:
@@ -2270,42 +2286,70 @@ class MainWindow(QMainWindow):
             else:
                 self.message_to_logger("Dynamic background subtraction disabled")
 
-    def _count_sequence_camera_trigger_events(self):
-        """Count camera-trigger rising edges (0->1) in the current sequence for configured trigger TTL channels."""
+    def _count_sequence_camera_trigger_events(self, camera_name=None):
+        """Count trigger rising edges (0->1) only for the selected camera trigger channel."""
+        selected_camera = str(camera_name or "").strip()
+        if not selected_camera:
+            try:
+                selected_camera, _fmt, _gain, _exp = self._get_live_camera_parameters()
+            except Exception:
+                selected_camera = ""
+
+        camera_names = list(getattr(config, "camera_serial_numbers_dict", {}).keys())
+        if not selected_camera and camera_names:
+            selected_camera = camera_names[0]
+
+        if selected_camera not in camera_names:
+            self.message_to_logger(
+                f"Live dynamic subtraction: camera '{selected_camera}' has no trigger mapping; using 0 trigger events"
+            )
+            return 0
+
+        camera_index = camera_names.index(selected_camera)
+
         ttl_candidates = getattr(config, "camera_trigger_ttl", [])
         if not isinstance(ttl_candidates, (list, tuple)):
             ttl_candidates = [ttl_candidates]
 
-        trigger_channels = []
-        for value in ttl_candidates:
-            try:
-                index = int(value)
-            except Exception:
-                continue
-            if index < 0:
-                continue
-            trigger_channels.append(index)
+        if camera_index >= len(ttl_candidates):
+            self.message_to_logger(
+                f"Live dynamic subtraction: trigger mapping index {camera_index} missing for camera '{selected_camera}'; using 0 trigger events"
+            )
+            return 0
+
+        try:
+            trigger_channel = int(ttl_candidates[camera_index])
+        except Exception:
+            self.message_to_logger(
+                f"Live dynamic subtraction: invalid trigger mapping for camera '{selected_camera}'; using 0 trigger events"
+            )
+            return 0
+
+        if trigger_channel < 0:
+            self.message_to_logger(
+                f"Live dynamic subtraction: negative trigger mapping for camera '{selected_camera}'; using 0 trigger events"
+            )
+            return 0
 
         sequence = getattr(self.experiment, "sequence", [])
-        if not sequence or not trigger_channels:
+        if not sequence:
             return 0
 
         count = 0
-        previous_states = {channel: 0 for channel in trigger_channels}
+        previous_state = 0
 
         for edge in sequence:
             digital_channels = getattr(edge, "digital", [])
-            for channel in trigger_channels:
-                if channel >= len(digital_channels):
-                    continue
-                try:
-                    raw_value = float(getattr(digital_channels[channel], "value", 0.0))
-                except Exception:
-                    raw_value = 0.0
-                state = 1 if raw_value > 0.5 else 0
-                if previous_states[channel] == 0 and state == 1:
-                    count += 1
-                previous_states[channel] = state
+            if trigger_channel >= len(digital_channels):
+                continue
+            try:
+                raw_value = float(getattr(digital_channels[trigger_channel], "value", 0.0))
+            except Exception:
+                raw_value = 0.0
+            state = 1 if raw_value > 0.5 else 0
+            if previous_state == 0 and state == 1:
+                count += 1
+            previous_state = state
 
         return count
 

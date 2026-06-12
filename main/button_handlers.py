@@ -627,7 +627,7 @@ def handle_init_hardware_button_clicked(self):
     except Exception:
         pass
     try:
-        write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
+        write_to_python.create_go_to_edge(self, edge_num=0, init_hardware=True)
         self.message_to_logger("init_hardware.py file generated")
         try:
             #initialize environment and submit the experiment to the scheduler

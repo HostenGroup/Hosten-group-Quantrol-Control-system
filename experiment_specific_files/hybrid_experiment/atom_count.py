@@ -6,7 +6,22 @@
 
 def atom_count(camera_counts_number, gain, t_exp, pixel_format):
 
+    atom_num, _total_power = _compute_atom_metrics(camera_counts_number, gain, t_exp, pixel_format)
+    return atom_num
+
+
+def total_power(camera_counts_number, gain, t_exp, pixel_format):
+
+    _atom_num, power = _compute_atom_metrics(camera_counts_number, gain, t_exp, pixel_format)
+    return power
+
+
+def _compute_atom_metrics(camera_counts_number, gain, t_exp, pixel_format):
+
     pi = 3.141592653589793
+    hbar = 1.054e-34
+    c = 3e8
+    lambd = 780e-9
 
     format_factors_dict = {
         'Mono8': 256,
@@ -41,5 +56,6 @@ def atom_count(camera_counts_number, gain, t_exp, pixel_format):
     d0 = 130 * 1e-3 #cloud-to-lens distance
     solid_angle = (pi/4) * (D/d0)**2
     atom_num = camera_counts_number * 8*pi* (1 + 4*detuning**2 + s)/(Gamma*s*t_exp*eta*solid_angle) * adu_gain *10**(-gain/20) * format_factor
+    total_power = camera_counts_number * adu_gain * 10**(-gain/20) * format_factor * 2*pi*hbar*c/ (t_exp*eta*lambd)
 
-    return atom_num
+    return atom_num, total_power

@@ -367,9 +367,6 @@ def process_directory(directory: Path) -> None:
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     fig.subplots_adjust(hspace=0.0)
 
-    tof_output_dir = DEFAULT_DATA_ROOT / "TOF"
-    tof_output_dir.mkdir(parents=True, exist_ok=True)
-
     data_timestamp = None
     try:
         # Expected path tail: .../TOF/YYYY_MM_DD/HH_MM_SS/<axis>
@@ -380,7 +377,7 @@ def process_directory(directory: Path) -> None:
     except Exception:
         data_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    output_path = tof_output_dir / f"tof_summary_{data_timestamp}.png"
+    output_path = directory.parents[2] / f"tof_summary_{data_timestamp}.png"
     fig.savefig(output_path, dpi=150)
     print(f"Saved figure: {output_path}")
     
