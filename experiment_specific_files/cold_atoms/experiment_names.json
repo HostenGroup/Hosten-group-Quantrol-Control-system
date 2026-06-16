@@ -5,7 +5,7 @@
     },
     "1": {
         "name": "lifetime",
-        "plot_x_caption": "Storage time, ms"
+        "plot_x_caption": "MOT"
     },
     "2": {
         "name": "MW_spectroscopy",
@@ -61,6 +61,10 @@
     },
     "15": {
         "name": "dds_test",
+        "plot_x_caption": ""
+    },
+    "16": {
+        "name": "QND composite pulse",
         "plot_x_caption": ""
     }
 }

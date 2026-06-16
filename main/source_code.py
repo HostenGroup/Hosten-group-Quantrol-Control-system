@@ -1294,8 +1294,8 @@ class MainWindow(QMainWindow):
         right top corner, the dialog was accepted by default.
         '''
         try:
-            write_to_python.create_go_to_edge(self, edge_num=0, to_default=True)
-            self.message_to_logger("init_hardware.py file generated")
+            write_to_python.create_go_to_edge(self, edge_num=0, to_default=False)
+            self.message_to_logger("went to default edge - check") # "init_hardware.py file generated"
             if self.experiment.stop_at_end_of_sequence == False:
                 try:
                     self._reset_live_dynamic_subtraction_counter()

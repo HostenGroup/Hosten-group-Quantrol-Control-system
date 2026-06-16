@@ -1106,8 +1106,10 @@ def handle_load_default_button_clicked(self):
     # Apply default settings to current experiment
     file_io.apply_default_to_experiment(self.experiment, default_experiment)
     update.from_object(self)
-    self.message_to_logger(f"Default values loaded from {self.experiment.file_name}")
+    default_path = self.repo_path / "default" / "default"
+    self.message_to_logger(f"Default values loaded from {default_path}")
     self.update_on()
+
 
 
 # ============================================================================

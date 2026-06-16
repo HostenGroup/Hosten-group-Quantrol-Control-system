@@ -153,6 +153,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     if run_continuous:
         file.write(indentation + "while True:\n")
         indentation += "    "
+        file.write(indentation + "self.core.break_realtime()\n")
         indentation_flag += 1
         file.write(indentation + "camera_enabled = True   # continuous run\n")
         file.write(indentation + "run_index = 0\n")
@@ -161,6 +162,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         
         file.write(indentation + "for run_index in range(%d):   # run loop including camera warm-up: warmup = %d, actual = %d, total = %d\n" % (total_runs, warmup_runs, actual_runs, total_runs))
         indentation += "    "
+        file.write(indentation + "self.core.break_realtime()\n")
         file.write(indentation + "run_index_no_warumup = run_index - %d # real run index for actual runs, will be negative for warm-up runs\n" % warmup_runs)
         indentation_flag += 1
         run_loop_added = True
@@ -419,13 +421,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     for variable in self.experiment.derived_variables: # print derived variable value and its arguments (feedback)
         args_list = variable.arguments.split(",")
         file.write('\n')
-        # file.write(f'{indentation}delay(20*ms)\n')
+        file.write(f'{indentation}delay(20*ms)\n')
         file.write(f'{indentation}print("{variable.name}:", {variable.name})\n')
         for arg in args_list:
             arg = arg.strip()
             if not arg:
                 continue
-            # file.write(f'{indentation}delay(20*ms)\n')
+            file.write(f'{indentation}delay(20*ms)\n')
             file.write(f'{indentation}print("{arg}:", {arg})\n')
 
     if save_sampled_box_checked_flag == True and not run_continuous:
@@ -435,12 +437,13 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
     if stop_at_end_of_sequence_flag == True:
         file.write('\n')
+        file.write(f'{indentation}delay(400*us)\n')
         file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
         file.write(indentation + "    return\n")
         
-    if save_sampled_box_checked_flag or stop_at_end_of_sequence_flag:
-        file.write('\n')
-        file.write(indentation + 'self.core.break_realtime()\n')
+    # if save_sampled_box_checked_flag or stop_at_end_of_sequence_flag:
+    #     file.write('\n')
+    #     file.write(indentation + 'self.core.break_realtime()\n')
     
     if self.experiment.do_scan == True and self.experiment.scanned_variables_count > 0:
         step_var_names = [f"step{idx+1}" for idx, variable in enumerate(self.experiment.scanned_variables) if getattr(variable, 'name', "") != "None"]
@@ -707,11 +710,12 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
         # If GUI requested stop_at_end_of_sequence, check host flag and trigger go_to_edge from host
         if stop_at_end_of_sequence_flag == True:
             file.write('\n')
+            file.write(f'{indentation}delay(400*us)\n')
             file.write(indentation + 'if self.check_host_stop_and_run():  # if true stops the experiment\n')
             file.write(indentation + "    return\n")
             
-            file.write('\n')
-            file.write(indentation + 'self.core.break_realtime()\n')
+            # file.write('\n')
+            # file.write(indentation + 'self.core.break_realtime()\n')
 
 
 
