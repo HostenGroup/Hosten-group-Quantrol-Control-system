@@ -104,6 +104,132 @@ def _create_header_column_overlay(self, parent: QWidget, table: QTableWidget, co
     overlay.raise_()
     return overlay
 
+
+def _build_live_camera_panel(self, parent: QWidget, slot_index: int, x: int, y: int, width: int, height: int) -> QGroupBox:
+    """Build one live-camera control panel and wire its signals to the slot-aware handlers."""
+    panel = QGroupBox(parent)
+    panel.setTitle(f"Camera {slot_index + 1}")
+    panel.setCheckable(True)
+    panel.setChecked(False)
+    panel.setFont(QFont('Arial', self.scale_font(14)))
+    panel.move(x, y)
+    panel.setFixedSize(width, height)
+    panel.toggled.connect(lambda checked, slot=slot_index: self.handle_live_camera_toggled(checked, slot))
+
+    form = QFormLayout(panel)
+
+    suffix = "" if slot_index == 0 else f"_{slot_index}"
+    setattr(self, f"live_camera_box{suffix}", panel)
+    setattr(self, f"live_camera_checkbox{suffix}", panel)
+
+    camera_combo = QComboBox(panel)
+    camera_combo.addItems(list(config.camera_serial_numbers_dict.keys()))
+    camera_combo.setEditable(True)
+    camera_combo.lineEdit().setReadOnly(True)
+    camera_combo.lineEdit().setPlaceholderText("Select camera...")
+    camera_combo.setCurrentIndex(-1)
+    camera_combo.currentTextChanged.connect(lambda _text, slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_which_cam_combo{suffix}", camera_combo)
+    form.addRow("Which camera", camera_combo)
+
+    gain_edit = QLineEdit(panel)
+    gain_edit.setPlaceholderText("e.g. 20")
+    gain_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_gain_edit{suffix}", gain_edit)
+    form.addRow("Gain, dB", gain_edit)
+
+    exposure_edit = QLineEdit(panel)
+    exposure_edit.setPlaceholderText("e.g. 0.35")
+    exposure_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_exposure_edit{suffix}", exposure_edit)
+    form.addRow("Exposure time, ms", exposure_edit)
+
+    format_combo = QComboBox(panel)
+    format_combo.setEditable(True)
+    format_combo.lineEdit().setReadOnly(True)
+    format_combo.lineEdit().setPlaceholderText("Select image format...")
+    format_combo.addItems(["Mono8", "Mono16"])
+    format_combo.setCurrentIndex(-1)
+    format_combo.currentTextChanged.connect(lambda _text, slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_format_combo{suffix}", format_combo)
+    form.addRow("Image format", format_combo)
+
+    subtract_checkbox = QCheckBox("Enable subtraction", panel)
+    subtract_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    subtract_checkbox.setEnabled(False)
+    subtract_checkbox.toggled.connect(lambda enabled, slot=slot_index: self.handle_live_subtraction_toggled(enabled, slot))
+    setattr(self, f"live_subtract_checkbox{suffix}", subtract_checkbox)
+    form.addRow("", subtract_checkbox)
+
+    dynamic_subtract_checkbox = QCheckBox("Dynamic background subtraction", panel)
+    dynamic_subtract_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    dynamic_subtract_checkbox.setEnabled(False)
+    dynamic_subtract_checkbox.setChecked(False)
+    dynamic_subtract_checkbox.toggled.connect(lambda enabled, slot=slot_index: self.handle_live_dynamic_subtraction_toggled(enabled, slot))
+    setattr(self, f"live_dynamic_subtract_checkbox{suffix}", dynamic_subtract_checkbox)
+    form.addRow("", dynamic_subtract_checkbox)
+
+    hardware_trigger_checkbox = QCheckBox("Use hardware trigger", panel)
+    hardware_trigger_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    hardware_trigger_checkbox.setEnabled(False)
+    hardware_trigger_checkbox.setChecked(False)
+    hardware_trigger_checkbox.toggled.connect(lambda enabled, slot=slot_index: self.handle_live_hardware_trigger_toggled(enabled, slot))
+    setattr(self, f"live_hardware_trigger_checkbox{suffix}", hardware_trigger_checkbox)
+    form.addRow("", hardware_trigger_checkbox)
+
+    gaussian_checkbox = QCheckBox("Enable Gaussian filter", panel)
+    gaussian_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    gaussian_checkbox.setEnabled(False)
+    gaussian_checkbox.setChecked(False)
+    gaussian_checkbox.toggled.connect(lambda enabled, slot=slot_index: self.handle_live_gaussian_toggled(enabled, slot))
+    setattr(self, f"live_gaussian_checkbox{suffix}", gaussian_checkbox)
+    form.addRow("", gaussian_checkbox)
+
+    gaussian_sigma_edit = QLineEdit(panel)
+    gaussian_sigma_edit.setPlaceholderText("e.g. 1.0")
+    gaussian_sigma_edit.setEnabled(False)
+    gaussian_sigma_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_gaussian_sigma_edit{suffix}", gaussian_sigma_edit)
+    form.addRow("Gaussian sigma", gaussian_sigma_edit)
+
+    gaussian_kernel_edit = QLineEdit(panel)
+    gaussian_kernel_edit.setPlaceholderText("odd integer, e.g. 5")
+    gaussian_kernel_edit.setEnabled(False)
+    gaussian_kernel_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_gaussian_kernel_edit{suffix}", gaussian_kernel_edit)
+    form.addRow("Gaussian kernel", gaussian_kernel_edit)
+
+    display_gain_edit = QLineEdit(panel)
+    display_gain_edit.setPlaceholderText("e.g. 0.0")
+    display_gain_edit.setEnabled(False)
+    display_gain_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_display_gain_edit{suffix}", display_gain_edit)
+    form.addRow("Display digital gain, dB", display_gain_edit)
+
+    downsample_factor_edit = QLineEdit(panel)
+    downsample_factor_edit.setPlaceholderText("e.g. 2.0")
+    downsample_factor_edit.setEnabled(False)
+    downsample_factor_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_downsample_factor_edit{suffix}", downsample_factor_edit)
+    form.addRow("Downsample factor", downsample_factor_edit)
+
+    fps_limit_checkbox = QCheckBox("Enable camera FPS limit", panel)
+    fps_limit_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    fps_limit_checkbox.setEnabled(False)
+    fps_limit_checkbox.setChecked(False)
+    fps_limit_checkbox.toggled.connect(lambda enabled, slot=slot_index: self.handle_live_fps_limit_toggled(enabled, slot))
+    setattr(self, f"live_fps_limit_checkbox{suffix}", fps_limit_checkbox)
+    form.addRow("", fps_limit_checkbox)
+
+    target_fps_edit = QLineEdit(panel)
+    target_fps_edit.setPlaceholderText("e.g. 12")
+    target_fps_edit.setEnabled(False)
+    target_fps_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_target_fps_edit{suffix}", target_fps_edit)
+    form.addRow("Target FPS", target_fps_edit)
+
+    return panel
+
 def variables_sidebar_build(self,tab):
     width_of_table_variables = self.variables_table_width
     height_of_table_variables = self.bottom_buttons_y_val - self.top_margin - 10
@@ -1696,161 +1822,109 @@ def acquisition_tab_build(self):
     # self.camera_box.toggled.connect(self.camera_box_checked)
     form = QFormLayout(self.camera_box)
 
-    self.live_camera_box = QGroupBox(self.acquisition_tab_widget)
-    self.live_camera_box.setTitle("Live camera")
-    self.live_camera_box.setCheckable(True)
-    self.live_camera_box.setChecked(False)
-    self.live_camera_box.setFont(QFont('Arial', self.scale_font(14)))
-    self.live_camera_box.move(int(self.SCALE_W*(3*self.button_w + 4*self.sep)), int(self.SCALE_H*self.top_margin))
-    self.live_camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(580)))
-    self.live_camera_box.toggled.connect(self.handle_live_camera_toggled)
-    self.live_camera_checkbox = self.live_camera_box
+    self.live_cameras_box = QGroupBox(self.acquisition_tab_widget)
+    self.live_cameras_box.setTitle("Live cameras")
+    self.live_cameras_box.setFont(QFont('Arial', self.scale_font(14)))
+    self.live_cameras_box.move(int(self.SCALE_W*(3*self.button_w + 4*self.sep)), int(self.SCALE_H*self.top_margin))
+    live_panel_width = int(self.SCALE_W*(2*self.button_w + self.sep))
+    live_panel_height = int(self.SCALE_H*(580))
+    live_group_width = int(self.SCALE_W*(4*self.button_w + 3*self.sep))
+    live_group_height = live_panel_height + int(self.SCALE_H*(90))
+    self.live_cameras_box.setFixedSize(live_group_width, live_group_height)
 
-    live_form = QFormLayout(self.live_camera_box)
+    live_container = QWidget(self.live_cameras_box)
+    live_container.move(int(self.SCALE_W*10), int(self.SCALE_H*28))
+    live_container.setFixedSize(live_group_width - int(self.SCALE_W*20), live_group_height - int(self.SCALE_H*36))
 
-    self.live_which_cam_combo = QComboBox(self.live_camera_box)
-    self.live_which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))
-    self.live_which_cam_combo.setEditable(True)
-    self.live_which_cam_combo.lineEdit().setReadOnly(True)
-    self.live_which_cam_combo.lineEdit().setPlaceholderText("Select camera...")
-    self.live_which_cam_combo.setCurrentIndex(-1)
-    self.live_which_cam_combo.currentTextChanged.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Which camera", self.live_which_cam_combo)
+    self.live_camera_box_1 = _build_live_camera_panel(self, live_container, 0, 0, 0, live_panel_width, live_panel_height)
+    self.live_camera_box = self.live_camera_box_1
+    self.live_camera_box_2 = _build_live_camera_panel(self, live_container, 1, live_panel_width + int(self.SCALE_W*self.sep), 0, live_panel_width, live_panel_height)
 
-    self.live_gain_edit = QLineEdit(self.live_camera_box)
-    self.live_gain_edit.setPlaceholderText("e.g. 20")
-    self.live_gain_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Gain, dB", self.live_gain_edit)
+    buttons_y = live_panel_height + int(self.SCALE_H*18)
+    button_width = int(self.SCALE_W*(self.button_w + 20))
+    button_height = int(self.SCALE_H*34)
+    button_spacing = int(self.SCALE_W*self.sep)
+    buttons_total_width = 2*button_width + button_spacing
+    buttons_x = max(0, (live_container.width() - buttons_total_width) // 2)
 
-    self.live_exposure_edit = QLineEdit(self.live_camera_box)
-    self.live_exposure_edit.setPlaceholderText("e.g. 0.35")
-    self.live_exposure_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Exposure time, ms", self.live_exposure_edit)
+    self.live_reset_button = QPushButton("Reset acquisition", live_container)
+    self.live_reset_button.setFont(QFont('Arial', self.scale_font(12)))
+    self.live_reset_button.setGeometry(buttons_x, buttons_y, button_width, button_height)
+    self.live_reset_button.clicked.connect(lambda _checked=False: self.handle_live_cameras_reset_clicked())
 
-    self.live_format_combo = QComboBox(self.live_camera_box)
-    self.live_format_combo.setEditable(True)
-    self.live_format_combo.lineEdit().setReadOnly(True)
-    self.live_format_combo.lineEdit().setPlaceholderText("Select image format...")
-    self.live_format_combo.addItems(["Mono8", "Mono16"])
-    self.live_format_combo.setCurrentIndex(-1)
-    self.live_format_combo.currentTextChanged.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Image format", self.live_format_combo)
-
-    self.live_subtract_checkbox = QCheckBox("Enable subtraction", self.live_camera_box)
-    self.live_subtract_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_subtract_checkbox.setEnabled(False)
-    self.live_subtract_checkbox.toggled.connect(self.handle_live_subtraction_toggled)
-    live_form.addRow("", self.live_subtract_checkbox)
-
-    self.live_dynamic_subtract_checkbox = QCheckBox("Dynamic background subtraction", self.live_camera_box)
-    self.live_dynamic_subtract_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_dynamic_subtract_checkbox.setEnabled(False)
-    self.live_dynamic_subtract_checkbox.setChecked(False)
-    self.live_dynamic_subtract_checkbox.toggled.connect(self.handle_live_dynamic_subtraction_toggled)
-    live_form.addRow("", self.live_dynamic_subtract_checkbox)
-
-    self.live_hardware_trigger_checkbox = QCheckBox("Use hardware trigger", self.live_camera_box)
-    self.live_hardware_trigger_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_hardware_trigger_checkbox.setEnabled(False)
-    self.live_hardware_trigger_checkbox.setChecked(False)
-    self.live_hardware_trigger_checkbox.toggled.connect(self.handle_live_hardware_trigger_toggled)
-    live_form.addRow("", self.live_hardware_trigger_checkbox)
-
-    self.live_gaussian_checkbox = QCheckBox("Enable Gaussian filter", self.live_camera_box)
-    self.live_gaussian_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_gaussian_checkbox.setEnabled(False)
-    self.live_gaussian_checkbox.setChecked(False)
-    self.live_gaussian_checkbox.toggled.connect(self.handle_live_gaussian_toggled)
-    live_form.addRow("", self.live_gaussian_checkbox)
-
-    self.live_gaussian_sigma_edit = QLineEdit(self.live_camera_box)
-    self.live_gaussian_sigma_edit.setPlaceholderText("e.g. 1.0")
-    self.live_gaussian_sigma_edit.setEnabled(False)
-    self.live_gaussian_sigma_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Gaussian sigma", self.live_gaussian_sigma_edit)
-
-    self.live_gaussian_kernel_edit = QLineEdit(self.live_camera_box)
-    self.live_gaussian_kernel_edit.setPlaceholderText("odd integer, e.g. 5")
-    self.live_gaussian_kernel_edit.setEnabled(False)
-    self.live_gaussian_kernel_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Gaussian kernel", self.live_gaussian_kernel_edit)
-
-    self.live_display_gain_edit = QLineEdit(self.live_camera_box)
-    self.live_display_gain_edit.setPlaceholderText("e.g. 0.0")
-    self.live_display_gain_edit.setEnabled(False)
-    self.live_display_gain_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Display digital gain, dB", self.live_display_gain_edit)
-
-    self.live_downsample_factor_edit = QLineEdit(self.live_camera_box)
-    self.live_downsample_factor_edit.setPlaceholderText("e.g. 2.0")
-    self.live_downsample_factor_edit.setEnabled(False)
-    self.live_downsample_factor_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Downsample factor", self.live_downsample_factor_edit)
-
-    self.live_fps_limit_checkbox = QCheckBox("Enable camera FPS limit", self.live_camera_box)
-    self.live_fps_limit_checkbox.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_fps_limit_checkbox.setEnabled(False)
-    self.live_fps_limit_checkbox.setChecked(False)
-    self.live_fps_limit_checkbox.toggled.connect(self.handle_live_fps_limit_toggled)
-    live_form.addRow("", self.live_fps_limit_checkbox)
-
-    self.live_target_fps_edit = QLineEdit(self.live_camera_box)
-    self.live_target_fps_edit.setPlaceholderText("e.g. 12")
-    self.live_target_fps_edit.setEnabled(False)
-    self.live_target_fps_edit.editingFinished.connect(lambda: self.handle_live_camera_parameter_changed())
-    live_form.addRow("Target FPS", self.live_target_fps_edit)
-
-    self.live_subtract_reset_button = QPushButton("Reset subtraction", self.live_camera_box)
-    self.live_subtract_reset_button.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_subtract_reset_button.setEnabled(False)
-    self.live_subtract_reset_button.clicked.connect(self.handle_live_subtraction_reset_clicked)
-    live_form.addRow("", self.live_subtract_reset_button)
-
-    self.live_start_button = QPushButton("Start acquisition", self.live_camera_box)
+    self.live_start_button = QPushButton("Start acquisition", live_container)
     self.live_start_button.setFont(QFont('Arial', self.scale_font(12)))
-    self.live_start_button.setEnabled(False)
-    self.live_start_button.clicked.connect(self.handle_live_camera_start_clicked)
-    live_form.addRow("", self.live_start_button)
+    self.live_start_button.setGeometry(buttons_x + button_width + button_spacing, buttons_y, button_width, button_height)
+    self.live_start_button.clicked.connect(lambda _checked=False: self.handle_live_cameras_start_clicked())
 
-    live_defaults = getattr(self.experiment.experimental_data, "live_camera", None)
-    if live_defaults is not None:
-        if hasattr(live_defaults, "enabled"):
-            self.live_camera_checkbox.setChecked(bool(live_defaults.enabled))
-        if getattr(live_defaults, "camera_name", ""):
-            live_index = self.live_which_cam_combo.findText(live_defaults.camera_name)
-            if live_index >= 0:
-                self.live_which_cam_combo.setCurrentIndex(live_index)
-        if getattr(live_defaults, "gain_db", None) is not None:
-            self.live_gain_edit.setText(str(live_defaults.gain_db))
-        if getattr(live_defaults, "exposure_time_ms", None) is not None:
-            self.live_exposure_edit.setText(str(live_defaults.exposure_time_ms))
-        if getattr(live_defaults, "format_name", ""):
-            live_index = self.live_format_combo.findText(live_defaults.format_name)
-            if live_index >= 0:
-                self.live_format_combo.setCurrentIndex(live_index)
-        if hasattr(live_defaults, "hardware_trigger"):
-            self.live_hardware_trigger_checkbox.setChecked(bool(live_defaults.hardware_trigger))
-        if hasattr(live_defaults, "subtraction_enabled"):
-            self.live_subtract_checkbox.setChecked(bool(live_defaults.subtraction_enabled))
-        if hasattr(live_defaults, "dynamic_subtraction_enabled"):
-            self.live_dynamic_subtract_checkbox.setChecked(bool(live_defaults.dynamic_subtraction_enabled))
-        if hasattr(live_defaults, "gaussian_enabled"):
-            self.live_gaussian_checkbox.setChecked(bool(live_defaults.gaussian_enabled))
-        if hasattr(live_defaults, "gaussian_sigma") and live_defaults.gaussian_sigma is not None:
-            self.live_gaussian_sigma_edit.setText(str(live_defaults.gaussian_sigma))
-        if hasattr(live_defaults, "gaussian_kernel") and live_defaults.gaussian_kernel is not None:
-            self.live_gaussian_kernel_edit.setText(str(live_defaults.gaussian_kernel))
-        if hasattr(live_defaults, "display_gain") and live_defaults.display_gain is not None:
-            self.live_display_gain_edit.setText(str(live_defaults.display_gain))
-        if hasattr(live_defaults, "downsample_factor") and live_defaults.downsample_factor is not None:
-            self.live_downsample_factor_edit.setText(str(live_defaults.downsample_factor))
-        if hasattr(live_defaults, "fps_limit_enabled"):
-            self.live_fps_limit_checkbox.setChecked(bool(live_defaults.fps_limit_enabled))
-        if hasattr(live_defaults, "target_fps") and live_defaults.target_fps is not None:
-            self.live_target_fps_edit.setText(str(live_defaults.target_fps))
+    self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked(), 0)
+    self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked(), 0)
 
-    self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
-    self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked())
+    live_defaults = getattr(self.experiment.experimental_data, "live_cameras", None)
+    if not isinstance(live_defaults, list) or len(live_defaults) < 2:
+        live_defaults = [getattr(self.experiment.experimental_data, "live_camera", None), None]
+
+    for slot_index in range(2):
+        live_defaults_slot = live_defaults[slot_index] if slot_index < len(live_defaults) else None
+        suffix = "" if slot_index == 0 else f"_{slot_index}"
+        camera_box = getattr(self, f"live_camera_box{suffix}")
+        camera_box.blockSignals(True)
+        camera_box.setChecked(bool(getattr(live_defaults_slot, "enabled", False)))
+
+        camera_combo = getattr(self, f"live_which_cam_combo{suffix}")
+        gain_edit = getattr(self, f"live_gain_edit{suffix}")
+        exposure_edit = getattr(self, f"live_exposure_edit{suffix}")
+        format_combo = getattr(self, f"live_format_combo{suffix}")
+        hardware_trigger_checkbox = getattr(self, f"live_hardware_trigger_checkbox{suffix}")
+        subtract_checkbox = getattr(self, f"live_subtract_checkbox{suffix}")
+        dynamic_subtract_checkbox = getattr(self, f"live_dynamic_subtract_checkbox{suffix}")
+        gaussian_checkbox = getattr(self, f"live_gaussian_checkbox{suffix}")
+        gaussian_sigma_edit = getattr(self, f"live_gaussian_sigma_edit{suffix}")
+        gaussian_kernel_edit = getattr(self, f"live_gaussian_kernel_edit{suffix}")
+        display_gain_edit = getattr(self, f"live_display_gain_edit{suffix}")
+        downsample_factor_edit = getattr(self, f"live_downsample_factor_edit{suffix}")
+        fps_limit_checkbox = getattr(self, f"live_fps_limit_checkbox{suffix}")
+        target_fps_edit = getattr(self, f"live_target_fps_edit{suffix}")
+
+        if getattr(live_defaults_slot, "camera_name", ""):
+            live_index = camera_combo.findText(live_defaults_slot.camera_name)
+            if live_index >= 0:
+                camera_combo.setCurrentIndex(live_index)
+        if getattr(live_defaults_slot, "gain_db", None) is not None:
+            gain_edit.setText(str(live_defaults_slot.gain_db))
+        if getattr(live_defaults_slot, "exposure_time_ms", None) is not None:
+            exposure_edit.setText(str(live_defaults_slot.exposure_time_ms))
+        if getattr(live_defaults_slot, "format_name", ""):
+            live_index = format_combo.findText(live_defaults_slot.format_name)
+            if live_index >= 0:
+                format_combo.setCurrentIndex(live_index)
+        if hasattr(live_defaults_slot, "hardware_trigger"):
+            hardware_trigger_checkbox.setChecked(bool(live_defaults_slot.hardware_trigger))
+        if hasattr(live_defaults_slot, "subtraction_enabled"):
+            subtract_checkbox.setChecked(bool(live_defaults_slot.subtraction_enabled))
+        if hasattr(live_defaults_slot, "dynamic_subtraction_enabled"):
+            dynamic_subtract_checkbox.setChecked(bool(live_defaults_slot.dynamic_subtraction_enabled))
+        if hasattr(live_defaults_slot, "gaussian_enabled"):
+            gaussian_checkbox.setChecked(bool(live_defaults_slot.gaussian_enabled))
+        if hasattr(live_defaults_slot, "gaussian_sigma") and live_defaults_slot.gaussian_sigma is not None:
+            gaussian_sigma_edit.setText(str(live_defaults_slot.gaussian_sigma))
+        if hasattr(live_defaults_slot, "gaussian_kernel") and live_defaults_slot.gaussian_kernel is not None:
+            gaussian_kernel_edit.setText(str(live_defaults_slot.gaussian_kernel))
+        if hasattr(live_defaults_slot, "display_gain") and live_defaults_slot.display_gain is not None:
+            display_gain_edit.setText(str(live_defaults_slot.display_gain))
+        if hasattr(live_defaults_slot, "downsample_factor") and live_defaults_slot.downsample_factor is not None:
+            downsample_factor_edit.setText(str(live_defaults_slot.downsample_factor))
+        if hasattr(live_defaults_slot, "fps_limit_enabled"):
+            fps_limit_checkbox.setChecked(bool(live_defaults_slot.fps_limit_enabled))
+        if hasattr(live_defaults_slot, "target_fps") and live_defaults_slot.target_fps is not None:
+            target_fps_edit.setText(str(live_defaults_slot.target_fps))
+
+        camera_box.blockSignals(False)
+        self.handle_live_camera_toggled(camera_box.isChecked(), slot_index)
+        self.handle_live_gaussian_toggled(gaussian_checkbox.isChecked(), slot_index)
+        self.handle_live_fps_limit_toggled(fps_limit_checkbox.isChecked(), slot_index)
+
+    self._update_live_camera_action_buttons()
 
     self.which_cam_combo = QComboBox(self.camera_box)
     self.which_cam_combo.addItems(list(config.camera_serial_numbers_dict.keys()))

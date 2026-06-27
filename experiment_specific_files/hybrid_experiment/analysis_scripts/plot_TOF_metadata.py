@@ -14,6 +14,85 @@ PATH_LIST_FILENAME = "path_list.txt"
 INCLUDE_CLOUD_Y_PLOT = False
 
 
+def main() -> None:
+    path_list_file = DEFAULT_DATA_ROOT / PATH_LIST_FILENAME
+    target_directories = load_target_directories(path_list_file, take_last_n=1)
+
+    for directory in target_directories:
+        try:
+            directory = Path(directory)
+            metadata_file = find_metadata_file(directory)
+
+            with metadata_file.open("r", encoding="utf-8") as file:
+                metadata = json.load(file)
+
+            scan_info = metadata["scanned_variables"][0]
+            scan_label = metadata.get("experimental_data", {}).get("comment", "Scan value")
+            info_text = build_info_text(scan_info)
+
+            atom_numbers = load_required_table(directory / "atom_numbers.txt", expected_cols=2, table_name="atom_numbers")
+            fit_params = load_required_table(directory / "fit_parameters.txt", expected_cols=7, table_name="fit_parameters")
+            sigma_path = directory / "tof_sigma_vs_scan.txt"
+            sigma_table = np.loadtxt(sigma_path) if sigma_path.exists() else None
+            if sigma_table is not None:
+                sigma_table = np.atleast_2d(sigma_table)
+
+            tof_fit_path = directory / "tof_fit_parameters.txt"
+            tof_fit_table = np.loadtxt(tof_fit_path) if tof_fit_path.exists() else None
+            y_fit_path = directory / "cloud_y_fit_parameters.txt"
+            y_fit_table = np.loadtxt(y_fit_path) if y_fit_path.exists() else None
+
+            analysis_method = "gaussian"
+            analysis_method_path = directory / "tof_analysis_method.txt"
+            if analysis_method_path.exists():
+                analysis_method = analysis_method_path.read_text(encoding="utf-8").strip().lower()
+            if analysis_method not in {"gaussian", "moments"}:
+                analysis_method = "gaussian"
+
+            print(f"Plotting {directory}")
+            print(f"Using metadata file: {metadata_file.name}")
+
+            nrows = 3 if INCLUDE_CLOUD_Y_PLOT else 2
+            fig_height = 14 if INCLUDE_CLOUD_Y_PLOT else 10
+            fig, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(14, fig_height), dpi=100)
+            axes = np.atleast_1d(axes)
+            fig.suptitle(str(directory))
+            maximize_figure_window(fig)
+
+            plot_atom_number(axes[0], directory, scan_label, atom_numbers, info_text)
+            if INCLUDE_CLOUD_Y_PLOT:
+                plot_cloud_position(axes[1], scan_label, fit_params, y_fit_table, info_text)
+                plot_sigma_vs_scan(axes[2], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
+                axes[0].tick_params(labelbottom=False)
+                axes[1].tick_params(labelbottom=False)
+            else:
+                plot_sigma_vs_scan(axes[1], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
+                axes[0].tick_params(labelbottom=False)
+
+            fig.tight_layout(rect=(0, 0, 1, 0.98))
+            fig.subplots_adjust(hspace=0.0)
+
+            try:
+                # Expected path tail: .../TOF/YYYY_MM_DD/HH_MM_SS/<axis>
+                date_str = directory.parent.parent.name
+                time_str = directory.parent.name
+                dt = datetime.strptime(f"{date_str}_{time_str}", "%Y_%m_%d_%H_%M_%S")
+                data_timestamp = dt.strftime("%Y%m%d_%H%M%S")
+            except Exception:
+                data_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            output_path = directory.parents[2] / f"tof_summary_{data_timestamp}.png"
+            fig.savefig(output_path, dpi=150)
+            print(f"Saved figure: {output_path}")
+        except KeyboardInterrupt:
+            print("Stopped by user")
+            break
+        except Exception as exc:
+            print(f"Skipping {directory}: {exc}")
+
+    plt.show()
+
+
 @custom_model
 def expansion_model(t, sigma0=0.001, T=100e-6):
     """Cloud width after time-of-flight expansion."""
@@ -105,22 +184,6 @@ def build_info_text(scan_info: dict) -> str:
             text_lines.append(f"{key} = {value}")
 
     return "\n".join(text_lines)
-
-
-def compute_fit_quality(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[float, float]:
-    """Return (R^2, RMSE) on finite points."""
-    valid = np.isfinite(y_true) & np.isfinite(y_pred)
-    y_t = y_true[valid]
-    y_p = y_pred[valid]
-    if y_t.size < 2:
-        return np.nan, np.nan
-
-    residual = y_t - y_p
-    ss_res = float(np.sum(residual**2))
-    ss_tot = float(np.sum((y_t - np.mean(y_t)) ** 2))
-    r_squared = 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
-    rmse = float(np.sqrt(np.mean(residual**2)))
-    return r_squared, rmse
 
 
 def compute_weighted_fit_quality(
@@ -229,7 +292,16 @@ def plot_sigma_vs_scan(
             else:
                 fit_label = f"Weighted TOF fit (T={temperature * 1e6:.1f} uK)"
         else:
-            r_squared, _rmse_m = compute_fit_quality(sigma, sigma_pred)
+            valid = np.isfinite(sigma) & np.isfinite(sigma_pred)
+            sigma_valid = sigma[valid]
+            sigma_pred_valid = sigma_pred[valid]
+            if sigma_valid.size >= 2:
+                residual = sigma_valid - sigma_pred_valid
+                ss_res = float(np.sum(residual**2))
+                ss_tot = float(np.sum((sigma_valid - np.mean(sigma_valid)) ** 2))
+                r_squared = 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
+            else:
+                r_squared = np.nan
             if np.isfinite(r_squared):
                 fit_label = f"Weighted TOF fit (T={temperature * 1e6:.1f} uK, R^2={r_squared:.4f})"
             else:
@@ -252,7 +324,6 @@ def plot_sigma_vs_scan(
 
 def plot_cloud_position(
     ax,
-    directory: Path,
     scan_label: str,
     fit_params: np.ndarray,
     y_fit_table: np.ndarray | None,
@@ -312,91 +383,6 @@ def plot_cloud_position(
     bbox = {"boxstyle": "round", "fc": "blanchedalmond", "ec": "orange", "alpha": 0.5}
     if info_text:
         ax.text(0.98, 0.05, info_text, bbox=bbox, transform=ax.transAxes, ha="right", va="bottom")
-
-
-def process_directory(directory: Path) -> None:
-    directory = Path(directory)
-    metadata_file = find_metadata_file(directory)
-
-    with metadata_file.open("r", encoding="utf-8") as file:
-        metadata = json.load(file)
-
-    scan_info = metadata["scanned_variables"][0]
-    scan_label = metadata.get("experimental_data", {}).get("comment", "Scan value")
-    info_text = build_info_text(scan_info)
-
-    atom_numbers = load_required_table(directory / "atom_numbers.txt", expected_cols=2, table_name="atom_numbers")
-    fit_params = load_required_table(directory / "fit_parameters.txt", expected_cols=7, table_name="fit_parameters")
-    sigma_path = directory / "tof_sigma_vs_scan.txt"
-    sigma_table = np.loadtxt(sigma_path) if sigma_path.exists() else None
-    if sigma_table is not None:
-        sigma_table = np.atleast_2d(sigma_table)
-
-    tof_fit_path = directory / "tof_fit_parameters.txt"
-    tof_fit_table = np.loadtxt(tof_fit_path) if tof_fit_path.exists() else None
-    y_fit_path = directory / "cloud_y_fit_parameters.txt"
-    y_fit_table = np.loadtxt(y_fit_path) if y_fit_path.exists() else None
-
-    analysis_method = "gaussian"
-    analysis_method_path = directory / "tof_analysis_method.txt"
-    if analysis_method_path.exists():
-        analysis_method = analysis_method_path.read_text(encoding="utf-8").strip().lower()
-    if analysis_method not in {"gaussian", "moments"}:
-        analysis_method = "gaussian"
-
-    print(f"Plotting {directory}")
-    print(f"Using metadata file: {metadata_file.name}")
-
-    nrows = 3 if INCLUDE_CLOUD_Y_PLOT else 2
-    fig_height = 14 if INCLUDE_CLOUD_Y_PLOT else 10
-    fig, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(14, fig_height), dpi=100)
-    axes = np.atleast_1d(axes)
-    fig.suptitle(str(directory))
-    maximize_figure_window(fig)
-
-    plot_atom_number(axes[0], directory, scan_label, atom_numbers, info_text)
-    if INCLUDE_CLOUD_Y_PLOT:
-        plot_cloud_position(axes[1], directory, scan_label, fit_params, y_fit_table, info_text)
-        plot_sigma_vs_scan(axes[2], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
-        axes[0].tick_params(labelbottom=False)
-        axes[1].tick_params(labelbottom=False)
-    else:
-        plot_sigma_vs_scan(axes[1], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
-        axes[0].tick_params(labelbottom=False)
-
-    fig.tight_layout(rect=(0, 0, 1, 0.98))
-    fig.subplots_adjust(hspace=0.0)
-
-    data_timestamp = None
-    try:
-        # Expected path tail: .../TOF/YYYY_MM_DD/HH_MM_SS/<axis>
-        date_str = directory.parent.parent.name
-        time_str = directory.parent.name
-        dt = datetime.strptime(f"{date_str}_{time_str}", "%Y_%m_%d_%H_%M_%S")
-        data_timestamp = dt.strftime("%Y%m%d_%H%M%S")
-    except Exception:
-        data_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    output_path = directory.parents[2] / f"tof_summary_{data_timestamp}.png"
-    fig.savefig(output_path, dpi=150)
-    print(f"Saved figure: {output_path}")
-    
-
-
-def main() -> None:
-    path_list_file = DEFAULT_DATA_ROOT / PATH_LIST_FILENAME
-    target_directories = load_target_directories(path_list_file, take_last_n=1)
-
-    for directory in target_directories:
-        try:
-            process_directory(directory)
-        except KeyboardInterrupt:
-            print("Stopped by user")
-            break
-        except Exception as exc:
-            print(f"Skipping {directory}: {exc}")
-
-    plt.show()
 
 
 if __name__ == "__main__":

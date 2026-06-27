@@ -188,61 +188,89 @@ class LiveCameraDisplayWindow(QMainWindow):
     def __init__(self, title_text, parent=None):
         super().__init__(parent)
         self.setWindowTitle(title_text)
-        self.resize(920, 700)
+        self.resize(1320, 720)
         self._heatmap_enabled = True
         self._heatmap_table = self._build_heatmap_color_table()
-        self._last_draw_time = None
-        self._last_image = None
-        self._last_fps = 0.0
-        self._last_get_ms = 0.0
-        self._last_proc_ms = 0.0
+        self._panes = []
+        self._pane_state = []
 
-        self.image_label = QLabel("Waiting for live camera frames...")
-        self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.image_label.setStyleSheet("background-color: black; color: white;")
+        layout = QHBoxLayout()
+        for slot_index in range(2):
+            pane = QWidget(self)
+            pane_layout = QVBoxLayout(pane)
 
-        self.status_label = QLabel("Idle")
-        self.atom_count_label = QLabel("Atom count: N/A")
-        self.total_power_label = QLabel("Total power: N/A")
+            title_label = QLabel(f"Live view {slot_index + 1}")
+            title_label.setAlignment(Qt.AlignCenter)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.image_label)
-        layout.addWidget(self.status_label)
-        layout.addWidget(self.atom_count_label)
-        layout.addWidget(self.total_power_label)
+            image_label = QLabel("Waiting for live camera frames...")
+            image_label.setAlignment(Qt.AlignCenter)
+            image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            image_label.setStyleSheet("background-color: black; color: white;")
+
+            status_label = QLabel("Idle")
+            atom_count_label = QLabel("Atom count: N/A")
+            total_power_label = QLabel("Total power: N/A")
+
+            pane_layout.addWidget(title_label)
+            pane_layout.addWidget(image_label)
+            pane_layout.addWidget(status_label)
+            pane_layout.addWidget(atom_count_label)
+            pane_layout.addWidget(total_power_label)
+
+            layout.addWidget(pane)
+
+            self._panes.append({
+                "title_label": title_label,
+                "image_label": image_label,
+                "status_label": status_label,
+                "atom_count_label": atom_count_label,
+                "total_power_label": total_power_label,
+            })
+            self._pane_state.append({
+                "last_draw_time": None,
+                "last_image": None,
+                "last_fps": 0.0,
+                "last_get_ms": 0.0,
+                "last_proc_ms": 0.0,
+            })
 
         root = QWidget()
         root.setLayout(layout)
         self.setCentralWidget(root)
 
-    def update_frame(self, image, fps, get_ms, proc_ms, atom_count, total_power):
-        self._last_image = image
-        self._last_fps = float(fps)
-        self._last_get_ms = float(get_ms)
-        self._last_proc_ms = float(proc_ms)
+    def update_frame(self, slot_index, image, fps, get_ms, proc_ms, atom_count, total_power):
+        if slot_index < 0 or slot_index >= len(self._panes):
+            return
 
-        self._render_frame(image, fps, get_ms, proc_ms)
-        self._set_atom_count(atom_count)
-        self._set_total_power(total_power)
+        pane_state = self._pane_state[slot_index]
+        pane_state["last_image"] = image
+        pane_state["last_fps"] = float(fps)
+        pane_state["last_get_ms"] = float(get_ms)
+        pane_state["last_proc_ms"] = float(proc_ms)
 
-    def _render_frame(self, image, fps, get_ms, proc_ms):
+        self._render_frame(slot_index, image, fps, get_ms, proc_ms)
+        self._set_atom_count(slot_index, atom_count)
+        self._set_total_power(slot_index, total_power)
+
+    def _render_frame(self, slot_index, image, fps, get_ms, proc_ms):
+        pane = self._panes[slot_index]
+        pane_state = self._pane_state[slot_index]
         image_to_draw = image
         if self._heatmap_enabled and image.format() in (QImage.Format_Grayscale8, QImage.Format_Indexed8):
             image_to_draw = image.convertToFormat(QImage.Format_Indexed8)
             image_to_draw.setColorTable(self._heatmap_table)
 
         pixmap = QPixmap.fromImage(image_to_draw)
-        self.image_label.setPixmap(
-            pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.FastTransformation)
+        pane["image_label"].setPixmap(
+            pixmap.scaled(pane["image_label"].size(), Qt.KeepAspectRatio, Qt.FastTransformation)
         )
 
         now = perf_counter()
         display_fps = 0.0
-        if self._last_draw_time is not None:
-            dt = max(now - self._last_draw_time, 1e-6)
+        if pane_state["last_draw_time"] is not None:
+            dt = max(now - pane_state["last_draw_time"], 1e-6)
             display_fps = 1.0 / dt
-        self._last_draw_time = now
+        pane_state["last_draw_time"] = now
 
         bottleneck = "acq"
         if proc_ms > get_ms:
@@ -250,7 +278,7 @@ class LiveCameraDisplayWindow(QMainWindow):
         if display_fps > 0 and fps > 0 and display_fps < 0.85 * fps:
             bottleneck = "display"
 
-        self.status_label.setText(
+        pane["status_label"].setText(
             f"Streaming | src FPS: {fps:.1f} | disp FPS: {display_fps:.1f} | "
             f"Get: {get_ms:.1f} ms | Proc: {proc_ms:.1f} ms | Bottleneck: {bottleneck} | "
             f"Size: {image.width()}x{image.height()}"
@@ -258,40 +286,48 @@ class LiveCameraDisplayWindow(QMainWindow):
 
     def resizeEvent(self, event):  # type: ignore[override]
         super().resizeEvent(event)
-        if self._last_image is not None:
-            self._render_frame(self._last_image, self._last_fps, self._last_get_ms, self._last_proc_ms)
+        for slot_index, pane_state in enumerate(self._pane_state):
+            if pane_state["last_image"] is not None:
+                self._render_frame(slot_index, pane_state["last_image"], pane_state["last_fps"], pane_state["last_get_ms"], pane_state["last_proc_ms"])
 
-    def set_status(self, text):
-        self.status_label.setText(text)
+    def set_status(self, slot_index, text):
+        if 0 <= slot_index < len(self._panes):
+            self._panes[slot_index]["status_label"].setText(text)
 
-    def _set_atom_count(self, atom_count):
+    def _set_atom_count(self, slot_index, atom_count):
+        if slot_index < 0 or slot_index >= len(self._panes):
+            return
+        atom_count_label = self._panes[slot_index]["atom_count_label"]
         try:
             value = float(atom_count)
         except Exception:
-            self.atom_count_label.setText("Atom count: N/A")
+            atom_count_label.setText("Atom count: N/A")
             return
 
         # NaN fails self-comparison; infinities are filtered explicitly.
         if value != value or value == float("inf") or value == float("-inf"):
-            self.atom_count_label.setText("Atom count: N/A")
+            atom_count_label.setText("Atom count: N/A")
             return
 
         mantissa = value / 1e6
-        self.atom_count_label.setText(f"Atom count: {mantissa:.3f}e+6")
+        atom_count_label.setText(f"Atom count: {mantissa:.3f}e+6")
 
-    def _set_total_power(self, total_power):
+    def _set_total_power(self, slot_index, total_power):
+        if slot_index < 0 or slot_index >= len(self._panes):
+            return
+        total_power_label = self._panes[slot_index]["total_power_label"]
         try:
             value = float(total_power)
         except Exception:
-            self.total_power_label.setText("Total power: N/A")
+            total_power_label.setText("Total power: N/A")
             return
 
         # NaN fails self-comparison; infinities are filtered explicitly.
         if value != value or value == float("inf") or value == float("-inf"):
-            self.total_power_label.setText("Total power: N/A")
+            total_power_label.setText("Total power: N/A")
             return
 
-        self.total_power_label.setText(f"Total power: {value:.3e} W")
+        total_power_label.setText(f"Total power: {value:.3e} W")
 
     def _build_heatmap_color_table(self):
         """Return a SpinView-like pseudocolor lookup table for 8-bit images."""
@@ -432,6 +468,11 @@ class MainWindow(QMainWindow):
         self._live_internal_close = False
         self.live_control_host = None
         self.live_control_port = None
+        self.live_camera_windows = {}
+        self.live_camera_processes = {}
+        self.live_camera_threads = {}
+        self.live_stream_receivers = {}
+        self.live_control_endpoints = {}
 
 
         self.experiment.variables['id0'] = Variable(name = "id0", value = 0.0, for_python = 0.0)
@@ -439,6 +480,7 @@ class MainWindow(QMainWindow):
         self.experiment.experimental_data = ExperimentalData()
         self.experiment.experimental_data.camera = Camera()
         self.experiment.experimental_data.live_camera = LiveCamera()
+        self.experiment.experimental_data.live_cameras = [LiveCamera(), LiveCamera()]
         self.experiment.sequence = [Edge(name = "Default")]
         
         self.init_default_values() #Reads the default state file and initializes the values
@@ -1726,7 +1768,76 @@ class MainWindow(QMainWindow):
         self.error_message("Experiment is not chosen. Choose an experiment.", "Camera acquisition")
         return False
 
-    def _get_live_camera_parameters(self):
+    def _get_live_camera_state(self, slot_index=0):
+        live_cameras = getattr(getattr(self.experiment, "experimental_data", None), "live_cameras", None)
+        fallback_camera = getattr(getattr(self.experiment, "experimental_data", None), "live_camera", None)
+        if not isinstance(live_cameras, list):
+            return fallback_camera
+        if slot_index < 0 or slot_index >= len(live_cameras):
+            return fallback_camera
+        selected_camera = live_cameras[slot_index]
+        return selected_camera if selected_camera is not None else fallback_camera
+
+    def _validate_live_camera_selection(self, slot_index, camera_name):
+        selected_name = str(camera_name or "").strip()
+        if not selected_name:
+            return True
+
+        live_cameras = getattr(getattr(self.experiment, "experimental_data", None), "live_cameras", [])
+        if not isinstance(live_cameras, list):
+            return True
+
+        for other_index, live_camera in enumerate(live_cameras):
+            if other_index == slot_index or live_camera is None:
+                continue
+            other_name = str(getattr(live_camera, "camera_name", "") or "").strip()
+            if other_name and other_name == selected_name:
+                self.error_message(f"Camera '{selected_name}' is already assigned to live view {other_index + 1}.", "Live camera")
+                return False
+        return True
+
+    def _get_live_camera_widgets(self, slot_index=0):
+        if slot_index == 0:
+            return {
+                "camera_box": getattr(self, "live_camera_checkbox", None),
+                "camera_combo": getattr(self, "live_which_cam_combo", None),
+                "gain_edit": getattr(self, "live_gain_edit", None),
+                "exposure_edit": getattr(self, "live_exposure_edit", None),
+                "format_combo": getattr(self, "live_format_combo", None),
+                "hardware_trigger_checkbox": getattr(self, "live_hardware_trigger_checkbox", None),
+                "subtract_checkbox": getattr(self, "live_subtract_checkbox", None),
+                "dynamic_subtract_checkbox": getattr(self, "live_dynamic_subtract_checkbox", None),
+                "gaussian_checkbox": getattr(self, "live_gaussian_checkbox", None),
+                "gaussian_sigma_edit": getattr(self, "live_gaussian_sigma_edit", None),
+                "gaussian_kernel_edit": getattr(self, "live_gaussian_kernel_edit", None),
+                "display_gain_edit": getattr(self, "live_display_gain_edit", None),
+                "downsample_factor_edit": getattr(self, "live_downsample_factor_edit", None),
+                "fps_limit_checkbox": getattr(self, "live_fps_limit_checkbox", None),
+                "target_fps_edit": getattr(self, "live_target_fps_edit", None),
+                "subtract_reset_button": getattr(self, "live_subtract_reset_button", None),
+                "start_button": getattr(self, "live_start_button", None),
+            }
+        return {
+            "camera_box": getattr(self, f"live_camera_checkbox_{slot_index}", None),
+            "camera_combo": getattr(self, f"live_which_cam_combo_{slot_index}", None),
+            "gain_edit": getattr(self, f"live_gain_edit_{slot_index}", None),
+            "exposure_edit": getattr(self, f"live_exposure_edit_{slot_index}", None),
+            "format_combo": getattr(self, f"live_format_combo_{slot_index}", None),
+            "hardware_trigger_checkbox": getattr(self, f"live_hardware_trigger_checkbox_{slot_index}", None),
+            "subtract_checkbox": getattr(self, f"live_subtract_checkbox_{slot_index}", None),
+            "dynamic_subtract_checkbox": getattr(self, f"live_dynamic_subtract_checkbox_{slot_index}", None),
+            "gaussian_checkbox": getattr(self, f"live_gaussian_checkbox_{slot_index}", None),
+            "gaussian_sigma_edit": getattr(self, f"live_gaussian_sigma_edit_{slot_index}", None),
+            "gaussian_kernel_edit": getattr(self, f"live_gaussian_kernel_edit_{slot_index}", None),
+            "display_gain_edit": getattr(self, f"live_display_gain_edit_{slot_index}", None),
+            "downsample_factor_edit": getattr(self, f"live_downsample_factor_edit_{slot_index}", None),
+            "fps_limit_checkbox": getattr(self, f"live_fps_limit_checkbox_{slot_index}", None),
+            "target_fps_edit": getattr(self, f"live_target_fps_edit_{slot_index}", None),
+            "subtract_reset_button": getattr(self, f"live_subtract_reset_button_{slot_index}", None),
+            "start_button": getattr(self, f"live_start_button_{slot_index}", None),
+        }
+
+    def _get_live_camera_parameters(self, slot_index=0):
         """Validate and return camera settings used by the live-view window."""
         def _coerce_float(text_value, fallback_value):
             text_clean = (str(text_value).strip() if text_value is not None else "")
@@ -1740,10 +1851,11 @@ class MainWindow(QMainWindow):
             except (TypeError, ValueError):
                 return 0.0
 
-        camera_combo = getattr(self, "live_which_cam_combo", getattr(self, "which_cam_combo", None))
-        gain_edit = getattr(self, "live_gain_edit", getattr(self, "gain_edit", None))
-        exposure_edit = getattr(self, "live_exposure_edit", getattr(self, "exposure_edit", None))
-        format_combo = getattr(self, "live_format_combo", getattr(self, "format_combo", None))
+        widgets = self._get_live_camera_widgets(slot_index)
+        camera_combo = widgets["camera_combo"]
+        gain_edit = widgets["gain_edit"]
+        exposure_edit = widgets["exposure_edit"]
+        format_combo = widgets["format_combo"]
 
         if camera_combo is None or gain_edit is None or exposure_edit is None or format_combo is None:
             raise ValueError("Live camera controls are not available in the UI.")
@@ -1759,11 +1871,12 @@ class MainWindow(QMainWindow):
             raise ValueError(f"Camera '{camera_name}' is not configured in config.camera_serial_numbers_dict.")
 
         gain_text = (gain_edit.text() or "").strip()
-        gain_default = getattr(getattr(self.experiment.experimental_data, "live_camera", None), "gain_db", 0.0)
+        live_state = self._get_live_camera_state(slot_index)
+        gain_default = getattr(live_state, "gain_db", 0.0)
         gain_value = _coerce_float(gain_text, gain_default)
 
         exposure_text = (exposure_edit.text() or "").strip()
-        exposure_default = getattr(getattr(self.experiment.experimental_data, "live_camera", None), "exposure_time_ms", 0.0)
+        exposure_default = getattr(live_state, "exposure_time_ms", 0.0)
         exposure_value = _coerce_float(exposure_text, exposure_default)
 
         format_name = (format_combo.currentText() or "").strip()
@@ -1771,6 +1884,7 @@ class MainWindow(QMainWindow):
             format_name = "Mono8"
 
         self._persist_live_camera_settings_from_ui(
+            slot_index=slot_index,
             camera_name=camera_name,
             serial_number=serial_number,
             gain_value=gain_value,
@@ -1782,6 +1896,7 @@ class MainWindow(QMainWindow):
 
     def _persist_live_camera_settings_from_ui(
         self,
+        slot_index=0,
         camera_name=None,
         serial_number=None,
         gain_value=None,
@@ -1797,66 +1912,71 @@ class MainWindow(QMainWindow):
         """Persist live camera UI fields into experiment.experimental_data.live_camera."""
         if not hasattr(self.experiment, "live_camera_enabled"):
             self.experiment.live_camera_enabled = False
-        if hasattr(self, "live_camera_checkbox"):
-            self.experiment.live_camera_enabled = bool(self.live_camera_checkbox.isChecked())
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["camera_box"] is not None:
+            if slot_index == 0:
+                self.experiment.live_camera_enabled = bool(widgets["camera_box"].isChecked())
 
         if not hasattr(self.experiment, "experimental_data") or self.experiment.experimental_data is None:
             self.experiment.experimental_data = ExperimentalData()
-        if not hasattr(self.experiment.experimental_data, "live_camera") or self.experiment.experimental_data.live_camera is None:
-            self.experiment.experimental_data.live_camera = LiveCamera()
+        if not hasattr(self.experiment.experimental_data, "live_cameras") or self.experiment.experimental_data.live_cameras is None:
+            self.experiment.experimental_data.live_cameras = [LiveCamera(), LiveCamera()]
 
-        live_camera_data = self.experiment.experimental_data.live_camera
-        live_camera_data.enabled = bool(getattr(self.experiment, "live_camera_enabled", False))
+        live_cameras = self.experiment.experimental_data.live_cameras
+        while len(live_cameras) < 2:
+            live_cameras.append(LiveCamera())
+        live_camera_data = live_cameras[slot_index if 0 <= slot_index < len(live_cameras) else 0]
+        live_camera_data.enabled = bool(widgets["camera_box"].isChecked()) if widgets["camera_box"] is not None else bool(getattr(self.experiment, "live_camera_enabled", False))
 
-        if camera_name is None and hasattr(self, "live_which_cam_combo"):
-            camera_name = (self.live_which_cam_combo.currentText() or "").strip()
+        if camera_name is None and widgets["camera_combo"] is not None:
+            camera_name = (widgets["camera_combo"].currentText() or "").strip()
         if not camera_name:
             camera_name = getattr(live_camera_data, "camera_name", None)
         if serial_number is None and camera_name:
             serial_number = config.camera_serial_numbers_dict.get(camera_name)
         if serial_number is None:
             serial_number = getattr(live_camera_data, "serial_number", None)
-        if gain_value is None and hasattr(self, "live_gain_edit"):
+        if gain_value is None and widgets["gain_edit"] is not None:
             try:
-                gain_value = float((self.live_gain_edit.text() or "").strip())
+                gain_value = float((widgets["gain_edit"].text() or "").strip())
             except Exception:
                 gain_value = getattr(live_camera_data, "gain_db", None)
-        if exposure_value is None and hasattr(self, "live_exposure_edit"):
+        if exposure_value is None and widgets["exposure_edit"] is not None:
             try:
-                exposure_value = float((self.live_exposure_edit.text() or "").strip())
+                exposure_value = float((widgets["exposure_edit"].text() or "").strip())
             except Exception:
                 exposure_value = getattr(live_camera_data, "exposure_time_ms", None)
-        if format_name is None and hasattr(self, "live_format_combo"):
-            format_name = (self.live_format_combo.currentText() or "").strip()
+        if format_name is None and widgets["format_combo"] is not None:
+            format_name = (widgets["format_combo"].currentText() or "").strip()
         if not format_name:
             format_name = getattr(live_camera_data, "format_name", "")
-        if dynamic_subtraction_enabled is None and hasattr(self, "live_dynamic_subtract_checkbox"):
-            dynamic_subtraction_enabled = bool(self.live_dynamic_subtract_checkbox.isChecked())
+        if dynamic_subtraction_enabled is None and widgets["dynamic_subtract_checkbox"] is not None:
+            dynamic_subtraction_enabled = bool(widgets["dynamic_subtract_checkbox"].isChecked())
         if dynamic_subtraction_enabled is None:
             dynamic_subtraction_enabled = bool(getattr(live_camera_data, "dynamic_subtraction_enabled", False))
-        if gaussian_sigma is None and hasattr(self, "live_gaussian_sigma_edit"):
+        if gaussian_sigma is None and widgets["gaussian_sigma_edit"] is not None:
             try:
-                gaussian_sigma = float((self.live_gaussian_sigma_edit.text() or "").strip())
+                gaussian_sigma = float((widgets["gaussian_sigma_edit"].text() or "").strip())
             except Exception:
                 gaussian_sigma = getattr(live_camera_data, "gaussian_sigma", 1.0)
-        if gaussian_kernel is None and hasattr(self, "live_gaussian_kernel_edit"):
+        if gaussian_kernel is None and widgets["gaussian_kernel_edit"] is not None:
             try:
-                gaussian_kernel = int(float((self.live_gaussian_kernel_edit.text() or "").strip()))
+                gaussian_kernel = int(float((widgets["gaussian_kernel_edit"].text() or "").strip()))
             except Exception:
                 gaussian_kernel = getattr(live_camera_data, "gaussian_kernel", 5)
-        if display_gain is None and hasattr(self, "live_display_gain_edit"):
+        if display_gain is None and widgets["display_gain_edit"] is not None:
             try:
-                display_gain = float((self.live_display_gain_edit.text() or "").strip())
+                display_gain = float((widgets["display_gain_edit"].text() or "").strip())
             except Exception:
                 display_gain = getattr(live_camera_data, "display_gain", 0.0)
-        if downsample_factor is None and hasattr(self, "live_downsample_factor_edit"):
+        if downsample_factor is None and widgets["downsample_factor_edit"] is not None:
             try:
-                downsample_factor = float((self.live_downsample_factor_edit.text() or "").strip())
+                downsample_factor = float((widgets["downsample_factor_edit"].text() or "").strip())
             except Exception:
                 downsample_factor = getattr(live_camera_data, "downsample_factor", 2.0)
-        if target_fps is None and hasattr(self, "live_target_fps_edit"):
+        if target_fps is None and widgets["target_fps_edit"] is not None:
             try:
-                target_fps = float((self.live_target_fps_edit.text() or "").strip())
+                target_fps = float((widgets["target_fps_edit"].text() or "").strip())
             except Exception:
                 target_fps = getattr(live_camera_data, "target_fps", 12.0)
 
@@ -1898,16 +2018,16 @@ class MainWindow(QMainWindow):
         if target_fps <= 0.0:
             target_fps = 1.0
 
-        if hasattr(self, "live_gaussian_sigma_edit"):
-            self.live_gaussian_sigma_edit.setText(str(gaussian_sigma))
-        if hasattr(self, "live_gaussian_kernel_edit"):
-            self.live_gaussian_kernel_edit.setText(str(gaussian_kernel))
-        if hasattr(self, "live_display_gain_edit"):
-            self.live_display_gain_edit.setText(str(display_gain))
-        if hasattr(self, "live_downsample_factor_edit"):
-            self.live_downsample_factor_edit.setText(str(downsample_factor))
-        if hasattr(self, "live_target_fps_edit"):
-            self.live_target_fps_edit.setText(str(target_fps))
+        if widgets["gaussian_sigma_edit"] is not None:
+            widgets["gaussian_sigma_edit"].setText(str(gaussian_sigma))
+        if widgets["gaussian_kernel_edit"] is not None:
+            widgets["gaussian_kernel_edit"].setText(str(gaussian_kernel))
+        if widgets["display_gain_edit"] is not None:
+            widgets["display_gain_edit"].setText(str(display_gain))
+        if widgets["downsample_factor_edit"] is not None:
+            widgets["downsample_factor_edit"].setText(str(downsample_factor))
+        if widgets["target_fps_edit"] is not None:
+            widgets["target_fps_edit"].setText(str(target_fps))
 
         if camera_name is not None:
             live_camera_data.camera_name = camera_name
@@ -1919,39 +2039,40 @@ class MainWindow(QMainWindow):
             live_camera_data.exposure_time_ms = exposure_value
         if format_name:
             live_camera_data.format_name = format_name
-        if hasattr(self, "live_hardware_trigger_checkbox"):
-            live_camera_data.hardware_trigger = bool(self.live_hardware_trigger_checkbox.isChecked())
-        if hasattr(self, "live_subtract_checkbox"):
-            live_camera_data.subtraction_enabled = bool(self.live_subtract_checkbox.isChecked())
+        if widgets["hardware_trigger_checkbox"] is not None:
+            live_camera_data.hardware_trigger = bool(widgets["hardware_trigger_checkbox"].isChecked())
+        if widgets["subtract_checkbox"] is not None:
+            live_camera_data.subtraction_enabled = bool(widgets["subtract_checkbox"].isChecked())
         live_camera_data.dynamic_subtraction_enabled = bool(dynamic_subtraction_enabled)
-        if hasattr(self, "live_gaussian_checkbox"):
-            live_camera_data.gaussian_enabled = bool(self.live_gaussian_checkbox.isChecked())
-        if hasattr(self, "live_fps_limit_checkbox"):
-            live_camera_data.fps_limit_enabled = bool(self.live_fps_limit_checkbox.isChecked())
+        if widgets["gaussian_checkbox"] is not None:
+            live_camera_data.gaussian_enabled = bool(widgets["gaussian_checkbox"].isChecked())
+        if widgets["fps_limit_checkbox"] is not None:
+            live_camera_data.fps_limit_enabled = bool(widgets["fps_limit_checkbox"].isChecked())
         live_camera_data.gaussian_sigma = gaussian_sigma
         live_camera_data.gaussian_kernel = gaussian_kernel
         live_camera_data.display_gain = display_gain
         live_camera_data.downsample_factor = downsample_factor
         live_camera_data.target_fps = target_fps
 
-    def _open_live_camera_window(self):
+    def _open_live_camera_window(self, slot_index=0):
         """Launch live camera acquisition and show frames in Quantrol window."""
-        if self._is_live_camera_running() and self.live_camera_window is not None:
-            self.live_camera_window.show()
-            self.live_camera_window.raise_()
-            self.live_camera_window.activateWindow()
+        window = self.live_camera_window
+        if self._is_live_camera_running(slot_index) and window is not None:
+            window.show()
+            window.raise_()
+            window.activateWindow()
             return
 
-        launch_info = self._prepare_live_camera_launch()
+        launch_info = self._prepare_live_camera_launch(slot_index)
         camera_name = launch_info.get("camera_name", "")
-        self._ensure_live_camera_window(camera_name)
-        self._start_live_stream_receiver(launch_info.get("stream_host"), launch_info.get("stream_port"))
-        self._start_live_camera_subprocess(launch_info)
+        self._ensure_live_camera_window(camera_name, slot_index)
+        self._start_live_stream_receiver(launch_info.get("stream_host"), launch_info.get("stream_port"), slot_index)
+        self._start_live_camera_subprocess(launch_info, slot_index)
         self.message_to_logger("Live camera process launched")
 
-    def _close_live_camera_window(self):
+    def _close_live_camera_window(self, slot_index=0):
         """Stop live acquisition process, stream receiver, and embedded display window."""
-        process = self.live_camera_process
+        process = self.live_camera_processes.get(slot_index, self.live_camera_process if slot_index == 0 else None)
         try:
             if process is not None and process.poll() is None:
                 process.terminate()
@@ -1960,29 +2081,44 @@ class MainWindow(QMainWindow):
                 except Exception:
                     process.kill()
 
-            receiver = self.live_stream_receiver
+            receiver = self.live_stream_receivers.get(slot_index, self.live_stream_receiver if slot_index == 0 else None)
             if receiver is not None:
                 receiver.stop()
                 receiver.wait(1500)
 
-            if self.live_camera_window is not None:
+            window = self.live_camera_window if not self._any_live_camera_running() else None
+            if window is not None:
                 self._live_internal_close = True
-                self.live_camera_window.close()
+                window.close()
         finally:
-            self.live_camera_process = None
-            self.live_stream_receiver = None
-            self.live_camera_thread = None
-            self.live_camera_window = None
+            if slot_index == 0:
+                self.live_camera_process = None
+                self.live_stream_receiver = None
+                self.live_camera_thread = None
+                self.live_camera_window = None
+                self.live_control_host = None
+                self.live_control_port = None
+            self.live_camera_processes.pop(slot_index, None)
+            self.live_stream_receivers.pop(slot_index, None)
+            self.live_camera_threads.pop(slot_index, None)
+            self.live_camera_windows.pop(slot_index, None)
+            self.live_control_endpoints.pop(slot_index, None)
+
+            if self.live_camera_window is not None and self._any_live_camera_running():
+                self.live_camera_windows[0] = self.live_camera_window
+                self.live_camera_windows[1] = self.live_camera_window
+
             self._live_internal_close = False
-            self.live_control_host = None
-            self.live_control_port = None
         self.message_to_logger("Live camera window closed")
 
-    def _is_live_camera_running(self):
-        process = self.live_camera_process
+    def _is_live_camera_running(self, slot_index=0):
+        process = self.live_camera_processes.get(slot_index, self.live_camera_process if slot_index == 0 else None)
         return process is not None and process.poll() is None
 
-    def _prepare_live_camera_launch(self):
+    def _any_live_camera_running(self):
+        return any(self._is_live_camera_running(slot_index) for slot_index in range(2))
+
+    def _prepare_live_camera_launch(self, slot_index=0):
         """Build launch metadata for live camera helper process."""
         camera_python_raw = getattr(config, "camera_env_python", "")
         camera_python_raw = camera_python_raw.strip() if isinstance(camera_python_raw, str) else ""
@@ -1997,12 +2133,15 @@ class MainWindow(QMainWindow):
         if not live_script.exists():
             raise ValueError(f"Live camera script not found at {live_script}")
 
-        camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters()
+        camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters(slot_index)
+        if not self._validate_live_camera_selection(slot_index, camera_name):
+            raise ValueError(f"Camera '{camera_name}' is already in use by another live view.")
         stream_host = "127.0.0.1"
         stream_port = self._find_free_local_port()
         control_host = "127.0.0.1"
         control_port = self._find_free_local_port()
         sequence_trigger_count = self._count_sequence_camera_trigger_events(camera_name)
+        live_state = self._get_live_camera_state(slot_index)
 
         argv = [
             str(camera_python),
@@ -2015,26 +2154,28 @@ class MainWindow(QMainWindow):
             "--stream-port", str(stream_port),
             "--control-host", control_host,
             "--control-port", str(control_port),
-            "--downsample-factor", str(getattr(self.experiment.experimental_data.live_camera, "downsample_factor", 2.0)),
-            "--target-fps", str(getattr(self.experiment.experimental_data.live_camera, "target_fps", 12.0)),
-            "--gaussian-sigma", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_sigma", 1.0)),
-            "--gaussian-kernel", str(getattr(self.experiment.experimental_data.live_camera, "gaussian_kernel", 5)),
-            "--display-gain", str(getattr(self.experiment.experimental_data.live_camera, "display_gain", 0.0)),
+            "--downsample-factor", str(getattr(live_state, "downsample_factor", 2.0)),
+            "--target-fps", str(getattr(live_state, "target_fps", 12.0)),
+            "--gaussian-sigma", str(getattr(live_state, "gaussian_sigma", 1.0)),
+            "--gaussian-kernel", str(getattr(live_state, "gaussian_kernel", 5)),
+            "--display-gain", str(getattr(live_state, "display_gain", 0.0)),
             "--sequence-trigger-count", str(int(sequence_trigger_count)),
         ]
 
-        if hasattr(self, "live_hardware_trigger_checkbox") and self.live_hardware_trigger_checkbox.isChecked():
+        widgets = self._get_live_camera_widgets(slot_index)
+
+        if widgets["hardware_trigger_checkbox"] is not None and widgets["hardware_trigger_checkbox"].isChecked():
             argv.append("--hardware-trigger")
 
-        if hasattr(self, "live_subtract_checkbox") and self.live_subtract_checkbox.isChecked():
+        if widgets["subtract_checkbox"] is not None and widgets["subtract_checkbox"].isChecked():
             argv.append("--subtract-enabled")
-        if bool(getattr(self.experiment.experimental_data.live_camera, "dynamic_subtraction_enabled", False)):
+        if bool(getattr(live_state, "dynamic_subtraction_enabled", False)):
             argv.append("--dynamic-subtraction-enabled")
         else:
             argv.append("--dynamic-subtraction-disabled")
-        if hasattr(self, "live_gaussian_checkbox") and self.live_gaussian_checkbox.isChecked():
+        if widgets["gaussian_checkbox"] is not None and widgets["gaussian_checkbox"].isChecked():
             argv.append("--gaussian-enabled")
-        if hasattr(self, "live_fps_limit_checkbox") and self.live_fps_limit_checkbox.isChecked():
+        if widgets["fps_limit_checkbox"] is not None and widgets["fps_limit_checkbox"].isChecked():
             argv.append("--fps-limit-enabled")
         else:
             argv.append("--fps-limit-disabled")
@@ -2049,13 +2190,13 @@ class MainWindow(QMainWindow):
             "camera_name": camera_name,
         }
 
-    def _start_live_camera_subprocess(self, launch_info):
+    def _start_live_camera_subprocess(self, launch_info, slot_index=0):
         """Spawn live camera helper process in a background thread."""
         if not launch_info:
             return None
 
-        if self._is_live_camera_running():
-            return self.live_camera_thread
+        if self._is_live_camera_running(slot_index):
+            return self.live_camera_threads.get(slot_index, self.live_camera_thread if slot_index == 0 else None)
 
         argv = launch_info.get("argv", [])
         cwd = launch_info.get("cwd")
@@ -2073,19 +2214,26 @@ class MainWindow(QMainWindow):
                 kwargs["stderr"] = subprocess.DEVNULL
                 kwargs["stdin"] = subprocess.DEVNULL
                 process = subprocess.Popen(argv, **kwargs)
-                self.live_camera_process = process
+                self.live_camera_processes[slot_index] = process
+                if slot_index == 0:
+                    self.live_camera_process = process
                 process.wait()
             except Exception as exc:
                 print(f"Failed to start live camera: {exc}")
             finally:
-                if self.live_camera_process is process:
+                if self.live_camera_processes.get(slot_index) is process:
+                    self.live_camera_processes.pop(slot_index, None)
+                if slot_index == 0 and self.live_camera_process is process:
                     self.live_camera_process = None
 
         thread = threading.Thread(target=runner)
         thread.start()
-        self.live_camera_thread = thread
-        self.live_control_host = launch_info.get("control_host")
-        self.live_control_port = launch_info.get("control_port")
+        self.live_camera_threads[slot_index] = thread
+        if slot_index == 0:
+            self.live_camera_thread = thread
+            self.live_control_host = launch_info.get("control_host")
+            self.live_control_port = launch_info.get("control_port")
+        self.live_control_endpoints[slot_index] = (launch_info.get("control_host"), launch_info.get("control_port"))
         return thread
 
     def _find_free_local_port(self):
@@ -2093,11 +2241,10 @@ class MainWindow(QMainWindow):
             sock_.bind(("127.0.0.1", 0))
             return int(sock_.getsockname()[1])
 
-    def _send_live_control_command(self, payload):
-        if not self._is_live_camera_running():
+    def _send_live_control_command(self, payload, slot_index=0):
+        if not self._is_live_camera_running(slot_index):
             return False
-        host = self.live_control_host
-        port = self.live_control_port
+        host, port = self.live_control_endpoints.get(slot_index, (self.live_control_host, self.live_control_port))
         if not host or not port:
             return False
         try:
@@ -2109,23 +2256,23 @@ class MainWindow(QMainWindow):
             self.message_to_logger(f"Live control command failed: {exc}")
             return False
 
-    def _reset_live_dynamic_subtraction_counter(self):
+    def _reset_live_dynamic_subtraction_counter(self, slot_index=0):
         """Reset live helper dynamic subtraction cycle so next trigger is captured as background."""
-        if not self._is_live_camera_running():
+        if not self._is_live_camera_running(slot_index):
             return False
-        return self._send_live_control_command({"cmd": "reset_dynamic_subtraction_counter"})
+        return self._send_live_control_command({"cmd": "reset_dynamic_subtraction_counter"}, slot_index)
 
-    def _apply_live_runtime_parameters(self):
-        if not self._is_live_camera_running():
+    def _apply_live_runtime_parameters(self, slot_index=0):
+        if not self._is_live_camera_running(slot_index):
             return False
-        self._persist_live_camera_settings_from_ui()
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index)
         try:
-            _camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters()
+            _camera_name, format_name, gain_value, exposure_value = self._get_live_camera_parameters(slot_index)
         except Exception as exc:
             self.error_message(str(exc), "Live camera")
             return False
 
-        live_data = getattr(getattr(self.experiment, "experimental_data", None), "live_camera", None)
+        live_data = self._get_live_camera_state(slot_index)
         gaussian_enabled = bool(getattr(live_data, "gaussian_enabled", False))
         gaussian_sigma = float(getattr(live_data, "gaussian_sigma", 1.0))
         gaussian_kernel = int(getattr(live_data, "gaussian_kernel", 5))
@@ -2152,114 +2299,191 @@ class MainWindow(QMainWindow):
             "fps_limit_enabled": fps_limit_enabled,
             "target_fps": target_fps,
         }
-        return self._send_live_control_command(payload)
+        return self._send_live_control_command(payload, slot_index)
 
-    def _ensure_live_camera_window(self, camera_name):
-        if self.live_camera_window is not None:
+    def _ensure_live_camera_window(self, camera_name, slot_index=0):
+        existing_window = self.live_camera_window
+        if existing_window is not None:
+            self.live_camera_windows[slot_index] = existing_window
             return
         title_name = camera_name if camera_name else "unknown"
-        self.live_camera_window = LiveCameraDisplayWindow(f"Live camera view: {title_name}", self)
-        self.live_camera_window.closed.connect(self._handle_live_camera_window_closed)
-        self.live_camera_window.show()
+        window = LiveCameraDisplayWindow(f"Live cameras: {title_name}", self)
+        window.closed.connect(self._handle_live_camera_window_closed)
+        window.show()
+        self.live_camera_window = window
+        self.live_camera_windows[0] = window
+        self.live_camera_windows[1] = window
 
-    def _start_live_stream_receiver(self, host, port):
+    def _start_live_stream_receiver(self, host, port, slot_index=0):
         if not host or not port:
             raise ValueError("Live camera stream host/port are not configured.")
         max_emit_fps = float(getattr(config, "live_display_max_fps", 30.0))
         receiver = LiveCameraStreamReceiver(host, int(port), self, max_emit_fps=max_emit_fps)
-        receiver.frame_ready.connect(self._handle_live_camera_frame_ready)
-        receiver.status_ready.connect(self._handle_live_camera_stream_status)
-        receiver.error.connect(self._handle_live_camera_stream_error)
-        receiver.stopped.connect(self._handle_live_camera_stream_stopped)
+        receiver.frame_ready.connect(lambda image, fps, get_ms, proc_ms, atom_count, total_power: self._handle_live_camera_frame_ready(image, fps, get_ms, proc_ms, atom_count, total_power, slot_index))
+        receiver.status_ready.connect(lambda text: self._handle_live_camera_stream_status(text, slot_index))
+        receiver.error.connect(lambda text: self._handle_live_camera_stream_error(text, slot_index))
+        receiver.stopped.connect(lambda: self._handle_live_camera_stream_stopped(slot_index))
         receiver.start()
-        self.live_stream_receiver = receiver
+        self.live_stream_receivers[slot_index] = receiver
+        if slot_index == 0:
+            self.live_stream_receiver = receiver
 
-    def _handle_live_camera_frame_ready(self, image, fps, get_ms, proc_ms, atom_count, total_power):
-        if self.live_camera_window is None:
+    def _handle_live_camera_frame_ready(self, image, fps, get_ms, proc_ms, atom_count, total_power, slot_index=0):
+        window = self.live_camera_window
+        if window is None:
             return
-        self.live_camera_window.update_frame(image, fps, get_ms, proc_ms, atom_count, total_power)
+        window.update_frame(slot_index, image, fps, get_ms, proc_ms, atom_count, total_power)
 
-    def _handle_live_camera_stream_status(self, text):
-        if self.live_camera_window is not None:
-            self.live_camera_window.set_status(text)
+    def _handle_live_camera_stream_status(self, text, slot_index=0):
+        window = self.live_camera_window
+        if window is not None:
+            window.set_status(slot_index, text)
         self.message_to_logger(text)
 
-    def _handle_live_camera_stream_error(self, text):
-        if self.live_camera_window is not None:
-            self.live_camera_window.set_status(text)
+    def _handle_live_camera_stream_error(self, text, slot_index=0):
+        window = self.live_camera_window
+        if window is not None:
+            window.set_status(slot_index, text)
         self.message_to_logger(text)
 
-    def _handle_live_camera_stream_stopped(self):
+    def _handle_live_camera_stream_stopped(self, slot_index=0):
         pass
 
-    def _handle_live_camera_window_closed(self):
+    def _handle_live_camera_window_closed(self, *args, **kwargs):
         if self._live_internal_close:
             return
-        self._close_live_camera_window()
-        if hasattr(self, "live_camera_checkbox"):
-            self.live_camera_checkbox.blockSignals(True)
-            self.live_camera_checkbox.setChecked(False)
-            self.live_camera_checkbox.blockSignals(False)
+        for slot_index in range(2):
+            self._close_live_camera_window(slot_index)
+            widgets = self._get_live_camera_widgets(slot_index)
+            camera_box = widgets["camera_box"]
+            if camera_box is not None:
+                camera_box.blockSignals(True)
+                camera_box.setChecked(False)
+                camera_box.blockSignals(False)
+        self._update_live_camera_action_buttons()
 
-    def handle_live_camera_toggled(self, checked):
+    def handle_live_camera_toggled(self, checked, slot_index=0):
         """Enable/disable live camera controls; acquisition starts only from the button."""
-        if hasattr(self, "live_subtract_checkbox"):
-            self.live_subtract_checkbox.setEnabled(bool(checked))
-        if hasattr(self, "live_dynamic_subtract_checkbox"):
-            self.live_dynamic_subtract_checkbox.setEnabled(bool(checked))
-        if hasattr(self, "live_hardware_trigger_checkbox"):
-            self.live_hardware_trigger_checkbox.setEnabled(bool(checked))
-        if hasattr(self, "live_gaussian_checkbox"):
-            self.live_gaussian_checkbox.setEnabled(bool(checked))
-        if hasattr(self, "live_gaussian_sigma_edit"):
-            self.live_gaussian_sigma_edit.setEnabled(bool(checked) and bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
-        if hasattr(self, "live_gaussian_kernel_edit"):
-            self.live_gaussian_kernel_edit.setEnabled(bool(checked) and bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
-        if hasattr(self, "live_display_gain_edit"):
-            self.live_display_gain_edit.setEnabled(bool(checked))
-        if hasattr(self, "live_downsample_factor_edit"):
-            self.live_downsample_factor_edit.setEnabled(bool(checked))
-        if hasattr(self, "live_fps_limit_checkbox"):
-            self.live_fps_limit_checkbox.setEnabled(bool(checked))
-        if hasattr(self, "live_target_fps_edit"):
-            self.live_target_fps_edit.setEnabled(bool(checked) and bool(getattr(self, "live_fps_limit_checkbox", None) and self.live_fps_limit_checkbox.isChecked()))
-        if hasattr(self, "live_start_button"):
-            self.live_start_button.setEnabled(bool(checked))
-        if hasattr(self, "live_subtract_reset_button"):
-            can_reset = bool(checked) and bool(getattr(self, "live_subtract_checkbox", None) and self.live_subtract_checkbox.isChecked()) and self._is_live_camera_running()
-            self.live_subtract_reset_button.setEnabled(can_reset)
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["subtract_checkbox"] is not None:
+            widgets["subtract_checkbox"].setEnabled(bool(checked))
+        if widgets["dynamic_subtract_checkbox"] is not None:
+            widgets["dynamic_subtract_checkbox"].setEnabled(bool(checked))
+        if widgets["hardware_trigger_checkbox"] is not None:
+            widgets["hardware_trigger_checkbox"].setEnabled(bool(checked))
+        if widgets["gaussian_checkbox"] is not None:
+            widgets["gaussian_checkbox"].setEnabled(bool(checked))
+        if widgets["gaussian_sigma_edit"] is not None:
+            widgets["gaussian_sigma_edit"].setEnabled(bool(checked) and bool(widgets["gaussian_checkbox"] and widgets["gaussian_checkbox"].isChecked()))
+        if widgets["gaussian_kernel_edit"] is not None:
+            widgets["gaussian_kernel_edit"].setEnabled(bool(checked) and bool(widgets["gaussian_checkbox"] and widgets["gaussian_checkbox"].isChecked()))
+        if widgets["display_gain_edit"] is not None:
+            widgets["display_gain_edit"].setEnabled(bool(checked))
+        if widgets["downsample_factor_edit"] is not None:
+            widgets["downsample_factor_edit"].setEnabled(bool(checked))
+        if widgets["fps_limit_checkbox"] is not None:
+            widgets["fps_limit_checkbox"].setEnabled(bool(checked))
+        if widgets["target_fps_edit"] is not None:
+            widgets["target_fps_edit"].setEnabled(bool(checked) and bool(widgets["fps_limit_checkbox"] and widgets["fps_limit_checkbox"].isChecked()))
+        if widgets["start_button"] is not None:
+            widgets["start_button"].setEnabled(bool(checked))
+        if widgets["subtract_reset_button"] is not None:
+            can_reset = bool(checked) and bool(widgets["subtract_checkbox"] and widgets["subtract_checkbox"].isChecked()) and self._is_live_camera_running(slot_index)
+            widgets["subtract_reset_button"].setEnabled(can_reset)
 
         if not checked:
-            self._close_live_camera_window()
+            self._close_live_camera_window(slot_index)
+        self._update_live_camera_action_buttons()
 
-    def handle_live_camera_start_clicked(self):
+    def handle_live_camera_start_clicked(self, slot_index=0):
         """Start live camera acquisition only when explicitly requested by the user."""
-        if not hasattr(self, "live_camera_checkbox") or not self.live_camera_checkbox.isChecked():
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["camera_box"] is None or not widgets["camera_box"].isChecked():
             self.error_message("Enable Live camera first.", "Live camera")
             return
 
-        if self._is_live_camera_running():
+        if self._is_live_camera_running(slot_index):
             self.message_to_logger("Live camera is already running")
             return
 
         try:
-            self._open_live_camera_window()
+            self._open_live_camera_window(slot_index)
         except Exception as exc:
             self.error_message(str(exc), "Live camera")
-            if hasattr(self, "live_subtract_reset_button"):
-                self.live_subtract_reset_button.setEnabled(False)
+            if widgets["subtract_reset_button"] is not None:
+                widgets["subtract_reset_button"].setEnabled(False)
 
-    def handle_live_subtraction_toggled(self, enabled):
+    def _update_live_camera_action_buttons(self):
+        """Refresh the shared live-camera action buttons based on current slot state."""
+        start_button = getattr(self, "live_start_button", None)
+        reset_button = getattr(self, "live_reset_button", None)
+        any_enabled = False
+        any_running = False
+
+        for slot_index in range(2):
+            widgets = self._get_live_camera_widgets(slot_index)
+            camera_box = widgets["camera_box"]
+            if camera_box is not None and camera_box.isChecked():
+                any_enabled = True
+            if self._is_live_camera_running(slot_index):
+                any_running = True
+
+        if start_button is not None:
+            start_button.setEnabled(any_enabled)
+        if reset_button is not None:
+            reset_button.setEnabled(any_running or any_enabled)
+
+    def handle_live_cameras_start_clicked(self):
+        """Start acquisition for all enabled live camera slots."""
+        started_any = False
+        last_error = None
+
+        for slot_index in range(2):
+            widgets = self._get_live_camera_widgets(slot_index)
+            camera_box = widgets["camera_box"]
+            if camera_box is None or not camera_box.isChecked():
+                continue
+            if self._is_live_camera_running(slot_index):
+                continue
+            try:
+                self._open_live_camera_window(slot_index)
+                started_any = True
+            except Exception as exc:
+                last_error = str(exc)
+
+        self._update_live_camera_action_buttons()
+
+        if last_error is not None and not started_any:
+            self.error_message(last_error, "Live cameras")
+        elif started_any:
+            self.message_to_logger("Live cameras acquisition started")
+
+    def handle_live_cameras_reset_clicked(self):
+        """Stop and reset both live camera slots."""
+        for slot_index in range(2):
+            self._close_live_camera_window(slot_index)
+            widgets = self._get_live_camera_widgets(slot_index)
+            camera_box = widgets["camera_box"]
+            if camera_box is not None:
+                camera_box.blockSignals(True)
+                camera_box.setChecked(False)
+                camera_box.blockSignals(False)
+
+        self._update_live_camera_action_buttons()
+        self.message_to_logger("Live cameras acquisition reset")
+
+    def handle_live_subtraction_toggled(self, enabled, slot_index=0):
         """Enable/disable live subtraction for the external live camera process."""
-        if hasattr(self, "live_dynamic_subtract_checkbox") and self.live_dynamic_subtract_checkbox.isChecked() and not enabled:
-            self.live_dynamic_subtract_checkbox.blockSignals(True)
-            self.live_dynamic_subtract_checkbox.setChecked(False)
-            self.live_dynamic_subtract_checkbox.blockSignals(False)
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["dynamic_subtract_checkbox"] is not None and widgets["dynamic_subtract_checkbox"].isChecked() and not enabled:
+            widgets["dynamic_subtract_checkbox"].blockSignals(True)
+            widgets["dynamic_subtract_checkbox"].setChecked(False)
+            widgets["dynamic_subtract_checkbox"].blockSignals(False)
 
-        if hasattr(self, "live_subtract_reset_button"):
-            self.live_subtract_reset_button.setEnabled(bool(enabled) and self._is_live_camera_running())
+        if widgets["subtract_reset_button"] is not None:
+            widgets["subtract_reset_button"].setEnabled(bool(enabled) and self._is_live_camera_running(slot_index))
 
-        if not self._is_live_camera_running():
+        if not self._is_live_camera_running(slot_index):
             return
 
         self._send_live_control_command(
@@ -2267,20 +2491,22 @@ class MainWindow(QMainWindow):
                 "cmd": "set_subtraction",
                 "enabled": bool(enabled),
                 "capture_reference_next": bool(enabled),
-            }
+            },
+            slot_index,
         )
         if enabled:
             self.message_to_logger("Live subtraction enabled")
         else:
             self.message_to_logger("Live subtraction disabled")
 
-    def handle_live_dynamic_subtraction_toggled(self, enabled):
+    def handle_live_dynamic_subtraction_toggled(self, enabled, slot_index=0):
         """Enable/disable dynamic background subtraction for live subtraction mode."""
-        if enabled and hasattr(self, "live_subtract_checkbox") and not self.live_subtract_checkbox.isChecked():
-            self.live_subtract_checkbox.setChecked(True)
+        widgets = self._get_live_camera_widgets(slot_index)
+        if enabled and widgets["subtract_checkbox"] is not None and not widgets["subtract_checkbox"].isChecked():
+            widgets["subtract_checkbox"].setChecked(True)
 
-        self._persist_live_camera_settings_from_ui(dynamic_subtraction_enabled=bool(enabled))
-        if self._apply_live_runtime_parameters():
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index, dynamic_subtraction_enabled=bool(enabled))
+        if self._apply_live_runtime_parameters(slot_index):
             if enabled:
                 self.message_to_logger("Dynamic background subtraction enabled")
             else:
@@ -2353,57 +2579,60 @@ class MainWindow(QMainWindow):
 
         return count
 
-    def handle_live_subtraction_reset_clicked(self):
+    def handle_live_subtraction_reset_clicked(self, slot_index=0):
         """Reset subtraction by capturing a new reference from the next acquired frame."""
-        if not self._is_live_camera_running():
+        if not self._is_live_camera_running(slot_index):
             self.error_message("Enable Live camera first.", "Live subtraction")
             return
 
-        if hasattr(self, "live_subtract_checkbox") and not self.live_subtract_checkbox.isChecked():
-            self.live_subtract_checkbox.setChecked(True)
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["subtract_checkbox"] is not None and not widgets["subtract_checkbox"].isChecked():
+            widgets["subtract_checkbox"].setChecked(True)
             return
 
-        self._send_live_control_command({"cmd": "reset_subtraction"})
+        self._send_live_control_command({"cmd": "reset_subtraction"}, slot_index)
         self.message_to_logger("Live subtraction reset")
 
-    def handle_live_camera_parameter_changed(self):
+    def handle_live_camera_parameter_changed(self, slot_index=0):
         """Apply live parameters immediately when UI fields change while streaming."""
-        self._persist_live_camera_settings_from_ui()
-        if self._apply_live_runtime_parameters():
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index)
+        if self._apply_live_runtime_parameters(slot_index):
             self.message_to_logger("Live camera parameters updated")
 
-    def handle_live_hardware_trigger_toggled(self, _enabled):
+    def handle_live_hardware_trigger_toggled(self, _enabled, slot_index=0):
         """Apply hardware trigger mode immediately for the running live stream."""
-        self._persist_live_camera_settings_from_ui()
-        if self._apply_live_runtime_parameters():
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index)
+        if self._apply_live_runtime_parameters(slot_index):
             self.message_to_logger("Live hardware trigger mode updated")
 
-    def handle_live_gaussian_toggled(self, _enabled):
+    def handle_live_gaussian_toggled(self, _enabled, slot_index=0):
         """Apply gaussian filter mode immediately for the running live stream."""
-        if hasattr(self, "live_camera_checkbox") and not self.live_camera_checkbox.isChecked():
-            if hasattr(self, "live_gaussian_sigma_edit"):
-                self.live_gaussian_sigma_edit.setEnabled(False)
-            if hasattr(self, "live_gaussian_kernel_edit"):
-                self.live_gaussian_kernel_edit.setEnabled(False)
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["camera_box"] is not None and not widgets["camera_box"].isChecked():
+            if widgets["gaussian_sigma_edit"] is not None:
+                widgets["gaussian_sigma_edit"].setEnabled(False)
+            if widgets["gaussian_kernel_edit"] is not None:
+                widgets["gaussian_kernel_edit"].setEnabled(False)
         else:
-            if hasattr(self, "live_gaussian_sigma_edit"):
-                self.live_gaussian_sigma_edit.setEnabled(bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
-            if hasattr(self, "live_gaussian_kernel_edit"):
-                self.live_gaussian_kernel_edit.setEnabled(bool(getattr(self, "live_gaussian_checkbox", None) and self.live_gaussian_checkbox.isChecked()))
-        self._persist_live_camera_settings_from_ui()
-        if self._apply_live_runtime_parameters():
+            if widgets["gaussian_sigma_edit"] is not None:
+                widgets["gaussian_sigma_edit"].setEnabled(bool(widgets["gaussian_checkbox"] and widgets["gaussian_checkbox"].isChecked()))
+            if widgets["gaussian_kernel_edit"] is not None:
+                widgets["gaussian_kernel_edit"].setEnabled(bool(widgets["gaussian_checkbox"] and widgets["gaussian_checkbox"].isChecked()))
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index)
+        if self._apply_live_runtime_parameters(slot_index):
             self.message_to_logger("Live Gaussian filter mode updated")
 
-    def handle_live_fps_limit_toggled(self, _enabled):
+    def handle_live_fps_limit_toggled(self, _enabled, slot_index=0):
         """Apply camera FPS limit mode and value immediately for the running live stream."""
-        if hasattr(self, "live_camera_checkbox") and not self.live_camera_checkbox.isChecked():
-            if hasattr(self, "live_target_fps_edit"):
-                self.live_target_fps_edit.setEnabled(False)
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["camera_box"] is not None and not widgets["camera_box"].isChecked():
+            if widgets["target_fps_edit"] is not None:
+                widgets["target_fps_edit"].setEnabled(False)
         else:
-            if hasattr(self, "live_target_fps_edit"):
-                self.live_target_fps_edit.setEnabled(bool(getattr(self, "live_fps_limit_checkbox", None) and self.live_fps_limit_checkbox.isChecked()))
-        self._persist_live_camera_settings_from_ui()
-        if self._apply_live_runtime_parameters():
+            if widgets["target_fps_edit"] is not None:
+                widgets["target_fps_edit"].setEnabled(bool(widgets["fps_limit_checkbox"] and widgets["fps_limit_checkbox"].isChecked()))
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index)
+        if self._apply_live_runtime_parameters(slot_index):
             self.message_to_logger("Live FPS limit settings updated")
 
 

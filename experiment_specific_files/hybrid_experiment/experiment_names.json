@@ -42,5 +42,13 @@
     "10": {
         "name": "cool_scan",
         "plot_x_caption": "F, MHz"
+    },
+    "11": {
+        "name": "Field scan",
+        "plot_x_caption": "Field, V"
+    },
+    "12": {
+        "name": "Atom_num_noise",
+        "plot_x_caption": "RF cooling power, %"
     }
 }

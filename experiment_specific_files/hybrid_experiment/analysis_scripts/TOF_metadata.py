@@ -58,7 +58,20 @@ atom_count = load_atom_count_function()
 # All values are in SI units unless otherwise noted.
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
-ANALYSIS_METHOD = "gaussian"  # Supported: "moments", "gaussian"
+FIT_DOWNSAMPLING_FACTOR = 4
+PIXELS_PER_MM_BY_CAMERA = {
+    "X": 330.0,
+    "Y": 330.0,
+    "Z": 152.0,
+}
+
+
+def main() -> None:
+    path_list_file = DEFAULT_DATA_ROOT / PATH_LIST_FILENAME
+    target_directories = load_target_directories(path_list_file, take_last_n=1)
+
+    for directory in target_directories:
+        process_directory(directory)
 
 
 @custom_model
@@ -135,7 +148,14 @@ def parse_settings(metadata: dict) -> dict:
         raise ValueError("metadata['scanned_variables'] is empty")
 
     scan = scanned_variables[0]
+    camera_name = str(camera["camera_name"])
+    pixels_per_mm = PIXELS_PER_MM_BY_CAMERA.get(camera_name)
+    if pixels_per_mm is None:
+        raise ValueError(f"Unsupported camera name for pixel calibration: {camera_name}")
+
     return {
+        "camera_name": camera_name,
+        "pixels_per_mm": float(pixels_per_mm),
         "gain_db": float(camera["gain_db"]),
         "exposure_time_s": float(camera["exposure_time_ms"]) * 1e-3,
         "pixel_format": camera["format_name"],
@@ -174,21 +194,44 @@ def make_background_image_pairs(sorted_tifs: list[Path]) -> list[tuple[Path, Pat
     return [(sorted_tifs[i], sorted_tifs[i + 1]) for i in range(0, len(sorted_tifs), 2)]
 
 
+def downsample_image(image: np.ndarray, factor: int) -> np.ndarray:
+    """Downsample an image by averaging non-overlapping blocks."""
+    if factor < 1:
+        raise ValueError(f"FIT_DOWNSAMPLING_FACTOR must be >= 1, got {factor}")
+
+    if factor == 1:
+        return np.asarray(image, dtype=np.float32)
+
+    image = np.asarray(image, dtype=np.float32)
+    height, width = image.shape
+    trimmed_height = height - (height % factor)
+    trimmed_width = width - (width % factor)
+    if trimmed_height <= 0 or trimmed_width <= 0:
+        raise ValueError(
+            f"Image too small for downsampling factor {factor}: shape={image.shape}"
+        )
+
+    trimmed = image[:trimmed_height, :trimmed_width]
+    return trimmed.reshape(trimmed_height // factor, factor, trimmed_width // factor, factor).mean(axis=(1, 3))
+
+
 def fit_gaussian_2d(
     image_no_background: np.ndarray,
     fit_gaussian: fitting.TRFLSQFitter,
+    pixels_per_mm: float,
     previous_fit: models.Gaussian2D | None = None,
     width_px_ref: int = 2048,
     height_px_ref: int = 1536,
 ) -> tuple[list[float], models.Gaussian2D, float, float]:
     """Fit a 2D Gaussian and return params, sigma uncertainty, y-position uncertainty."""
-    num_y, num_x = image_no_background.shape
+    image_for_fit = downsample_image(image_no_background, FIT_DOWNSAMPLING_FACTOR)
+    num_y, num_x = image_for_fit.shape
     x, y = np.meshgrid(
         np.linspace(0, width_px_ref, num_x),
         np.linspace(0, height_px_ref, num_y),
     )
 
-    max_val = float(np.max(image_no_background))
+    max_val = float(np.max(image_for_fit))
     if previous_fit is None:
         p_init = models.Gaussian2D(
             amplitude=max_val,
@@ -208,95 +251,36 @@ def fit_gaussian_2d(
             theta=float(previous_fit.theta.value),
         )
 
-    p_fit = fit_gaussian(p_init, x, y, image_no_background)
+    p_fit = fit_gaussian(p_init, x, y, image_for_fit)
 
     model_image = p_fit(x, y)
-    residual = image_no_background - model_image
+    residual = image_for_fit - model_image
     residual_rms = float(np.sqrt(np.mean(residual**2)))
     amplitude_abs = max(abs(float(p_fit.amplitude.value)), 1e-9)
     relative_residual = residual_rms / amplitude_abs
 
-    x_stddev_m = abs(float(p_fit.x_stddev.value)) / width_px_ref * 8e-3
-    y_stddev_m = abs(float(p_fit.y_stddev.value)) / height_px_ref * 6e-3
+    width_m = width_px_ref / pixels_per_mm * 1e-3
+    height_m = height_px_ref / pixels_per_mm * 1e-3
+    x_stddev_m = abs(float(p_fit.x_stddev.value)) / width_px_ref * width_m
+    y_stddev_m = abs(float(p_fit.y_stddev.value)) / height_px_ref * height_m
     sigma_m = float(np.sqrt(x_stddev_m * y_stddev_m))
     sigma_err_m = sigma_m * relative_residual
     y_mean_err_m = y_stddev_m * relative_residual
 
     return [
         float(p_fit.amplitude.value),
-        float(p_fit.x_mean.value) / width_px_ref * 8e-3,
-        float(p_fit.y_mean.value) / height_px_ref * 6e-3,
+        float(p_fit.x_mean.value) / width_px_ref * width_m,
+        float(p_fit.y_mean.value) / height_px_ref * height_m,
         x_stddev_m,
         y_stddev_m,
         float(p_fit.theta.value),
     ], p_fit, float(sigma_err_m), float(y_mean_err_m)
 
 
-def moments_2d_parameters(
-    image_no_background: np.ndarray,
-    width_px_ref: int = 2048,
-    height_px_ref: int = 1536,
-) -> tuple[list[float], float, float]:
-    """Estimate cloud parameters from image moments and return sigma/y uncertainties."""
-    # Use only positive signal for moments to avoid subtraction noise dominating weights.
-    weights = np.clip(np.asarray(image_no_background, dtype=np.float64), 0.0, None)
-    if not np.any(weights > 0.0):
-        weights = np.abs(np.asarray(image_no_background, dtype=np.float64))
-
-    total_w = float(np.sum(weights))
-    if total_w <= 0.0:
-        return [0.0, 0.0, 0.0, 1e-9, 1e-9, 0.0], 0.0, 0.0
-
-    num_y, num_x = weights.shape
-    x_pix = np.linspace(0.0, width_px_ref, num_x)
-    y_pix = np.linspace(0.0, height_px_ref, num_y)
-    x_grid_pix, y_grid_pix = np.meshgrid(x_pix, y_pix)
-
-    x_mean_pix = float(np.sum(weights * x_grid_pix) / total_w)
-    y_mean_pix = float(np.sum(weights * y_grid_pix) / total_w)
-
-    dx = x_grid_pix - x_mean_pix
-    dy = y_grid_pix - y_mean_pix
-    var_x_pix2 = float(np.sum(weights * dx * dx) / total_w)
-    var_y_pix2 = float(np.sum(weights * dy * dy) / total_w)
-    cov_xy_pix2 = float(np.sum(weights * dx * dy) / total_w)
-
-    cov = np.array(
-        [[var_x_pix2, cov_xy_pix2], [cov_xy_pix2, var_y_pix2]],
-        dtype=np.float64,
-    )
-    eigvals = np.linalg.eigvalsh(cov)
-    eigvals = np.maximum(eigvals, 1e-12)
-    std_major_pix = float(np.sqrt(eigvals[1]))
-    std_minor_pix = float(np.sqrt(eigvals[0]))
-    theta = 0.5 * float(np.arctan2(2.0 * cov_xy_pix2, var_x_pix2 - var_y_pix2))
-
-    x_mean_m = x_mean_pix / width_px_ref * 8e-3
-    y_mean_m = y_mean_pix / height_px_ref * 6e-3
-    x_stddev_m = std_major_pix / width_px_ref * 8e-3
-    y_stddev_m = std_minor_pix / height_px_ref * 6e-3
-
-    sigma_m = float(np.sqrt(x_stddev_m * y_stddev_m))
-    # Effective sample size based on moment weights for a simple uncertainty proxy.
-    n_eff = float((total_w**2) / max(np.sum(weights**2), 1e-12))
-    sigma_err_m = sigma_m / max(np.sqrt(n_eff), 1.0)
-    y_mean_err_m = y_stddev_m / max(np.sqrt(n_eff), 1.0)
-
-    params = [
-        float(np.max(image_no_background)),
-        x_mean_m,
-        y_mean_m,
-        x_stddev_m,
-        y_stddev_m,
-        theta,
-    ]
-    return params, sigma_err_m, y_mean_err_m
-
-
 def process_images(
     image_pairs: list[tuple[Path, Path]],
     fit_gaussian: fitting.TRFLSQFitter,
-    analysis_method: str = "moments",
+    pixels_per_mm: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Process all background/image pairs and return counts, fit params, sigma/y errors."""
     counts: list[float] = []
@@ -304,9 +288,6 @@ def process_images(
     sigma_errors_m: list[float] = []
     y_mean_errors_m: list[float] = []
     previous_fit: models.Gaussian2D | None = None
-    method = analysis_method.strip().lower()
-    if method not in {"moments", "gaussian"}:
-        raise ValueError(f"Unsupported ANALYSIS_METHOD: {analysis_method}")
 
     for background_path, image_path in tqdm(image_pairs, desc="Processing TOF pairs"):
         image = read_tiff_fallback_safe(str(image_path))
@@ -314,14 +295,12 @@ def process_images(
         image_no_background = image - background
 
         counts.append(float(np.sum(image_no_background)))
-        if method == "gaussian":
-            frame_fit_params, previous_fit, sigma_err_m, y_mean_err_m = fit_gaussian_2d(
-                image_no_background,
-                fit_gaussian,
-                previous_fit=previous_fit,
-            )
-        else:
-            frame_fit_params, sigma_err_m, y_mean_err_m = moments_2d_parameters(image_no_background)
+        frame_fit_params, previous_fit, sigma_err_m, y_mean_err_m = fit_gaussian_2d(
+            image_no_background,
+            fit_gaussian,
+            pixels_per_mm=pixels_per_mm,
+            previous_fit=previous_fit,
+        )
         fit_params.append(frame_fit_params)
         sigma_errors_m.append(sigma_err_m)
         y_mean_errors_m.append(y_mean_err_m)
@@ -408,73 +387,6 @@ def fit_vertical_position(
     return model_fit, w_r2, chi2_red
 
 
-def save_outputs(
-    output_directory: Path,
-    scan_values: np.ndarray,
-    atom_numbers: np.ndarray,
-    fit_params: np.ndarray,
-    y_mean_errors_m: np.ndarray,
-    sigma_values: np.ndarray,
-    sigma_errors_m: np.ndarray,
-    analysis_method: str,
-    tof_model_fit,
-    y_model_fit,
-    y_w_r2: float,
-    y_chi2_red: float,
-) -> None:
-    """Save atom numbers, Gaussian fit parameters, and TOF fit summary."""
-    atom_table = np.column_stack((atom_numbers, scan_values))
-    np.savetxt(
-        output_directory / "atom_numbers.txt",
-        atom_table,
-        header="atom_number scan_value",
-    )
-
-    fit_table = np.column_stack((scan_values, fit_params, y_mean_errors_m))
-    np.savetxt(
-        output_directory / "fit_parameters.txt",
-        fit_table,
-        header="scan amplitude x_mean_m y_mean_m x_stddev_m y_stddev_m theta_rad y_mean_err_m",
-    )
-
-    tof_summary = np.array(
-        [
-            tof_model_fit.sigma0.value,
-            tof_model_fit.T.value,
-        ],
-        dtype=float,
-    )
-    np.savetxt(
-        output_directory / "tof_fit_parameters.txt",
-        tof_summary,
-        header="sigma0_m temperature_K",
-    )
-
-    np.savetxt(
-        output_directory / "tof_sigma_vs_scan.txt",
-        np.column_stack((scan_values, sigma_values, sigma_errors_m)),
-        header="scan sigma_m sigma_err_m",
-    )
-
-    y_fit_summary = np.array(
-        [
-            float(y_model_fit.y0.value),
-            float(y_model_fit.a.value),
-            float(y_w_r2),
-            float(y_chi2_red),
-        ],
-        dtype=float,
-    )
-    np.savetxt(
-        output_directory / "cloud_y_fit_parameters.txt",
-        y_fit_summary,
-        header="y0_m a_m_per_s2 weighted_r2 chi2_red",
-    )
-
-    with (output_directory / "tof_analysis_method.txt").open("w", encoding="utf-8") as file:
-        file.write(f"{analysis_method.strip().lower()}\n")
-
-
 def process_directory(directory: Path) -> None:
     """Run complete TOF analysis for one image directory."""
     directory = Path(directory)
@@ -488,7 +400,7 @@ def process_directory(directory: Path) -> None:
     settings = parse_settings(metadata)
     print(f"Processing {directory}")
     print(f"Using metadata file: {metadata_file.name}")
-    print(f"Analysis method: {ANALYSIS_METHOD}")
+    print(f"Downsampling factor: {FIT_DOWNSAMPLING_FACTOR}")
 
     sorted_tifs = sort_tif_files(directory)
     image_pairs = make_background_image_pairs(sorted_tifs)
@@ -499,7 +411,7 @@ def process_directory(directory: Path) -> None:
     counts, fit_params, sigma_errors_m, y_mean_errors_m = process_images(
         image_pairs,
         fit_gaussian,
-        analysis_method=ANALYSIS_METHOD,
+        pixels_per_mm=settings["pixels_per_mm"],
     )
     scan_values_ms = np.linspace(settings["scan_min_ms"], settings["scan_max_ms"], len(image_pairs))
     scan_values_s = scan_values_ms * 1e-3
@@ -521,33 +433,58 @@ def process_directory(directory: Path) -> None:
         dtype=float,
     )
 
-    save_outputs(
-        output_directory=directory,
-        scan_values=scan_values_ms,
-        atom_numbers=atom_numbers,
-        fit_params=fit_params,
-        y_mean_errors_m=y_mean_errors_m,
-        sigma_values=sigma_values,
-        sigma_errors_m=sigma_errors_m,
-        analysis_method=ANALYSIS_METHOD,
-        tof_model_fit=tof_model_fit,
-        y_model_fit=y_model_fit,
-        y_w_r2=y_w_r2,
-        y_chi2_red=y_chi2_red,
+    atom_table = np.column_stack((atom_numbers, scan_values_ms))
+    np.savetxt(
+        directory / "atom_numbers.txt",
+        atom_table,
+        header="atom_number scan_value",
+    )
+
+    fit_table = np.column_stack((scan_values_ms, fit_params, y_mean_errors_m))
+    np.savetxt(
+        directory / "fit_parameters.txt",
+        fit_table,
+        header="scan amplitude x_mean_m y_mean_m x_stddev_m y_stddev_m theta_rad y_mean_err_m",
+    )
+
+    tof_summary = np.array(
+        [
+            tof_model_fit.sigma0.value,
+            tof_model_fit.T.value,
+        ],
+        dtype=float,
+    )
+    np.savetxt(
+        directory / "tof_fit_parameters.txt",
+        tof_summary,
+        header="sigma0_m temperature_K",
+    )
+
+    np.savetxt(
+        directory / "tof_sigma_vs_scan.txt",
+        np.column_stack((scan_values_ms, sigma_values, sigma_errors_m)),
+        header="scan sigma_m sigma_err_m",
+    )
+
+    y_fit_summary = np.array(
+        [
+            float(y_model_fit.y0.value),
+            float(y_model_fit.a.value),
+            float(y_w_r2),
+            float(y_chi2_red),
+        ],
+        dtype=float,
+    )
+    np.savetxt(
+        directory / "cloud_y_fit_parameters.txt",
+        y_fit_summary,
+        header="y0_m a_m_per_s2 weighted_r2 chi2_red",
     )
 
     print(
         "Saved: atom_numbers.txt, fit_parameters.txt, "
         "tof_fit_parameters.txt, tof_sigma_vs_scan.txt, cloud_y_fit_parameters.txt"
     )
-
-
-def main() -> None:
-    path_list_file = DEFAULT_DATA_ROOT / PATH_LIST_FILENAME
-    target_directories = load_target_directories(path_list_file, take_last_n=1)
-
-    for directory in target_directories:
-        process_directory(directory)
 
 
 if __name__ == "__main__":

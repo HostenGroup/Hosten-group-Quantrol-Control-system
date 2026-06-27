@@ -297,13 +297,67 @@ class ExperimentalData:
         comment         :   An object that is used to describe the comment on the experiment
         experiment_id   :   An object that is used to describe the unique id of the experiment
     '''
-    def __init__(self, path=None, experiment_name=None, comment=None, experiment_id=None, camera=None, live_camera=None):
+    def __init__(self, path=None, experiment_name=None, comment=None, experiment_id=None, camera=None, live_camera=None, live_cameras=None):
         self.path = path
         self.experiment_name = experiment_name
         self.comment = comment
         self.experiment_id = experiment_id
         self.camera = camera
-        self.live_camera = live_camera
+        if live_cameras is not None:
+            self.live_cameras = live_cameras
+        else:
+            primary_live_camera = live_camera if live_camera is not None else LiveCamera()
+            self.live_cameras = [primary_live_camera, LiveCamera()]
+
+    def _normalize_live_camera_slots(self):
+        live_cameras = self.__dict__.get("_live_cameras", None)
+        if not isinstance(live_cameras, list):
+            legacy_live_camera = self.__dict__.get("live_camera", None)
+            primary_live_camera = legacy_live_camera if legacy_live_camera is not None else LiveCamera()
+            live_cameras = [primary_live_camera, LiveCamera()]
+            self.__dict__["_live_cameras"] = live_cameras
+            return live_cameras
+
+        if len(live_cameras) == 0:
+            live_cameras.append(LiveCamera())
+        if len(live_cameras) == 1:
+            live_cameras.append(LiveCamera())
+        elif len(live_cameras) > 2:
+            del live_cameras[2:]
+        return live_cameras
+
+    @property
+    def live_cameras(self):
+        return self._normalize_live_camera_slots()
+
+    @live_cameras.setter
+    def live_cameras(self, value):
+        if value is None:
+            self.__dict__["_live_cameras"] = [LiveCamera(), LiveCamera()]
+            return
+
+        try:
+            live_cameras = list(value)
+        except TypeError:
+            live_cameras = [value]
+
+        if len(live_cameras) == 0:
+            live_cameras = [LiveCamera(), LiveCamera()]
+        elif len(live_cameras) == 1:
+            live_cameras.append(LiveCamera())
+        elif len(live_cameras) > 2:
+            live_cameras = live_cameras[:2]
+
+        self.__dict__["_live_cameras"] = live_cameras
+
+    @property
+    def live_camera(self):
+        return self.live_cameras[0]
+
+    @live_camera.setter
+    def live_camera(self, value):
+        live_cameras = self._normalize_live_camera_slots()
+        live_cameras[0] = value if value is not None else LiveCamera()
 
 
 

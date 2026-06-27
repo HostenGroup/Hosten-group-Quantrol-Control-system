@@ -26,10 +26,11 @@ package_manager = "clang64" #it can be either conda or clang64
 artiq_environment_name = "artiq" # it can be either artiq or artiq_5 for Hosten lab systems
 analog_card = "fastino" # it can be either fastino or zotino for Hosten lab systems
 research_group_name = "Hosten"
-camera_trigger_ttl = [0,1]
+camera_trigger_ttl = [0,1,4]
 camera_serial_numbers_dict = {
     'X':'22433340',
-    'Y':'22433344'
+    'Y':'22433344',
+    'Z':'22114656'
 }
 experiment_data_root = r"G:\Experimental Data\Hybrid\MOT_images"
 

@@ -43,6 +43,10 @@ def _sync_runtime_ui_state(self):
     save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
     
     file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box)
+    if hasattr(self, "_persist_live_camera_settings_from_ui"):
+        self._persist_live_camera_settings_from_ui(slot_index=0)
+        if hasattr(self, "live_camera_box_2"):
+            self._persist_live_camera_settings_from_ui(slot_index=1)
 
 
 def _prepare_sampled_run_paths(self):
@@ -91,7 +95,9 @@ def handle_save_sequence_button_clicked(self):
     '''
     # Prepare experiment for saving (capture UI state)
     if hasattr(self, "_persist_live_camera_settings_from_ui"):
-        self._persist_live_camera_settings_from_ui()
+        self._persist_live_camera_settings_from_ui(slot_index=0)
+        if hasattr(self, "live_camera_box_2"):
+            self._persist_live_camera_settings_from_ui(slot_index=1)
         
     camera_box = self.camera_box if hasattr(self, "camera_box") else None
 
@@ -213,83 +219,77 @@ def handle_load_sequence_button_clicked(self):
                         if index >= 0:
                             self.format_combo.setCurrentIndex(index)
 
-            if hasattr(self, "live_camera_checkbox"):
-                live_enabled = getattr(self.experiment, "live_camera_enabled", False)
-                if hasattr(self.experiment.experimental_data, 'live_camera') and hasattr(self.experiment.experimental_data.live_camera, 'enabled'):
-                    live_enabled = bool(getattr(self.experiment.experimental_data.live_camera, 'enabled'))
+            live_cameras = getattr(self.experiment.experimental_data, 'live_cameras', [getattr(self.experiment.experimental_data, 'live_camera', None), None])
+            for slot_index in range(2):
+                suffix = "" if slot_index == 0 else f"_{slot_index}"
+                camera_box = getattr(self, f"live_camera_box{suffix}", None)
+                camera_combo = getattr(self, f"live_which_cam_combo{suffix}", None)
+                gain_edit = getattr(self, f"live_gain_edit{suffix}", None)
+                exposure_edit = getattr(self, f"live_exposure_edit{suffix}", None)
+                format_combo = getattr(self, f"live_format_combo{suffix}", None)
+                hardware_trigger_checkbox = getattr(self, f"live_hardware_trigger_checkbox{suffix}", None)
+                subtract_checkbox = getattr(self, f"live_subtract_checkbox{suffix}", None)
+                dynamic_subtract_checkbox = getattr(self, f"live_dynamic_subtract_checkbox{suffix}", None)
+                gaussian_checkbox = getattr(self, f"live_gaussian_checkbox{suffix}", None)
+                gaussian_sigma_edit = getattr(self, f"live_gaussian_sigma_edit{suffix}", None)
+                gaussian_kernel_edit = getattr(self, f"live_gaussian_kernel_edit{suffix}", None)
+                display_gain_edit = getattr(self, f"live_display_gain_edit{suffix}", None)
+                downsample_factor_edit = getattr(self, f"live_downsample_factor_edit{suffix}", None)
+                fps_limit_checkbox = getattr(self, f"live_fps_limit_checkbox{suffix}", None)
+                target_fps_edit = getattr(self, f"live_target_fps_edit{suffix}", None)
 
-                live_widgets = [
-                    getattr(self, "live_camera_checkbox", None),
-                    getattr(self, "live_which_cam_combo", None),
-                    getattr(self, "live_gain_edit", None),
-                    getattr(self, "live_exposure_edit", None),
-                    getattr(self, "live_format_combo", None),
-                    getattr(self, "live_hardware_trigger_checkbox", None),
-                    getattr(self, "live_subtract_checkbox", None),
-                    getattr(self, "live_dynamic_subtract_checkbox", None),
-                    getattr(self, "live_gaussian_checkbox", None),
-                    getattr(self, "live_gaussian_sigma_edit", None),
-                    getattr(self, "live_gaussian_kernel_edit", None),
-                    getattr(self, "live_display_gain_edit", None),
-                    getattr(self, "live_downsample_factor_edit", None),
-                    getattr(self, "live_fps_limit_checkbox", None),
-                    getattr(self, "live_target_fps_edit", None),
-                ]
+                live_widgets = [camera_box, camera_combo, gain_edit, exposure_edit, format_combo, hardware_trigger_checkbox, subtract_checkbox, dynamic_subtract_checkbox, gaussian_checkbox, gaussian_sigma_edit, gaussian_kernel_edit, display_gain_edit, downsample_factor_edit, fps_limit_checkbox, target_fps_edit]
                 live_widgets = [w for w in live_widgets if w is not None]
                 for widget in live_widgets:
                     widget.blockSignals(True)
 
-                self.live_camera_checkbox.setChecked(bool(live_enabled))
-                if hasattr(self.experiment.experimental_data, 'live_camera'):
-                    lcam = self.experiment.experimental_data.live_camera
-                    if hasattr(lcam, 'camera_name') and lcam.camera_name:
-                        index = self.live_which_cam_combo.findText(lcam.camera_name)
-                        if index >= 0:
-                            self.live_which_cam_combo.setCurrentIndex(index)
-                    if hasattr(lcam, 'gain_db') and lcam.gain_db is not None:
-                        self.live_gain_edit.setText(str(lcam.gain_db))
-                    if hasattr(lcam, 'exposure_time_ms') and lcam.exposure_time_ms is not None:
-                        self.live_exposure_edit.setText(str(lcam.exposure_time_ms))
-                    if hasattr(lcam, 'format_name') and lcam.format_name:
-                        index = self.live_format_combo.findText(lcam.format_name)
-                        if index >= 0:
-                            self.live_format_combo.setCurrentIndex(index)
-                    if hasattr(self, "live_hardware_trigger_checkbox") and hasattr(lcam, "hardware_trigger"):
-                        self.live_hardware_trigger_checkbox.setChecked(bool(lcam.hardware_trigger))
-                    if hasattr(self, "live_subtract_checkbox") and hasattr(lcam, "subtraction_enabled"):
-                        self.live_subtract_checkbox.setChecked(bool(lcam.subtraction_enabled))
-                    if hasattr(self, "live_dynamic_subtract_checkbox") and hasattr(lcam, "dynamic_subtraction_enabled"):
-                        self.live_dynamic_subtract_checkbox.setChecked(bool(lcam.dynamic_subtraction_enabled))
-                    if hasattr(self, "live_gaussian_checkbox") and hasattr(lcam, "gaussian_enabled"):
-                        self.live_gaussian_checkbox.setChecked(bool(lcam.gaussian_enabled))
-                    if hasattr(self, "live_gaussian_sigma_edit") and hasattr(lcam, "gaussian_sigma") and lcam.gaussian_sigma is not None:
-                        self.live_gaussian_sigma_edit.setText(str(lcam.gaussian_sigma))
-                    if hasattr(self, "live_gaussian_kernel_edit") and hasattr(lcam, "gaussian_kernel") and lcam.gaussian_kernel is not None:
-                        self.live_gaussian_kernel_edit.setText(str(lcam.gaussian_kernel))
-                    if hasattr(self, "live_display_gain_edit") and hasattr(lcam, "display_gain") and lcam.display_gain is not None:
-                        self.live_display_gain_edit.setText(str(lcam.display_gain))
-                    if hasattr(self, "live_downsample_factor_edit") and hasattr(lcam, "downsample_factor") and lcam.downsample_factor is not None:
-                        self.live_downsample_factor_edit.setText(str(lcam.downsample_factor))
-                    if hasattr(self, "live_fps_limit_checkbox") and hasattr(lcam, "fps_limit_enabled"):
-                        self.live_fps_limit_checkbox.setChecked(bool(lcam.fps_limit_enabled))
-                    if hasattr(self, "live_target_fps_edit") and hasattr(lcam, "target_fps") and lcam.target_fps is not None:
-                        self.live_target_fps_edit.setText(str(lcam.target_fps))
+                lcam = live_cameras[slot_index] if isinstance(live_cameras, list) and slot_index < len(live_cameras) else None
+                if camera_box is not None:
+                    camera_box.setChecked(bool(getattr(lcam, 'enabled', False)))
+                if hasattr(lcam, 'camera_name') and lcam.camera_name:
+                    index = camera_combo.findText(lcam.camera_name)
+                    if index >= 0:
+                        camera_combo.setCurrentIndex(index)
+                if hasattr(lcam, 'gain_db') and lcam.gain_db is not None:
+                    gain_edit.setText(str(lcam.gain_db))
+                if hasattr(lcam, 'exposure_time_ms') and lcam.exposure_time_ms is not None:
+                    exposure_edit.setText(str(lcam.exposure_time_ms))
+                if hasattr(lcam, 'format_name') and lcam.format_name:
+                    index = format_combo.findText(lcam.format_name)
+                    if index >= 0:
+                        format_combo.setCurrentIndex(index)
+                if hardware_trigger_checkbox is not None and hasattr(lcam, 'hardware_trigger'):
+                    hardware_trigger_checkbox.setChecked(bool(lcam.hardware_trigger))
+                if subtract_checkbox is not None and hasattr(lcam, 'subtraction_enabled'):
+                    subtract_checkbox.setChecked(bool(lcam.subtraction_enabled))
+                if dynamic_subtract_checkbox is not None and hasattr(lcam, 'dynamic_subtraction_enabled'):
+                    dynamic_subtract_checkbox.setChecked(bool(lcam.dynamic_subtraction_enabled))
+                if gaussian_checkbox is not None and hasattr(lcam, 'gaussian_enabled'):
+                    gaussian_checkbox.setChecked(bool(lcam.gaussian_enabled))
+                if gaussian_sigma_edit is not None and hasattr(lcam, 'gaussian_sigma') and lcam.gaussian_sigma is not None:
+                    gaussian_sigma_edit.setText(str(lcam.gaussian_sigma))
+                if gaussian_kernel_edit is not None and hasattr(lcam, 'gaussian_kernel') and lcam.gaussian_kernel is not None:
+                    gaussian_kernel_edit.setText(str(lcam.gaussian_kernel))
+                if display_gain_edit is not None and hasattr(lcam, 'display_gain') and lcam.display_gain is not None:
+                    display_gain_edit.setText(str(lcam.display_gain))
+                if downsample_factor_edit is not None and hasattr(lcam, 'downsample_factor') and lcam.downsample_factor is not None:
+                    downsample_factor_edit.setText(str(lcam.downsample_factor))
+                if fps_limit_checkbox is not None and hasattr(lcam, 'fps_limit_enabled'):
+                    fps_limit_checkbox.setChecked(bool(lcam.fps_limit_enabled))
+                if target_fps_edit is not None and hasattr(lcam, 'target_fps') and lcam.target_fps is not None:
+                    target_fps_edit.setText(str(lcam.target_fps))
 
                 for widget in live_widgets:
                     widget.blockSignals(False)
 
-                self.experiment.live_camera_enabled = bool(self.live_camera_checkbox.isChecked())
-                if hasattr(self.experiment.experimental_data, 'live_camera'):
-                    self.experiment.experimental_data.live_camera.enabled = bool(self.live_camera_checkbox.isChecked())
-
-                if hasattr(self, "handle_live_camera_toggled"):
-                    self.handle_live_camera_toggled(self.live_camera_checkbox.isChecked())
-                if hasattr(self, "handle_live_dynamic_subtraction_toggled"):
-                    self.handle_live_dynamic_subtraction_toggled(self.live_dynamic_subtract_checkbox.isChecked())
-                if hasattr(self, "handle_live_gaussian_toggled"):
-                    self.handle_live_gaussian_toggled(self.live_gaussian_checkbox.isChecked())
-                if hasattr(self, "handle_live_fps_limit_toggled"):
-                    self.handle_live_fps_limit_toggled(self.live_fps_limit_checkbox.isChecked())
+                if camera_box is not None:
+                    self.handle_live_camera_toggled(camera_box.isChecked(), slot_index)
+                if dynamic_subtract_checkbox is not None:
+                    self.handle_live_dynamic_subtraction_toggled(dynamic_subtract_checkbox.isChecked(), slot_index)
+                if gaussian_checkbox is not None:
+                    self.handle_live_gaussian_toggled(gaussian_checkbox.isChecked(), slot_index)
+                if fps_limit_checkbox is not None:
+                    self.handle_live_fps_limit_toggled(fps_limit_checkbox.isChecked(), slot_index)
             # Restore save-sampled checkbox state if present
             if hasattr(self, "save_sampled_box"):
                 try:

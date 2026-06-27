@@ -115,11 +115,22 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(experiment.experimental_data, 'camera') or experiment.experimental_data.camera is None:
         experiment.experimental_data.camera = Camera()
         notes.append("Added experimental_data.camera attribute")
+    if not hasattr(experiment.experimental_data, 'live_cameras') or experiment.experimental_data.live_cameras is None:
+        experiment.experimental_data.live_cameras = [LiveCamera(), LiveCamera()]
+        notes.append("Added experimental_data.live_cameras attribute")
+    else:
+        try:
+            experiment.experimental_data.live_cameras = experiment.experimental_data.live_cameras
+        except Exception:
+            experiment.experimental_data.live_cameras = [LiveCamera(), LiveCamera()]
+            notes.append("Normalized experimental_data.live_cameras attribute")
+
     if not hasattr(experiment.experimental_data, 'live_camera') or experiment.experimental_data.live_camera is None:
         experiment.experimental_data.live_camera = LiveCamera()
         notes.append("Added experimental_data.live_camera attribute")
 
     live_camera = experiment.experimental_data.live_camera
+    live_cameras = experiment.experimental_data.live_cameras
     if not hasattr(live_camera, 'enabled'):
         live_camera.enabled = bool(getattr(experiment, 'live_camera_enabled', False))
         notes.append("Added live_camera.enabled attribute")
@@ -168,6 +179,48 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(live_camera, 'target_fps'):
         live_camera.target_fps = 12.0
         notes.append("Added live_camera.target_fps attribute")
+
+    if len(live_cameras) < 2:
+        live_cameras = list(live_cameras) + [LiveCamera() for _ in range(2 - len(live_cameras))]
+        experiment.experimental_data.live_cameras = live_cameras
+        notes.append("Expanded live camera slots to two entries")
+
+    for slot_index, slot_camera in enumerate(live_cameras[:2]):
+        if slot_camera is None:
+            live_cameras[slot_index] = LiveCamera()
+            continue
+        if not hasattr(slot_camera, 'enabled'):
+            slot_camera.enabled = bool(getattr(experiment, 'live_camera_enabled', False))
+        if not hasattr(slot_camera, 'camera_name'):
+            slot_camera.camera_name = None
+        if not hasattr(slot_camera, 'serial_number'):
+            slot_camera.serial_number = None
+        if not hasattr(slot_camera, 'gain_db'):
+            slot_camera.gain_db = None
+        if not hasattr(slot_camera, 'exposure_time_ms'):
+            slot_camera.exposure_time_ms = None
+        if not hasattr(slot_camera, 'format_name'):
+            slot_camera.format_name = None
+        if not hasattr(slot_camera, 'hardware_trigger'):
+            slot_camera.hardware_trigger = False
+        if not hasattr(slot_camera, 'subtraction_enabled'):
+            slot_camera.subtraction_enabled = False
+        if not hasattr(slot_camera, 'dynamic_subtraction_enabled'):
+            slot_camera.dynamic_subtraction_enabled = False
+        if not hasattr(slot_camera, 'gaussian_enabled'):
+            slot_camera.gaussian_enabled = False
+        if not hasattr(slot_camera, 'gaussian_sigma'):
+            slot_camera.gaussian_sigma = 1.0
+        if not hasattr(slot_camera, 'gaussian_kernel'):
+            slot_camera.gaussian_kernel = 5
+        if not hasattr(slot_camera, 'display_gain'):
+            slot_camera.display_gain = 0.0
+        if not hasattr(slot_camera, 'downsample_factor'):
+            slot_camera.downsample_factor = 2.0
+        if not hasattr(slot_camera, 'fps_limit_enabled'):
+            slot_camera.fps_limit_enabled = False
+        if not hasattr(slot_camera, 'target_fps'):
+            slot_camera.target_fps = 12.0
     # Add save_sampled_variables attribute if missing
     if not hasattr(experiment, 'save_sampled_variables'):
         experiment.save_sampled_variables = False
