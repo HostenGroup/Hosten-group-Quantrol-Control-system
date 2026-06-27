@@ -113,6 +113,7 @@ def _create_three_column_side_table(
     row_texts,
     delegate,
     row_height: int,
+    show_header: bool = False,
 ):
     """Create a 3-column fixed-width side table used by the sequence-oriented tabs."""
     table = QTableWidget(parent)
@@ -121,7 +122,7 @@ def _create_three_column_side_table(
     table.setRowCount(1)
     table.setHorizontalHeaderLabels(list(header_texts[:3]))
     table.verticalHeader().setVisible(False)
-    table.horizontalHeader().setVisible(False)
+    table.horizontalHeader().setVisible(bool(show_header))
     table.horizontalHeader().setMinimumSectionSize(0)
     table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     table.setFont(QFont('Arial', self.scale_font(12)))
@@ -138,6 +139,18 @@ def _create_three_column_side_table(
         item.setTextAlignment(Qt.AlignCenter)
         table.setItem(0, col, item)
     return table
+
+
+def _populate_three_column_side_table_rows(self, table, rows):
+    """Populate a three-column side table with one row per edge."""
+    table.setRowCount(len(rows))
+    for row_index, row_values in enumerate(rows):
+        table.setRowHeight(row_index, int(self.SCALE_H * 60))
+        for col in range(3):
+            text = row_values[col] if col < len(row_values) else ""
+            item = QTableWidgetItem(str(text))
+            item.setTextAlignment(Qt.AlignCenter)
+            table.setItem(row_index, col, item)
 
 
 def _build_live_camera_panel(self, parent: QWidget, slot_index: int, x: int, y: int, width: int, height: int) -> QGroupBox:
@@ -778,15 +791,24 @@ def digital_tab_build(self):
 
 
     delegate = ReadOnlyDelegate(self)
+
     self.digital_dummy = _create_three_column_side_table(
         self,
         self.digital_tab_widget,
-        self.scale_geom(10, 30, 330, 1050),
+        self.scale_geom(self.sep, self.top_margin, 330, 1050),
         self.experiment.title_digital_tab,
         ["0", self.experiment.sequence[0].name, str(self.experiment.sequence[0].value)],
         delegate,
-        int(self.SCALE_H * 60),
+        int(self.SCALE_H * 33),
+        show_header=True,
     )
+    # _populate_three_column_side_table_rows(
+    #     self,
+    #     self.digital_dummy,
+    #     [[str(index), edge.name, str(edge.value)] for index, edge in enumerate(self.experiment.sequence)],
+    # )
+    self.digital_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
+    self.digital_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.digital_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.digital_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -893,12 +915,20 @@ def analog_tab_build(self):
     self.analog_dummy = _create_three_column_side_table(
         self,
         self.analog_tab_widget,
-        self.scale_geom(10, 30, 330, 1050),
+        self.scale_geom(self.sep, self.top_margin, 330, 1050),
         self.experiment.title_analog_tab,
         ["0", self.experiment.sequence[0].name, str(self.experiment.sequence[0].value)],
         delegate,
-        int(self.SCALE_H * 60),
+        int(self.SCALE_H * 33),
+        show_header=True,
     )
+    self.analog_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
+    self.analog_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
+    # _populate_three_column_side_table_rows(
+    #     self,
+    #     self.analog_dummy,
+    #     [[str(index), edge.name, str(edge.value)] for index, edge in enumerate(self.experiment.sequence)],
+    # )
     self.analog_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.analog_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 

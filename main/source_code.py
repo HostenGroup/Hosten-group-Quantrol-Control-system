@@ -1008,11 +1008,11 @@ class MainWindow(QMainWindow):
             except TypeError:
                 titles = []
 
-        # Ensure the leading columns exist
+        # Force the leading columns to the fixed UI prefix.
         for idx in range(4):
             if len(titles) <= idx:
                 titles.append(base_titles[idx])
-            elif idx < len(base_titles) and not titles[idx]:
+            else:
                 titles[idx] = base_titles[idx]
 
         required_len = 4 + channel_count
