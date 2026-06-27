@@ -141,16 +141,7 @@ def _create_three_column_side_table(
     return table
 
 
-def _populate_three_column_side_table_rows(self, table, rows):
-    """Populate a three-column side table with one row per edge."""
-    table.setRowCount(len(rows))
-    for row_index, row_values in enumerate(rows):
-        table.setRowHeight(row_index, int(self.SCALE_H * 60))
-        for col in range(3):
-            text = row_values[col] if col < len(row_values) else ""
-            item = QTableWidgetItem(str(text))
-            item.setTextAlignment(Qt.AlignCenter)
-            table.setItem(row_index, col, item)
+
 
 
 def _build_live_camera_panel(self, parent: QWidget, slot_index: int, x: int, y: int, width: int, height: int) -> QGroupBox:
@@ -802,11 +793,7 @@ def digital_tab_build(self):
         int(self.SCALE_H * 33),
         show_header=True,
     )
-    # _populate_three_column_side_table_rows(
-    #     self,
-    #     self.digital_dummy,
-    #     [[str(index), edge.name, str(edge.value)] for index, edge in enumerate(self.experiment.sequence)],
-    # )
+
     self.digital_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.digital_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
     self.digital_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -924,11 +911,7 @@ def analog_tab_build(self):
     )
     self.analog_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
     self.analog_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
-    # _populate_three_column_side_table_rows(
-    #     self,
-    #     self.analog_dummy,
-    #     [[str(index), edge.name, str(edge.value)] for index, edge in enumerate(self.experiment.sequence)],
-    # )
+
     self.analog_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.analog_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -1005,7 +988,7 @@ def dds_tab_build(self):
         self.dds_table.horizontalHeader().setMinimumSectionSize(0)
 
         self.dds_table.setColumnWidth(0 + 6*i,int(self.SCALE_W*(5))) # making separation line thin
-        self.dds_table.setColumnWidth(1 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table.setColumnWidth(1 + 6*i,int(self.SCALE_W*(150))) 
         self.dds_table.setColumnWidth(2 + 6*i,int(self.SCALE_W*(99))) 
         self.dds_table.setColumnWidth(3 + 6*i,int(self.SCALE_W*(99))) 
         self.dds_table.setColumnWidth(4 + 6*i,int(self.SCALE_W*(99))) 
@@ -1086,7 +1069,7 @@ def dds_tab_build(self):
     for i in range(config.dds_channels_number):
         self.dds_table_header.setSpan(0,1 + 6*i, 1, 5) # stretching the title of the channel
         self.dds_table_header.setColumnWidth(0 + 6*i,int(self.SCALE_W*(5))) # making separation line thin
-        self.dds_table_header.setColumnWidth(1 + 6*i,int(self.SCALE_W*(99))) 
+        self.dds_table_header.setColumnWidth(1 + 6*i,int(self.SCALE_W*(150))) 
         self.dds_table_header.setColumnWidth(2 + 6*i,int(self.SCALE_W*(99))) 
         self.dds_table_header.setColumnWidth(3 + 6*i,int(self.SCALE_W*(99))) 
         self.dds_table_header.setColumnWidth(4 + 6*i,int(self.SCALE_W*(99))) 
