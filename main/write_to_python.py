@@ -13,6 +13,7 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     run_continuous is used as a flag to indicate if the continuous run is required.
     '''
     #CREATING A FILE
+    self.experiment.multiple_runs = bool(multiple_runs)
     file_name = "run_experiment.py"
     file_path = self.repo_path / "ARTIQ_scripts" / file_name
     if not os.path.exists(file_path):

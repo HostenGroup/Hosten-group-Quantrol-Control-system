@@ -229,6 +229,63 @@ def ensure_backward_compatibility(experiment) -> list:
     return notes
 
 
+def _normalize_title_list(experiment, attr_name: str, channel_count: int, prefix: str) -> bool:
+    """Normalize a title list so it always has the fixed 4-column prefix plus channel titles."""
+    if channel_count <= 0:
+        current = getattr(experiment, attr_name, None)
+        if current != []:
+            setattr(experiment, attr_name, [])
+            return True
+        return False
+
+    base_titles = ["#", "Name", "Time (ms)", ""]
+    existing = getattr(experiment, attr_name, None)
+    if isinstance(existing, list):
+        titles = list(existing)
+    elif existing is None:
+        titles = []
+    else:
+        try:
+            titles = list(existing)
+        except TypeError:
+            titles = []
+
+    changed = False
+    if len(titles) < 4 or titles[:4] != base_titles:
+        channel_titles = titles[4:] if len(titles) > 4 else titles[:]
+        titles = list(base_titles) + channel_titles
+        changed = True
+
+    required_len = 4 + channel_count
+    next_index = max(0, len(titles) - 4)
+    while len(titles) < required_len:
+        titles.append(f"{prefix}{next_index}")
+        next_index += 1
+        changed = True
+
+    if len(titles) > required_len:
+        titles = titles[:required_len]
+        changed = True
+
+    if getattr(experiment, attr_name, None) != titles:
+        setattr(experiment, attr_name, titles)
+        changed = True
+
+    return changed
+
+
+def normalize_default_titles(experiment) -> bool:
+    """Normalize all tab title lists before saving or using a default experiment."""
+    changed = False
+    changed |= _normalize_title_list(experiment, 'title_digital_tab', config.digital_channels_number, 'D')
+    changed |= _normalize_title_list(experiment, 'title_analog_tab', config.analog_channels_number, 'A')
+    changed |= _normalize_title_list(experiment, 'title_dds_tab', config.dds_channels_number, 'DDS')
+    changed |= _normalize_title_list(experiment, 'title_mirny_tab', config.mirny_channels_number, 'M')
+    changed |= _normalize_title_list(experiment, 'title_sampler_tab', config.sampler_channels_number, 'S')
+    changed |= _normalize_title_list(experiment, 'title_slow_dds_tab', config.slow_dds_channels_number, 'slow DDS')
+    return changed
+
+
 def save_default_settings(experiment, repo_path: Path) -> Tuple[bool, str]:
     '''
     Save the default edge and channel titles to the default settings file.
@@ -245,9 +302,10 @@ def save_default_settings(experiment, repo_path: Path) -> Tuple[bool, str]:
     try:
         # Create default directory if it doesn't exist
         default_path.parent.mkdir(parents=True, exist_ok=True)
-        
+        default_experiment = deepcopy(experiment)
+        normalize_default_titles(default_experiment)
         with open(default_path, 'wb') as file:
-            pickle.dump(experiment, file)
+            pickle.dump(default_experiment, file)
         return (True, f"Default settings saved to {default_path}")
     except Exception as e:
         return (False, f"Could not save default settings: {e}")
@@ -268,6 +326,7 @@ def load_default_settings(repo_path: Path) -> Tuple[bool, str, Optional[object]]
     try:
         with open(default_path, 'rb') as file:
             default_experiment = pickle.load(file)
+        normalize_default_titles(default_experiment)
         return (True, "Default values loaded", default_experiment)
     except Exception as e:
         return (False, f"Could not load default settings: {e}", None)

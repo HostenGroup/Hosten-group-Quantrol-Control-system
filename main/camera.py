@@ -17,6 +17,7 @@ from time import perf_counter
 from typing import Dict, Optional
 
 import PySpin
+import numpy as np
 
 import config
 
@@ -287,6 +288,23 @@ def configure_camera(
     )
 
 
+def write_camera_counts_header(file_handle, info: Dict[str, object]) -> None:
+    """Write a compact self-describing header for camera count sidecars."""
+    file_handle.write("# camera_counts v1\n")
+    for key in ("camera", "camera_serial_number", "experiment"):
+        if key in info:
+            file_handle.write(f"# {key}: {info[key]}\n")
+    if "skipped_images" in info:
+        file_handle.write(f"# skipped_images: {info['skipped_images']}\n")
+    file_handle.write("# columns: image_index camera_counts\n")
+
+
+def append_camera_count(file_handle, image_index: int, camera_counts: float) -> None:
+    """Append one acquired frame count to the sidecar file."""
+    file_handle.write(f"{image_index:d} {camera_counts:.10f}\n")
+    file_handle.flush()
+
+
 def run_acquisition(args: argparse.Namespace) -> None:
     repo_root = Path(args.repo_root).resolve()
     experiment_entry = load_experiment_entry(repo_root, args.experiment_code)
@@ -368,6 +386,7 @@ def run_acquisition(args: argparse.Namespace) -> None:
     file_directory: Optional[Path] = None
     final_file_directory: Optional[Path] = None
     info: Optional[Dict[str, object]] = None
+    camera_counts_file = None
     saved_images = 0
     time_start: Optional[dt.datetime] = None
     last_saved_at: Optional[float] = None
@@ -397,6 +416,8 @@ def run_acquisition(args: argparse.Namespace) -> None:
         file_directory = directory
         final_file_directory = final_directory
         file_directory.mkdir(parents=True, exist_ok=True)
+        camera_counts_file = (file_directory / "camera_counts.txt").open("w", encoding="utf-8")
+        write_camera_counts_header(camera_counts_file, info)
 
         cam.BeginAcquisition()
 
@@ -441,10 +462,14 @@ def run_acquisition(args: argparse.Namespace) -> None:
                 else:
                     filename = file_directory / f"{args.camera}_{saved_images}.tif"
                     t_save_start = perf_counter()
+                    raw_camera_counts = float(np.sum(image.GetNDArray()))
                     if not getattr(args, "no_save", False):
                         image.Save(str(filename))
                     t_save_end = perf_counter()
                     save_ms = (t_save_end - t_save_start) * 1000.0
+
+                    if camera_counts_file is not None:
+                        append_camera_count(camera_counts_file, saved_images, raw_camera_counts)
 
                     saved_images += 1
 
@@ -493,9 +518,12 @@ def run_acquisition(args: argparse.Namespace) -> None:
                 pass
             except Exception:
                 pass
-
-        
-
+        if camera_counts_file is not None:
+            try:
+                camera_counts_file.close()
+            except Exception:
+                pass
+            camera_counts_file = None
 
         if info is not None:
             info["skipped_images"] = drop_initial

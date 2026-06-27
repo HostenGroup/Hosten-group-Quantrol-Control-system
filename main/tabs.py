@@ -105,6 +105,41 @@ def _create_header_column_overlay(self, parent: QWidget, table: QTableWidget, co
     return overlay
 
 
+def _create_three_column_side_table(
+    self,
+    parent: QWidget,
+    geometry,
+    header_texts,
+    row_texts,
+    delegate,
+    row_height: int,
+):
+    """Create a 3-column fixed-width side table used by the sequence-oriented tabs."""
+    table = QTableWidget(parent)
+    table.setGeometry(QRect(*geometry))
+    table.setColumnCount(3)
+    table.setRowCount(1)
+    table.setHorizontalHeaderLabels(list(header_texts[:3]))
+    table.verticalHeader().setVisible(False)
+    table.horizontalHeader().setVisible(False)
+    table.horizontalHeader().setMinimumSectionSize(0)
+    table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+    table.setFont(QFont('Arial', self.scale_font(12)))
+    table.setFrameStyle(QFrame.NoFrame)
+    table.setColumnWidth(0, int(self.SCALE_W * 50))
+    table.setColumnWidth(1, int(self.SCALE_W * 180))
+    table.setColumnWidth(2, int(self.SCALE_W * 100))
+    table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+    table.setRowHeight(0, row_height)
+    for col in range(3):
+        table.setItemDelegateForColumn(col, delegate)
+        text = row_texts[col] if col < len(row_texts) else ""
+        item = QTableWidgetItem(str(text))
+        item.setTextAlignment(Qt.AlignCenter)
+        table.setItem(0, col, item)
+    return table
+
+
 def _build_live_camera_panel(self, parent: QWidget, slot_index: int, x: int, y: int, width: int, height: int) -> QGroupBox:
     """Build one live-camera control panel and wire its signals to the slot-aware handlers."""
     panel = QGroupBox(parent)
@@ -742,30 +777,16 @@ def digital_tab_build(self):
 
 
 
-    #Dummy table that will display edge number, name and time and will be fixed
-    self.digital_dummy = QTableWidget(self.digital_tab_widget)
-    self.digital_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1050)))
-    self.digital_dummy.setColumnCount(3)
-    self.digital_dummy.setRowCount(1)
-    self.digital_dummy.setHorizontalHeaderLabels(self.experiment.title_digital_tab[0:3])
-    self.digital_dummy.verticalHeader().setVisible(False)
-    self.digital_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
-    self.digital_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
-    self.digital_dummy.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.digital_dummy.setFont(QFont('Arial', self.scale_font(12)))
-    self.digital_dummy.setColumnWidth(0,int(self.SCALE_W*(50)))
-    self.digital_dummy.setColumnWidth(1,int(self.SCALE_W*(180)))
-    self.digital_dummy.setColumnWidth(2,int(self.SCALE_W*(100)))
-    self.digital_dummy.setFrameStyle(QFrame.NoFrame)
-    
-    #Setting the left part of the DIGITAL table (edge number, name, time)
-    self.digital_dummy.setItem(0, 0, QTableWidgetItem("0"))
-    self.digital_dummy.setItem(0, 1, QTableWidgetItem(self.experiment.sequence[0].name))
-    self.digital_dummy.setItem(0, 2, QTableWidgetItem(str(self.experiment.sequence[0].value)))
     delegate = ReadOnlyDelegate(self)
-    for _ in range(3):
-        exec("self.digital_dummy.setItemDelegateForColumn(%d,delegate)" %_)
-        
+    self.digital_dummy = _create_three_column_side_table(
+        self,
+        self.digital_tab_widget,
+        self.scale_geom(10, 30, 330, 1050),
+        self.experiment.title_digital_tab,
+        ["0", self.experiment.sequence[0].name, str(self.experiment.sequence[0].value)],
+        delegate,
+        int(self.SCALE_H * 60),
+    )
     self.digital_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.digital_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -869,30 +890,15 @@ def analog_tab_build(self):
     self.analog_table.itemChanged.connect(lambda item: change_handlers.handle_analog_table_changed(self, item))
     self.analog_table.horizontalHeader().sectionClicked.connect(self.analog_table_header_clicked)
 
-    #Dummy table that will display edge number, name and time and will be fixed
-    self.analog_dummy = QTableWidget(self.analog_tab_widget)
-    self.analog_dummy.setGeometry(QRect(*self.scale_geom(10, 30, 330, 1050)))
-    self.analog_dummy.setColumnCount(3)
-    self.analog_dummy.setRowCount(1)
-    self.analog_dummy.setHorizontalHeaderLabels(self.experiment.title_analog_tab[0:3])
-    self.analog_dummy.verticalHeader().setVisible(False)
-    self.analog_dummy.horizontalHeader().setFixedHeight(int(self.SCALE_H*60))
-    self.analog_dummy.horizontalHeader().setFont(QFont('Arial', self.scale_font(12)))
-    self.analog_dummy.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.analog_dummy.setFont(QFont('Arial', self.scale_font(12)))
-    self.analog_dummy.setColumnWidth(0,int(self.SCALE_W*(50)))
-    self.analog_dummy.setColumnWidth(1,int(self.SCALE_W*(180)))
-    self.analog_dummy.setColumnWidth(2,int(self.SCALE_W*(100)))
-    self.analog_dummy.setFrameStyle(QFrame.NoFrame)
-    #Setting the left part of the analog table
-    self.analog_dummy.setItem(0, 0, QTableWidgetItem("0"))
-    self.analog_dummy.setItem(0, 1, QTableWidgetItem(self.experiment.sequence[0].name))
-    self.analog_dummy.setItem(0, 2, QTableWidgetItem(str(self.experiment.sequence[0].value)))    
-
-    delegate = ReadOnlyDelegate(self)
-    for _ in range(3):
-        exec("self.analog_dummy.setItemDelegateForColumn(%d,delegate)" %_)
-
+    self.analog_dummy = _create_three_column_side_table(
+        self,
+        self.analog_tab_widget,
+        self.scale_geom(10, 30, 330, 1050),
+        self.experiment.title_analog_tab,
+        ["0", self.experiment.sequence[0].name, str(self.experiment.sequence[0].value)],
+        delegate,
+        int(self.SCALE_H * 60),
+    )
     self.analog_dummy.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     self.analog_dummy.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -1087,36 +1093,16 @@ def dds_tab_build(self):
 
     #Making fixed corner (TOP LEFT SIDE OF THE TABLE)
 
-    self.dds_seq_header = QTableWidget(self.dds_tab_widget)
-    self.dds_seq_header.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, dds_side_w, dds_header_h)))
-    self.dds_seq_header.setColumnCount(3)
-    self.dds_seq_header.verticalHeader().setVisible(False)
-    self.dds_seq_header.horizontalHeader().setVisible(False)
-    self.dds_seq_header.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.dds_seq_header.horizontalHeader().setMinimumSectionSize(0)
-    self.dds_seq_header.verticalHeader().setMinimumSectionSize(0)
-    self.dds_seq_header.setRowCount(1) 
-    self.dds_seq_header.setFont(QFont('Arial', self.scale_font(12)))
-    self.dds_seq_header.setFrameStyle(QFrame.NoFrame)
-    
-    #SHAPING THE FIRST 3 COLUMNS
-    self.dds_seq_header.setColumnWidth(0, int(self.SCALE_W * 50))
-    self.dds_seq_header.setColumnWidth(1, int(self.SCALE_W * 180))
-    self.dds_seq_header.setColumnWidth(2, int(self.SCALE_W * 100))
+    self.dds_seq_header = _create_three_column_side_table(
+        self,
+        self.dds_tab_widget,
+        self.scale_geom(self.sep, self.top_margin, dds_side_w, dds_header_h),
+        dds_titles,
+        [str(dds_titles[i]) if i < len(dds_titles) else ("#" if i == 0 else "") for i in range(3)],
+        delegate,
+        int(self.SCALE_H * dds_header_h),
+    )
     self.dds_seq_header.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-    self.dds_seq_header.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-    self.dds_seq_header.setRowHeight(0, int(self.SCALE_H * (dds_header_h)))
-    for i in range(3):
-        self.dds_seq_header.setItemDelegateForColumn(i,delegate)
-    
-    #Separator
-    # self.dds_seq_header.setItem(0,3, QTableWidgetItem())
-    # self.dds_seq_header.item(0,3).setBackground(self.grey)
-    # populating edge number, name and time  @ title_dds_tab
-    for i in range(3):
-        title_text = str(dds_titles[i]) if i < len(dds_titles) else ("#" if i == 0 else "" )
-        self.dds_seq_header.setItem(0,i, QTableWidgetItem(title_text))
-        self.dds_seq_header.item(0,i).setTextAlignment(Qt.AlignCenter)
 
     # # Always use fixed labels for the first three columns
     # fixed_labels = ["#", "NameTest", "Time (ms)"]
@@ -1548,35 +1534,20 @@ def mirny_tab_build(self):
     self.mirny_dummy_header.setItemDelegateForRow(1, delegate)
     self.mirny_dummy_header.itemChanged.connect(lambda item: change_handlers.handle_mirny_dummy_header_changed(self, item))
 
-    self.mirny_fixed = QTableWidget(self.mirny_tab_widget)
-    self.mirny_fixed.setGeometry(QRect(*self.scale_geom(self.sep, self.top_margin, mirny_side_w, mirny_header_h)))
-    self.mirny_fixed.setColumnCount(3)
-    self.mirny_fixed.setRowCount(1)
-    self.mirny_fixed.verticalHeader().setVisible(False)
-    self.mirny_fixed.horizontalHeader().setVisible(False)
-    self.mirny_fixed.horizontalHeader().setMinimumSectionSize(0)
-    self.mirny_fixed.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-    self.mirny_fixed.setFont(QFont('Arial', self.scale_font(12)))
-    self.mirny_fixed.setFrameStyle(QFrame.NoFrame)
-    self.mirny_fixed.setColumnWidth(0, int(self.SCALE_W * 50))
-    self.mirny_fixed.setColumnWidth(1, int(self.SCALE_W * 180))
-    self.mirny_fixed.setColumnWidth(2, int(self.SCALE_W * 100))
+    self.mirny_fixed = _create_three_column_side_table(
+        self,
+        self.mirny_tab_widget,
+        self.scale_geom(self.sep, self.top_margin, mirny_side_w, mirny_header_h),
+        mirny_titles,
+        [
+            str(mirny_titles[col]) if col < len(mirny_titles)
+            else ("#" if col == 0 else "Name" if col == 1 else "Time (ms)")
+            for col in range(3)
+        ],
+        delegate,
+        int(self.SCALE_H * mirny_header_h),
+    )
     self.mirny_fixed.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-    self.mirny_fixed.setRowHeight(0, int(self.SCALE_H * mirny_header_h))
-    for col in range(3):
-        self.mirny_fixed.setItemDelegateForColumn(col, delegate)
-        header_text = ""
-        if col < len(mirny_titles):
-            header_text = str(mirny_titles[col])
-        elif col == 0:
-            header_text = "#"
-        elif col == 1:
-            header_text = "Name"
-        elif col == 2:
-            header_text = "Time (ms)"
-        item = QTableWidgetItem(header_text)
-        item.setTextAlignment(Qt.AlignCenter)
-        self.mirny_fixed.setItem(0, col, item)
 
     self.mirny_tables = [self.mirny_table, self.mirny_dummy, self.analog_table, self.analog_dummy, self.digital_table, self.digital_dummy, self.sequence_table]
 

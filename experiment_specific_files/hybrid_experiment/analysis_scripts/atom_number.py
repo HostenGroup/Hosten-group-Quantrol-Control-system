@@ -19,6 +19,7 @@ except ImportError:
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
 MAX_IMAGE_PAIR_WORKERS = 8
+CAMERA_COUNTS_FILENAME = "camera_counts.txt"
 
 ATOM_COUNT_FILE = Path(__file__).resolve().parents[1] / "atom_count.py"
 
@@ -183,6 +184,25 @@ def make_background_image_pairs(sorted_tifs: list[Path]) -> list[tuple[Path, Pat
     return [(sorted_tifs[i], sorted_tifs[i + 1]) for i in range(0, len(sorted_tifs), 2)]
 
 
+def load_camera_counts_sidecar(path: Path) -> np.ndarray:
+    """Load acquisition-time camera counts saved alongside the images."""
+    if not path.exists():
+        raise FileNotFoundError(f"Missing camera counts file: {path}")
+
+    data = np.loadtxt(path, comments="#", ndmin=2)
+    data = np.atleast_2d(np.asarray(data, dtype=float))
+    if data.shape[1] < 2:
+        raise ValueError(f"camera counts file {path} must contain at least two columns")
+
+    image_indices = data[:, 0].astype(int)
+    counts = data[:, 1].astype(float)
+    order = np.argsort(image_indices)
+    if not np.array_equal(image_indices[order], np.arange(image_indices.size)):
+        raise ValueError(f"camera counts file {path} does not contain a contiguous 0-based index sequence")
+
+    return counts[order]
+
+
 def process_directory(directory: Path) -> None:
     """Compute atom numbers for one image directory and save them to disk."""
     directory = Path(directory)
@@ -199,19 +219,39 @@ def process_directory(directory: Path) -> None:
     print(f"Processing {directory}")
     print(f"Using metadata file: {metadata_file.name}")
 
-    sorted_tifs = sort_tif_files(directory)
-    image_pairs = make_background_image_pairs(sorted_tifs)
-    max_workers = min(MAX_IMAGE_PAIR_WORKERS, len(image_pairs)) or 1
-    counts = [0.0] * len(image_pairs)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(compute_camera_count_indexed, index, pair) for index, pair in enumerate(image_pairs)]
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Processing image pairs"):
-            index, count = future.result()
-            counts[index] = count
+    counts_path = directory / CAMERA_COUNTS_FILENAME
+    counts: np.ndarray | None = None
+    if counts_path.exists():
+        try:
+            counts = load_camera_counts_sidecar(counts_path)
+            print(f"Using acquisition-time camera counts: {counts_path.name}")
+        except Exception as exc:
+            print(f"Warning: could not load {counts_path.name} ({exc}); falling back to TIFF processing")
 
+    if counts is None:
+        sorted_tifs = sort_tif_files(directory)
+        image_pairs = make_background_image_pairs(sorted_tifs)
+        max_workers = min(MAX_IMAGE_PAIR_WORKERS, len(image_pairs)) or 1
+        counts_list = [0.0] * len(image_pairs)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(compute_camera_count_indexed, index, pair) for index, pair in enumerate(image_pairs)]
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Processing image pairs"):
+                index, count = future.result()
+                counts_list[index] = count
+        counts = np.asarray(counts_list, dtype=float)
+
+    if counts.size % 2 != 0:
+        print(f"Warning: {counts.size} image counts found; ignoring the last count to form background/image pairs")
+
+    usable_image_count = (counts.size // 2) * 2
+    if usable_image_count <= 0:
+        raise ValueError("Not enough image counts to build a scan grid")
+
+    pair_counts = counts[:usable_image_count].reshape((-1, 2))
+    differential_counts = pair_counts[:, 1] - pair_counts[:, 0]
     atom_numbers = np.asarray(
         atom_count(
-            np.asarray(counts, dtype=float),
+            np.asarray(differential_counts, dtype=float),
             settings["gain_db"],
             settings["exposure_time_s"],
             settings["pixel_format"],
@@ -227,13 +267,13 @@ def process_directory(directory: Path) -> None:
     if points_per_run <= 0:
         raise ValueError("Scan grid has no points")
 
-    usable_pair_count = (len(image_pairs) // points_per_run) * points_per_run
+    usable_pair_count = (differential_counts.size // points_per_run) * points_per_run
     if usable_pair_count <= 0:
         raise ValueError("Not enough image pairs to build a scan grid")
-    if usable_pair_count != len(image_pairs):
+    if usable_pair_count != differential_counts.size:
         print(
-            f"Warning: {len(image_pairs)} image pairs is not divisible by the scan grid size {points_per_run}; "
-            f"ignoring the last {len(image_pairs) - usable_pair_count} pair(s)"
+            f"Warning: {differential_counts.size} image pairs is not divisible by the scan grid size {points_per_run}; "
+            f"ignoring the last {differential_counts.size - usable_pair_count} pair(s)"
         )
 
     actual_runs = usable_pair_count // points_per_run
