@@ -59,6 +59,7 @@ atom_count = load_atom_count_function()
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
 FIT_DOWNSAMPLING_FACTOR = 4
+
 PIXELS_PER_MM_BY_CAMERA = {
     "X": 330.0,
     "Y": 330.0,
@@ -77,7 +78,7 @@ def main() -> None:
 @custom_model
 def expansion_model(t, sigma0=0.001, T=100e-6):
     """Cloud width after time-of-flight expansion."""
-    return np.sqrt(sigma0**2 + (1.38 / 1.443) * 1e2 * T * t**2)
+    return np.sqrt(sigma0**2 + 94.868 * T * t**2)
 
 
 @custom_model
@@ -237,8 +238,8 @@ def fit_gaussian_2d(
             amplitude=max_val,
             x_mean=0.5 * width_px_ref,
             y_mean=0.5 * height_px_ref,
-            x_stddev=0.1 * width_px_ref,
-            y_stddev=0.1 * height_px_ref,
+            x_stddev=0.5 * width_px_ref,
+            y_stddev=0.5 * height_px_ref,
             theta=1.6,
         )
     else:

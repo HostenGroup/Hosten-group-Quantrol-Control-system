@@ -81,7 +81,8 @@ def main() -> None:
             except Exception:
                 data_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            output_path = directory.parents[2] / f"tof_summary_{data_timestamp}.png"
+            output_path = directory.parents[2] / "images" / f"tof_summary_{data_timestamp}.png"
+            output_path.parent.mkdir(exist_ok=True)
             fig.savefig(output_path, dpi=150)
             print(f"Saved figure: {output_path}")
         except KeyboardInterrupt:

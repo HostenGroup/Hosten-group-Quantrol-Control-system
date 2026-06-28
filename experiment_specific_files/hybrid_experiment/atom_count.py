@@ -35,12 +35,20 @@ def _compute_atom_metrics(camera_counts_number, gain, t_exp, pixel_format):
     
     
     #laser powers, mW, amp = 5%
+    
     P1 = 5.3
     P2 = 6.0
     P3 = 5.8
     P4 = 5.6
     P5 = 5.8
     P6 = 6.1
+
+    # P1 = 3.67
+    # P2 = 3.39
+    # P3 = 4.4
+    # P4 = 3.84
+    # P5 = 3.92
+    # P6 = 4.03
 
     P_push = 3.15
     P = (P1 + P2 + P3 + P4 + P5 + P6)*1e-3 #total power

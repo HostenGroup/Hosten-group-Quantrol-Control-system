@@ -554,7 +554,6 @@ def handle_run_experiment_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
-    self.experiment.multiple_runs = False
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -657,7 +656,6 @@ def handle_generate_run_experiment_py_button_clicked(self):
     running it. It is usefull for debugging purposes.
     '''
     _sync_runtime_ui_state(self)
-    self.experiment.multiple_runs = False
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
     save_sampled_enabled = hasattr(self, "save_sampled_box") and self.save_sampled_box.isChecked()
     if camera_enabled:
@@ -708,7 +706,6 @@ def handle_submit_run_experiment_py_button_clicked(self):
     # update.digital_analog_dds_mirny_tabs(self) #updating all expressions in particular for_pythons of each parameter
     
     _sync_runtime_ui_state(self)
-    self.experiment.multiple_runs = False
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()
@@ -832,7 +829,6 @@ def handle_multiple_runs_button_clicked(self):
     except Exception:
         pass
     _sync_runtime_ui_state(self)
-    self.experiment.multiple_runs = True
     camera_launch_info = None
     delay_before_artiq = 0.0
     camera_enabled = hasattr(self, "camera_box") and self.camera_box.isChecked()

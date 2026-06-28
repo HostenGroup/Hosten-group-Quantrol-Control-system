@@ -14,7 +14,7 @@ from pathlib import Path
 
 digital_channels_number = 16
 analog_channels_number = 16
-dds_channels_number = 16
+dds_channels_number = 12
 mirny_channels_number = 4
 slow_dds_channels_number = 4
 sampler_channels_number = 8

@@ -13,9 +13,9 @@ DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
 ENABLE_PARABOLA_FIT = False
 NUMBERS_TO_LAST_TO_USE = 0
-MOVING_AVERAGE_WINDOW = 0
+MOVING_AVERAGE_WINDOW = 5
 ENABLE_ERROR_BARS = True
-ENABLE_SNR = True
+ENABLE_SNR = False
 
 
 def main() -> None:
@@ -157,8 +157,15 @@ def load_required_table(path: Path, expected_cols: int, table_name: str) -> np.n
     return data
 
 
-def build_info_text(scan_info: dict) -> str:
+def build_info_text(metadata: dict) -> str:
     """Build annotation text from scan settings."""
+    scanned_variables = get_scanned_variables(metadata)
+    scanned_variables_names = []
+    for i in range(len(scanned_variables)):
+        scanned_variables_names.append(scanned_variables[i]["name"])
+    experiment_name = metadata["experimental_data"]["experiment_name"]
+    
+    scan_info = scanned_variables[0]
     text_lines = []
     for key, value in scan_info.items():
         if key in {"min_val", "max_val", "scan"}:
@@ -174,6 +181,45 @@ def build_info_text(scan_info: dict) -> str:
                 text_lines.append(f"{key} = {value:.4g}")
         else:
             text_lines.append(f"{key} = {value}")
+
+    if experiment_name == "MW_spectroscopy":
+
+        if len(scanned_variables) == 1:
+            Bx = metadata["sequence"][0]["analog"][0]["value"]
+            By = metadata["sequence"][0]["analog"][1]["value"]
+            Bz = metadata["sequence"][0]["analog"][2]["value"]
+            text_lines.append(f"Bx = {Bx :.2f} V")
+            text_lines.append(f"By = {By :.2f} V")
+            text_lines.append(f"Bz = {Bz :.2f} V")
+
+        if len(scanned_variables) == 2:
+            if "Bx" in scanned_variables_names:
+                By = metadata["sequence"][0]["analog"][1]["value"]
+                Bz = metadata["sequence"][0]["analog"][2]["value"]
+                text_lines.append(f"By = {By :.2f} V")
+                text_lines.append(f"Bz = {Bz :.2f} V")
+            if "By" in scanned_variables_names:
+                Bx = metadata["sequence"][0]["analog"][0]["value"]
+                Bz = metadata["sequence"][0]["analog"][2]["value"]
+                text_lines.append(f"Bx = {Bx :.2f} V")
+                text_lines.append(f"Bz = {Bz :.2f} V")
+            if "Bz" in scanned_variables_names:
+                Bx = metadata["sequence"][0]["analog"][0]["value"]
+                By = metadata["sequence"][0]["analog"][1]["value"]
+                text_lines.append(f"Bx = {Bx :.2f} V")
+                text_lines.append(f"By = {By :.2f} V")
+
+        if len(scanned_variables) == 3:
+            if "Bx" not in scanned_variables_names:
+                Bx = metadata["sequence"][0]["analog"][0]["value"]
+                text_lines.append(f"Bx = {Bx :.2f} V")
+            if "By" not in scanned_variables_names:
+                By = metadata["sequence"][0]["analog"][1]["value"]
+                text_lines.append(f"By = {By :.2f} V")
+            if "Bz" not in scanned_variables_names:
+                Bz = metadata["sequence"][0]["analog"][2]["value"]
+                text_lines.append(f"Bz = {Bz :.2f} V")
+
 
     return "\n".join(text_lines)
 
@@ -330,7 +376,7 @@ def process_directory(directory: Path) -> None:
     scan_axes = build_scan_axes(scanned_variables)
     scan_info = scanned_variables[0]
     scan_label = metadata.get("experimental_data", {}).get("comment", "Scan value")
-    info_text = build_info_text(scan_info)
+    info_text = build_info_text(metadata)
     axis_labels = [str(variable["name"]) for variable in scanned_variables]
     atom_tensor, scan_shape, run_count, _ = load_atom_number_tensor(directory / "atom_numbers.txt")
 
@@ -350,7 +396,7 @@ def process_directory(directory: Path) -> None:
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
         fig.suptitle(str(directory))
         maximize_figure_window(fig)
-        plot_1d_scan(ax, scan_axes[0], atom_data, atom_std, axis_labels[0], info_text)
+        plot_1d_scan(ax, scan_axes[0], atom_data, atom_std, scan_label, info_text)
     elif len(scanned_variables) == 2:
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
         fig.suptitle(str(directory))
@@ -389,7 +435,9 @@ def process_directory(directory: Path) -> None:
     except Exception:
         data_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    output_path = directory.parents[2] / f"atom_numbers_summary_{data_timestamp}.png"
+    
+    output_path = directory.parents[2]/ "images" / f"atom_numbers_summary_{data_timestamp}.png"
+    output_path.parent.mkdir(exist_ok=True)
     fig.savefig(output_path, dpi=150)
     print(f"Saved figure: {output_path}")
 

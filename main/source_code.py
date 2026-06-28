@@ -185,7 +185,7 @@ class LiveCameraDisplayWindow(QMainWindow):
     """Live camera frame viewer hosted inside Quantrol process."""
     closed = pyqtSignal()
 
-    def __init__(self, title_text, parent=None):
+    def __init__(self, title_text, parent=None, active_slot_indices=None):
         super().__init__(parent)
         self.setWindowTitle(title_text)
         self.resize(1320, 720)
@@ -193,6 +193,8 @@ class LiveCameraDisplayWindow(QMainWindow):
         self._heatmap_table = self._build_heatmap_color_table()
         self._panes = []
         self._pane_state = []
+        self._active_slot_indices = list(active_slot_indices) if active_slot_indices is not None else [0, 1]
+        self._slot_to_pane_index = {}
 
         layout = QHBoxLayout()
         for slot_index in range(2):
@@ -226,6 +228,8 @@ class LiveCameraDisplayWindow(QMainWindow):
                 "atom_count_label": atom_count_label,
                 "total_power_label": total_power_label,
             })
+
+            self._slot_to_pane_index[slot_index] = slot_index
             self._pane_state.append({
                 "last_draw_time": None,
                 "last_image": None,
@@ -237,9 +241,19 @@ class LiveCameraDisplayWindow(QMainWindow):
         root = QWidget()
         root.setLayout(layout)
         self.setCentralWidget(root)
+        self.set_active_slots(self._active_slot_indices)
+
+    def set_active_slots(self, active_slot_indices):
+        self._active_slot_indices = list(active_slot_indices) if active_slot_indices is not None else [0, 1]
+        active_set = set(self._active_slot_indices)
+        for slot_index, pane in enumerate(self._panes):
+            pane_widget = pane["image_label"].parentWidget()
+            pane_widget.setVisible(slot_index in active_set)
 
     def update_frame(self, slot_index, image, fps, get_ms, proc_ms, atom_count, total_power):
         if slot_index < 0 or slot_index >= len(self._panes):
+            return
+        if self._active_slot_indices and slot_index not in self._slot_to_pane_index:
             return
 
         pane_state = self._pane_state[slot_index]
@@ -1008,11 +1022,11 @@ class MainWindow(QMainWindow):
             except TypeError:
                 titles = []
 
-        # Force the leading columns to the fixed UI prefix.
+        # Ensure the leading columns exist
         for idx in range(4):
             if len(titles) <= idx:
                 titles.append(base_titles[idx])
-            else:
+            elif idx < len(base_titles) and not titles[idx]:
                 titles[idx] = base_titles[idx]
 
         required_len = 4 + channel_count
@@ -2054,10 +2068,12 @@ class MainWindow(QMainWindow):
         live_camera_data.downsample_factor = downsample_factor
         live_camera_data.target_fps = target_fps
 
-    def _open_live_camera_window(self, slot_index=0):
+    def _open_live_camera_window(self, slot_index=0, active_slot_indices=None):
         """Launch live camera acquisition and show frames in Quantrol window."""
         window = self.live_camera_window
         if self._is_live_camera_running(slot_index) and window is not None:
+            if active_slot_indices is not None and hasattr(window, "set_active_slots"):
+                window.set_active_slots(active_slot_indices)
             window.show()
             window.raise_()
             window.activateWindow()
@@ -2065,7 +2081,7 @@ class MainWindow(QMainWindow):
 
         launch_info = self._prepare_live_camera_launch(slot_index)
         camera_name = launch_info.get("camera_name", "")
-        self._ensure_live_camera_window(camera_name, slot_index)
+        self._ensure_live_camera_window(camera_name, slot_index, active_slot_indices=active_slot_indices)
         self._start_live_stream_receiver(launch_info.get("stream_host"), launch_info.get("stream_port"), slot_index)
         self._start_live_camera_subprocess(launch_info, slot_index)
         self.message_to_logger("Live camera process launched")
@@ -2117,6 +2133,15 @@ class MainWindow(QMainWindow):
 
     def _any_live_camera_running(self):
         return any(self._is_live_camera_running(slot_index) for slot_index in range(2))
+
+    def _get_enabled_live_camera_slots(self):
+        enabled_slots = []
+        for slot_index in range(2):
+            widgets = self._get_live_camera_widgets(slot_index)
+            camera_box = widgets["camera_box"]
+            if camera_box is not None and camera_box.isChecked():
+                enabled_slots.append(slot_index)
+        return enabled_slots
 
     def _prepare_live_camera_launch(self, slot_index=0):
         """Build launch metadata for live camera helper process."""
@@ -2301,13 +2326,15 @@ class MainWindow(QMainWindow):
         }
         return self._send_live_control_command(payload, slot_index)
 
-    def _ensure_live_camera_window(self, camera_name, slot_index=0):
+    def _ensure_live_camera_window(self, camera_name, slot_index=0, active_slot_indices=None):
         existing_window = self.live_camera_window
         if existing_window is not None:
+            if active_slot_indices is not None and hasattr(existing_window, "set_active_slots"):
+                existing_window.set_active_slots(active_slot_indices)
             self.live_camera_windows[slot_index] = existing_window
             return
         title_name = camera_name if camera_name else "unknown"
-        window = LiveCameraDisplayWindow(f"Live cameras: {title_name}", self)
+        window = LiveCameraDisplayWindow(f"Live cameras: {title_name}", self, active_slot_indices=active_slot_indices)
         window.closed.connect(self._handle_live_camera_window_closed)
         window.show()
         self.live_camera_window = window
@@ -2407,7 +2434,7 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self._open_live_camera_window(slot_index)
+            self._open_live_camera_window(slot_index, active_slot_indices=[slot_index])
         except Exception as exc:
             self.error_message(str(exc), "Live camera")
             if widgets["subtract_reset_button"] is not None:
@@ -2435,18 +2462,22 @@ class MainWindow(QMainWindow):
 
     def handle_live_cameras_start_clicked(self):
         """Start acquisition for all enabled live camera slots."""
+        active_slots = self._get_enabled_live_camera_slots()
+        if not active_slots:
+            self.error_message("Enable at least one live camera.", "Live cameras")
+            return
+
+        if self.live_camera_window is not None and hasattr(self.live_camera_window, "set_active_slots"):
+            self.live_camera_window.set_active_slots(active_slots)
+
         started_any = False
         last_error = None
 
-        for slot_index in range(2):
-            widgets = self._get_live_camera_widgets(slot_index)
-            camera_box = widgets["camera_box"]
-            if camera_box is None or not camera_box.isChecked():
-                continue
+        for slot_index in active_slots:
             if self._is_live_camera_running(slot_index):
                 continue
             try:
-                self._open_live_camera_window(slot_index)
+                self._open_live_camera_window(slot_index, active_slot_indices=active_slots)
                 started_any = True
             except Exception as exc:
                 last_error = str(exc)
