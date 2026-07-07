@@ -195,6 +195,10 @@ class LiveCameraDisplayWindow(QMainWindow):
         self._pane_state = []
         self._active_slot_indices = list(active_slot_indices) if active_slot_indices is not None else [0, 1]
         self._slot_to_pane_index = {}
+        self._roi_state = [
+            {"enabled": False, "x_center": None, "y_center": None, "width": None, "height": None, "downsample_factor": 1.0}
+            for _ in range(2)
+        ]
 
         layout = QHBoxLayout()
         for slot_index in range(2):
@@ -250,6 +254,24 @@ class LiveCameraDisplayWindow(QMainWindow):
             pane_widget = pane["image_label"].parentWidget()
             pane_widget.setVisible(slot_index in active_set)
 
+    def set_roi(self, slot_index, enabled, x_center=None, y_center=None, width=None, height=None, downsample_factor=1.0):
+        if slot_index < 0 or slot_index >= len(self._roi_state):
+            return
+        try:
+            factor_value = float(downsample_factor)
+        except Exception:
+            factor_value = 1.0
+        if factor_value <= 0.0:
+            factor_value = 1.0
+        self._roi_state[slot_index] = {
+            "enabled": bool(enabled),
+            "x_center": x_center,
+            "y_center": y_center,
+            "width": width,
+            "height": height,
+            "downsample_factor": factor_value,
+        }
+
     def update_frame(self, slot_index, image, fps, get_ms, proc_ms, atom_count, total_power):
         if slot_index < 0 or slot_index >= len(self._panes):
             return
@@ -275,9 +297,40 @@ class LiveCameraDisplayWindow(QMainWindow):
             image_to_draw.setColorTable(self._heatmap_table)
 
         pixmap = QPixmap.fromImage(image_to_draw)
-        pane["image_label"].setPixmap(
-            pixmap.scaled(pane["image_label"].size(), Qt.KeepAspectRatio, Qt.FastTransformation)
-        )
+        scaled_pixmap = pixmap.scaled(pane["image_label"].size(), Qt.KeepAspectRatio, Qt.FastTransformation)
+        roi_state = self._roi_state[slot_index] if 0 <= slot_index < len(self._roi_state) else None
+        if roi_state and roi_state.get("enabled"):
+            roi_width = roi_state.get("width")
+            roi_height = roi_state.get("height")
+            roi_x_center = roi_state.get("x_center")
+            roi_y_center = roi_state.get("y_center")
+            try:
+                downsample_factor = float(roi_state.get("downsample_factor") or 1.0)
+            except Exception:
+                downsample_factor = 1.0
+            if all(value is not None for value in (roi_width, roi_height, roi_x_center, roi_y_center)):
+                try:
+                    roi_width = float(roi_width) / downsample_factor
+                    roi_height = float(roi_height) / downsample_factor
+                    roi_x_center = float(roi_x_center) / downsample_factor
+                    roi_y_center = float(roi_y_center) / downsample_factor
+                    scale_x = scaled_pixmap.width() / max(image.width(), 1)
+                    scale_y = scaled_pixmap.height() / max(image.height(), 1)
+                    rect_x = int(round((roi_x_center - roi_width / 2.0) * scale_x))
+                    rect_y = int(round((roi_y_center - roi_height / 2.0) * scale_y))
+                    rect_w = max(int(round(roi_width * scale_x)), 1)
+                    rect_h = max(int(round(roi_height * scale_y)), 1)
+                    painter = QPainter(scaled_pixmap)
+                    pen = QPen(Qt.red)
+                    pen.setWidth(max(2, int(round(max(scaled_pixmap.width(), scaled_pixmap.height()) * 0.002))))
+                    painter.setPen(pen)
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawRect(rect_x, rect_y, rect_w, rect_h)
+                    painter.end()
+                except Exception:
+                    pass
+
+        pane["image_label"].setPixmap(scaled_pixmap)
 
         now = perf_counter()
         display_fps = 0.0
@@ -1824,6 +1877,11 @@ class MainWindow(QMainWindow):
                 "gaussian_checkbox": getattr(self, "live_gaussian_checkbox", None),
                 "gaussian_sigma_edit": getattr(self, "live_gaussian_sigma_edit", None),
                 "gaussian_kernel_edit": getattr(self, "live_gaussian_kernel_edit", None),
+                "roi_checkbox": getattr(self, "live_roi_checkbox", None),
+                "roi_x_center_edit": getattr(self, "live_roi_x_center_edit", None),
+                "roi_y_center_edit": getattr(self, "live_roi_y_center_edit", None),
+                "roi_width_edit": getattr(self, "live_roi_width_edit", None),
+                "roi_height_edit": getattr(self, "live_roi_height_edit", None),
                 "display_gain_edit": getattr(self, "live_display_gain_edit", None),
                 "downsample_factor_edit": getattr(self, "live_downsample_factor_edit", None),
                 "fps_limit_checkbox": getattr(self, "live_fps_limit_checkbox", None),
@@ -1843,6 +1901,11 @@ class MainWindow(QMainWindow):
             "gaussian_checkbox": getattr(self, f"live_gaussian_checkbox_{slot_index}", None),
             "gaussian_sigma_edit": getattr(self, f"live_gaussian_sigma_edit_{slot_index}", None),
             "gaussian_kernel_edit": getattr(self, f"live_gaussian_kernel_edit_{slot_index}", None),
+            "roi_checkbox": getattr(self, f"live_roi_checkbox_{slot_index}", None),
+            "roi_x_center_edit": getattr(self, f"live_roi_x_center_edit_{slot_index}", None),
+            "roi_y_center_edit": getattr(self, f"live_roi_y_center_edit_{slot_index}", None),
+            "roi_width_edit": getattr(self, f"live_roi_width_edit_{slot_index}", None),
+            "roi_height_edit": getattr(self, f"live_roi_height_edit_{slot_index}", None),
             "display_gain_edit": getattr(self, f"live_display_gain_edit_{slot_index}", None),
             "downsample_factor_edit": getattr(self, f"live_downsample_factor_edit_{slot_index}", None),
             "fps_limit_checkbox": getattr(self, f"live_fps_limit_checkbox_{slot_index}", None),
@@ -1919,6 +1982,11 @@ class MainWindow(QMainWindow):
         dynamic_subtraction_enabled=None,
         gaussian_sigma=None,
         gaussian_kernel=None,
+        roi_enabled=None,
+        roi_x_center=None,
+        roi_y_center=None,
+        roi_width=None,
+        roi_height=None,
         display_gain=None,
         downsample_factor=None,
         target_fps=None,
@@ -1978,6 +2046,28 @@ class MainWindow(QMainWindow):
                 gaussian_kernel = int(float((widgets["gaussian_kernel_edit"].text() or "").strip()))
             except Exception:
                 gaussian_kernel = getattr(live_camera_data, "gaussian_kernel", 5)
+        if roi_enabled is None and widgets["roi_checkbox"] is not None:
+            roi_enabled = bool(widgets["roi_checkbox"].isChecked())
+        if roi_x_center is None and widgets["roi_x_center_edit"] is not None:
+            try:
+                roi_x_center = float((widgets["roi_x_center_edit"].text() or "").strip())
+            except Exception:
+                roi_x_center = getattr(live_camera_data, "roi_x_center", None)
+        if roi_y_center is None and widgets["roi_y_center_edit"] is not None:
+            try:
+                roi_y_center = float((widgets["roi_y_center_edit"].text() or "").strip())
+            except Exception:
+                roi_y_center = getattr(live_camera_data, "roi_y_center", None)
+        if roi_width is None and widgets["roi_width_edit"] is not None:
+            try:
+                roi_width = float((widgets["roi_width_edit"].text() or "").strip())
+            except Exception:
+                roi_width = getattr(live_camera_data, "roi_width", None)
+        if roi_height is None and widgets["roi_height_edit"] is not None:
+            try:
+                roi_height = float((widgets["roi_height_edit"].text() or "").strip())
+            except Exception:
+                roi_height = getattr(live_camera_data, "roi_height", None)
         if display_gain is None and widgets["display_gain_edit"] is not None:
             try:
                 display_gain = float((widgets["display_gain_edit"].text() or "").strip())
@@ -2036,6 +2126,16 @@ class MainWindow(QMainWindow):
             widgets["gaussian_sigma_edit"].setText(str(gaussian_sigma))
         if widgets["gaussian_kernel_edit"] is not None:
             widgets["gaussian_kernel_edit"].setText(str(gaussian_kernel))
+        if widgets["roi_checkbox"] is not None:
+            widgets["roi_checkbox"].setChecked(bool(roi_enabled))
+        if widgets["roi_x_center_edit"] is not None and roi_x_center is not None:
+            widgets["roi_x_center_edit"].setText(str(roi_x_center))
+        if widgets["roi_y_center_edit"] is not None and roi_y_center is not None:
+            widgets["roi_y_center_edit"].setText(str(roi_y_center))
+        if widgets["roi_width_edit"] is not None and roi_width is not None:
+            widgets["roi_width_edit"].setText(str(roi_width))
+        if widgets["roi_height_edit"] is not None and roi_height is not None:
+            widgets["roi_height_edit"].setText(str(roi_height))
         if widgets["display_gain_edit"] is not None:
             widgets["display_gain_edit"].setText(str(display_gain))
         if widgets["downsample_factor_edit"] is not None:
@@ -2064,9 +2164,38 @@ class MainWindow(QMainWindow):
             live_camera_data.fps_limit_enabled = bool(widgets["fps_limit_checkbox"].isChecked())
         live_camera_data.gaussian_sigma = gaussian_sigma
         live_camera_data.gaussian_kernel = gaussian_kernel
+        live_camera_data.roi_enabled = bool(roi_enabled)
+        live_camera_data.roi_x_center = roi_x_center
+        live_camera_data.roi_y_center = roi_y_center
+        live_camera_data.roi_width = roi_width
+        live_camera_data.roi_height = roi_height
         live_camera_data.display_gain = display_gain
         live_camera_data.downsample_factor = downsample_factor
         live_camera_data.target_fps = target_fps
+
+        if self.live_camera_window is not None and hasattr(self.live_camera_window, "set_roi"):
+            self.live_camera_window.set_roi(
+                slot_index,
+                bool(roi_enabled),
+                roi_x_center,
+                roi_y_center,
+                roi_width,
+                roi_height,
+                downsample_factor,
+            )
+
+    def handle_live_camera_roi_toggled(self, enabled, slot_index=0):
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets["roi_checkbox"] is not None and widgets["roi_checkbox"].isChecked() != bool(enabled):
+            widgets["roi_checkbox"].blockSignals(True)
+            widgets["roi_checkbox"].setChecked(bool(enabled))
+            widgets["roi_checkbox"].blockSignals(False)
+        for key in ("roi_x_center_edit", "roi_y_center_edit", "roi_width_edit", "roi_height_edit"):
+            if widgets[key] is not None:
+                widgets[key].setEnabled(bool(enabled))
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index)
+        if self._apply_live_runtime_parameters(slot_index):
+            self.message_to_logger("Live ROI updated")
 
     def _open_live_camera_window(self, slot_index=0, active_slot_indices=None):
         """Launch live camera acquisition and show frames in Quantrol window."""
@@ -2186,6 +2315,17 @@ class MainWindow(QMainWindow):
             "--display-gain", str(getattr(live_state, "display_gain", 0.0)),
             "--sequence-trigger-count", str(int(sequence_trigger_count)),
         ]
+
+        if bool(getattr(live_state, "roi_enabled", False)):
+            argv.extend([
+                "--roi-enabled",
+                "--roi-x-center", str(getattr(live_state, "roi_x_center", 0.0) or 0.0),
+                "--roi-y-center", str(getattr(live_state, "roi_y_center", 0.0) or 0.0),
+                "--roi-width", str(getattr(live_state, "roi_width", 0.0) or 0.0),
+                "--roi-height", str(getattr(live_state, "roi_height", 0.0) or 0.0),
+            ])
+        else:
+            argv.append("--roi-disabled")
 
         widgets = self._get_live_camera_widgets(slot_index)
 
@@ -2307,6 +2447,11 @@ class MainWindow(QMainWindow):
         fps_limit_enabled = bool(getattr(live_data, "fps_limit_enabled", False))
         target_fps = float(getattr(live_data, "target_fps", 12.0))
         display_gain = float(getattr(live_data, "display_gain", 0.0))
+        roi_enabled = bool(getattr(live_data, "roi_enabled", False))
+        roi_x_center = getattr(live_data, "roi_x_center", None)
+        roi_y_center = getattr(live_data, "roi_y_center", None)
+        roi_width = getattr(live_data, "roi_width", None)
+        roi_height = getattr(live_data, "roi_height", None)
 
         payload = {
             "cmd": "apply_params",
@@ -2323,6 +2468,11 @@ class MainWindow(QMainWindow):
             "downsample_factor": downsample_factor,
             "fps_limit_enabled": fps_limit_enabled,
             "target_fps": target_fps,
+            "roi_enabled": roi_enabled,
+            "roi_x_center": roi_x_center,
+            "roi_y_center": roi_y_center,
+            "roi_width": roi_width,
+            "roi_height": roi_height,
         }
         return self._send_live_control_command(payload, slot_index)
 
@@ -2340,6 +2490,17 @@ class MainWindow(QMainWindow):
         self.live_camera_window = window
         self.live_camera_windows[0] = window
         self.live_camera_windows[1] = window
+        if hasattr(window, "set_roi"):
+            live_state = self._get_live_camera_state(slot_index)
+            window.set_roi(
+                slot_index,
+                bool(getattr(live_state, "roi_enabled", False)),
+                getattr(live_state, "roi_x_center", None),
+                getattr(live_state, "roi_y_center", None),
+                getattr(live_state, "roi_width", None),
+                getattr(live_state, "roi_height", None),
+                getattr(live_state, "downsample_factor", 1.0),
+            )
 
     def _start_live_stream_receiver(self, host, port, slot_index=0):
         if not host or not port:
@@ -2404,6 +2565,11 @@ class MainWindow(QMainWindow):
             widgets["gaussian_sigma_edit"].setEnabled(bool(checked) and bool(widgets["gaussian_checkbox"] and widgets["gaussian_checkbox"].isChecked()))
         if widgets["gaussian_kernel_edit"] is not None:
             widgets["gaussian_kernel_edit"].setEnabled(bool(checked) and bool(widgets["gaussian_checkbox"] and widgets["gaussian_checkbox"].isChecked()))
+        if widgets["roi_checkbox"] is not None:
+            widgets["roi_checkbox"].setEnabled(bool(checked))
+        for key in ("roi_x_center_edit", "roi_y_center_edit", "roi_width_edit", "roi_height_edit"):
+            if widgets[key] is not None:
+                widgets[key].setEnabled(bool(checked) and bool(widgets["roi_checkbox"] and widgets["roi_checkbox"].isChecked()))
         if widgets["display_gain_edit"] is not None:
             widgets["display_gain_edit"].setEnabled(bool(checked))
         if widgets["downsample_factor_edit"] is not None:
@@ -2754,6 +2920,20 @@ class MainWindow(QMainWindow):
             # Silently fail if table state doesn't permit selection
             pass
 
+    def _parse_float_or_none(self, widget):
+        if widget is None:
+            return None
+        try:
+            text = widget.text().strip()
+        except Exception:
+            return None
+        if text == "":
+            return None
+        try:
+            return float(text)
+        except Exception:
+            return None
+
 
     def _prepare_camera_launch(self):
         """Validate camera settings and build the launch metadata dictionary."""
@@ -2833,6 +3013,11 @@ class MainWindow(QMainWindow):
         self.experiment.experimental_data.camera.gain_db = gain_value
         self.experiment.experimental_data.camera.exposure_time_ms = exposure_value
         self.experiment.experimental_data.camera.format_name = format_name
+        self.experiment.experimental_data.camera.roi_enabled = bool(getattr(self, "roi_checkbox", None) and self.roi_checkbox.isChecked())
+        self.experiment.experimental_data.camera.roi_x_center = self._parse_float_or_none(getattr(self, "roi_x_center_edit", None))
+        self.experiment.experimental_data.camera.roi_y_center = self._parse_float_or_none(getattr(self, "roi_y_center_edit", None))
+        self.experiment.experimental_data.camera.roi_width = self._parse_float_or_none(getattr(self, "roi_width_edit", None))
+        self.experiment.experimental_data.camera.roi_height = self._parse_float_or_none(getattr(self, "roi_height_edit", None))
         self.experiment.experimental_data.experiment_id = experiment_code
         if not self.experiment.experimental_data.experiment_name:
             self.experiment.experimental_data.experiment_name = experiment_name
@@ -2859,6 +3044,16 @@ class MainWindow(QMainWindow):
         argv.extend(["--target-dir", str(run_directory)])
         if info_text:
             argv.extend(["--info-text", info_text])
+        if self.experiment.experimental_data.camera.roi_enabled:
+            argv.extend([
+                "--roi-enabled",
+                "--roi-x-center", str(self.experiment.experimental_data.camera.roi_x_center if self.experiment.experimental_data.camera.roi_x_center is not None else 0.0),
+                "--roi-y-center", str(self.experiment.experimental_data.camera.roi_y_center if self.experiment.experimental_data.camera.roi_y_center is not None else 0.0),
+                "--roi-width", str(self.experiment.experimental_data.camera.roi_width if self.experiment.experimental_data.camera.roi_width is not None else 0.0),
+                "--roi-height", str(self.experiment.experimental_data.camera.roi_height if self.experiment.experimental_data.camera.roi_height is not None else 0.0),
+            ])
+        else:
+            argv.append("--roi-disabled")
         if getattr(self.experiment, "skip_images", False) and getattr(config, "allow_skipping_images", False):
             skip_count = getattr(config, "skip_images_trigger_count", 10)
             if skip_count > 0:

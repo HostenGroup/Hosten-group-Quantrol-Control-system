@@ -115,6 +115,16 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(experiment.experimental_data, 'camera') or experiment.experimental_data.camera is None:
         experiment.experimental_data.camera = Camera()
         notes.append("Added experimental_data.camera attribute")
+    if not hasattr(experiment.experimental_data.camera, 'roi_enabled'):
+        experiment.experimental_data.camera.roi_enabled = False
+    if not hasattr(experiment.experimental_data.camera, 'roi_x_center'):
+        experiment.experimental_data.camera.roi_x_center = None
+    if not hasattr(experiment.experimental_data.camera, 'roi_y_center'):
+        experiment.experimental_data.camera.roi_y_center = None
+    if not hasattr(experiment.experimental_data.camera, 'roi_width'):
+        experiment.experimental_data.camera.roi_width = None
+    if not hasattr(experiment.experimental_data.camera, 'roi_height'):
+        experiment.experimental_data.camera.roi_height = None
     if not hasattr(experiment.experimental_data, 'live_cameras') or experiment.experimental_data.live_cameras is None:
         experiment.experimental_data.live_cameras = [LiveCamera(), LiveCamera()]
         notes.append("Added experimental_data.live_cameras attribute")
@@ -179,6 +189,21 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(live_camera, 'target_fps'):
         live_camera.target_fps = 12.0
         notes.append("Added live_camera.target_fps attribute")
+    if not hasattr(live_camera, 'roi_enabled'):
+        live_camera.roi_enabled = False
+        notes.append("Added live_camera.roi_enabled attribute")
+    if not hasattr(live_camera, 'roi_x_center'):
+        live_camera.roi_x_center = None
+        notes.append("Added live_camera.roi_x_center attribute")
+    if not hasattr(live_camera, 'roi_y_center'):
+        live_camera.roi_y_center = None
+        notes.append("Added live_camera.roi_y_center attribute")
+    if not hasattr(live_camera, 'roi_width'):
+        live_camera.roi_width = None
+        notes.append("Added live_camera.roi_width attribute")
+    if not hasattr(live_camera, 'roi_height'):
+        live_camera.roi_height = None
+        notes.append("Added live_camera.roi_height attribute")
 
     if len(live_cameras) < 2:
         live_cameras = list(live_cameras) + [LiveCamera() for _ in range(2 - len(live_cameras))]
@@ -221,6 +246,16 @@ def ensure_backward_compatibility(experiment) -> list:
             slot_camera.fps_limit_enabled = False
         if not hasattr(slot_camera, 'target_fps'):
             slot_camera.target_fps = 12.0
+        if not hasattr(slot_camera, 'roi_enabled'):
+            slot_camera.roi_enabled = False
+        if not hasattr(slot_camera, 'roi_x_center'):
+            slot_camera.roi_x_center = None
+        if not hasattr(slot_camera, 'roi_y_center'):
+            slot_camera.roi_y_center = None
+        if not hasattr(slot_camera, 'roi_width'):
+            slot_camera.roi_width = None
+        if not hasattr(slot_camera, 'roi_height'):
+            slot_camera.roi_height = None
     # Add save_sampled_variables attribute if missing
     if not hasattr(experiment, 'save_sampled_variables'):
         experiment.save_sampled_variables = False

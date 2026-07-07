@@ -42,6 +42,11 @@ class LiveCameraStreamer:
         sequence_trigger_count: int = 0,
         fps_limit_enabled: bool = False,
         subtract_enabled: bool = False,
+        roi_enabled: bool = False,
+        roi_x_center: float | None = None,
+        roi_y_center: float | None = None,
+        roi_width: float | None = None,
+        roi_height: float | None = None,
     ) -> None:
         self.camera_name = camera_name
         self.pixel_format = pixel_format
@@ -71,6 +76,11 @@ class LiveCameraStreamer:
         if self.sequence_trigger_count < 0:
             self.sequence_trigger_count = 0
         self.fps_limit_enabled = bool(fps_limit_enabled)
+        self.roi_enabled = bool(roi_enabled)
+        self.roi_x_center = roi_x_center
+        self.roi_y_center = roi_y_center
+        self.roi_width = roi_width
+        self.roi_height = roi_height
 
         self._running = True
         self._subtract_enabled = bool(subtract_enabled)
@@ -151,6 +161,42 @@ class LiveCameraStreamer:
             return net_counts, True
         except Exception:
             return float('nan'), False
+
+    def _get_roi_bounds(self, frame_shape: tuple[int, int]) -> tuple[int, int, int, int] | None:
+        if not self.roi_enabled:
+            return None
+        if any(value is None for value in (self.roi_x_center, self.roi_y_center, self.roi_width, self.roi_height)):
+            return None
+        try:
+            frame_height, frame_width = int(frame_shape[0]), int(frame_shape[1])
+            x_center = float(self.roi_x_center)
+            y_center = float(self.roi_y_center)
+            roi_width = float(self.roi_width)
+            roi_height = float(self.roi_height)
+        except Exception:
+            return None
+        if roi_width <= 0.0 or roi_height <= 0.0:
+            return None
+
+        x0 = int(round(x_center - roi_width / 2.0))
+        y0 = int(round(y_center - roi_height / 2.0))
+        x1 = int(round(x_center + roi_width / 2.0))
+        y1 = int(round(y_center + roi_height / 2.0))
+        x0 = max(0, min(x0, frame_width))
+        y0 = max(0, min(y0, frame_height))
+        x1 = max(0, min(x1, frame_width))
+        y1 = max(0, min(y1, frame_height))
+        if x1 <= x0 or y1 <= y0:
+            return None
+        return x0, y0, x1, y1
+
+    def _sum_roi_counts(self, arr: np.ndarray) -> float:
+        roi_bounds = self._get_roi_bounds(arr.shape[:2])
+        if roi_bounds is None:
+            return float(np.sum(arr, dtype=np.float64))
+        x0, y0, x1, y1 = roi_bounds
+        roi_arr = arr[y0:y1, x0:x1]
+        return float(np.sum(roi_arr, dtype=np.float64))
 
     def stop(self, *_args) -> None:
         self._running = False
@@ -275,6 +321,16 @@ class LiveCameraStreamer:
                 if "downsample_factor" in payload:
                     factor_value = float(payload.get("downsample_factor"))
                     self.downsample_factor = factor_value if factor_value > 0.0 else 1.0
+                if "roi_enabled" in payload:
+                    self.roi_enabled = bool(payload.get("roi_enabled"))
+                if "roi_x_center" in payload:
+                    self.roi_x_center = payload.get("roi_x_center")
+                if "roi_y_center" in payload:
+                    self.roi_y_center = payload.get("roi_y_center")
+                if "roi_width" in payload:
+                    self.roi_width = payload.get("roi_width")
+                if "roi_height" in payload:
+                    self.roi_height = payload.get("roi_height")
                 if "fps_limit_enabled" in payload:
                     self.fps_limit_enabled = bool(payload.get("fps_limit_enabled"))
                 if "target_fps" in payload:
@@ -543,7 +599,7 @@ class LiveCameraStreamer:
                     arr = image.GetNDArray()
                     if arr.ndim == 3:
                         arr = arr[:, :, 0]
-                    raw_camera_counts = float(np.sum(arr, dtype=np.float64))
+                    raw_camera_counts = self._sum_roi_counts(arr)
                     subtraction_full_scale = None
                     if arr.dtype == np.uint8:
                         subtraction_full_scale = 255.0
@@ -712,6 +768,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gaussian-sigma", type=float, default=1.0, help="Gaussian sigma in pixels")
     parser.add_argument("--gaussian-kernel", type=int, default=5, help="Gaussian kernel size (odd integer)")
     parser.add_argument("--subtract-enabled", action="store_true", help="Enable subtraction at startup")
+    parser.add_argument("--roi-enabled", dest="roi_enabled", action="store_true", help="Enable software ROI for atom metrics")
+    parser.add_argument("--roi-disabled", dest="roi_enabled", action="store_false", help="Disable software ROI for atom metrics")
+    parser.set_defaults(roi_enabled=False)
+    parser.add_argument("--roi-x-center", type=float, default=None, help="ROI center X in source image pixels")
+    parser.add_argument("--roi-y-center", type=float, default=None, help="ROI center Y in source image pixels")
+    parser.add_argument("--roi-width", type=float, default=None, help="ROI width in source image pixels")
+    parser.add_argument("--roi-height", type=float, default=None, help="ROI height in source image pixels")
     return parser.parse_args()
 
 
@@ -737,6 +800,11 @@ def main() -> int:
         sequence_trigger_count=args.sequence_trigger_count,
         fps_limit_enabled=args.fps_limit_enabled,
         subtract_enabled=args.subtract_enabled,
+        roi_enabled=args.roi_enabled,
+        roi_x_center=args.roi_x_center,
+        roi_y_center=args.roi_y_center,
+        roi_width=args.roi_width,
+        roi_height=args.roi_height,
     )
     signal.signal(signal.SIGTERM, streamer.stop)
     signal.signal(signal.SIGINT, streamer.stop)

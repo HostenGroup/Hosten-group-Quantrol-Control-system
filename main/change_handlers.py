@@ -234,6 +234,62 @@ def handle_camera_image_format_changed(main_window):
     main_window.experiment.experimental_data.camera.format_name = main_window.format_combo.currentText()
 
 
+def _set_camera_roi_widget_state(main_window, enabled):
+    for widget_name in ("roi_x_center_edit", "roi_y_center_edit", "roi_width_edit", "roi_height_edit"):
+        widget = getattr(main_window, widget_name, None)
+        if widget is not None:
+            widget.setEnabled(bool(enabled))
+
+
+def handle_camera_roi_toggled(main_window, enabled):
+    """Toggle ROI controls for the main camera and persist the enabled state."""
+    _set_camera_roi_widget_state(main_window, enabled)
+    camera = main_window.experiment.experimental_data.camera
+    camera.roi_enabled = bool(enabled)
+    handle_camera_roi_changed(main_window)
+
+
+def handle_camera_roi_changed(main_window):
+    """Persist the main camera ROI fields into the experiment model."""
+    camera = main_window.experiment.experimental_data.camera
+    roi_enabled = bool(getattr(main_window, "roi_checkbox", None) and main_window.roi_checkbox.isChecked())
+    camera.roi_enabled = roi_enabled
+    _set_camera_roi_widget_state(main_window, roi_enabled)
+
+    def _parse_line_edit(widget_name, previous_value):
+        widget = getattr(main_window, widget_name, None)
+        if widget is None:
+            return previous_value
+        text = widget.text().strip()
+        if text == "":
+            return previous_value
+        try:
+            return float(text)
+        except ValueError:
+            return previous_value
+
+    camera.roi_x_center = _parse_line_edit("roi_x_center_edit", getattr(camera, "roi_x_center", None))
+    camera.roi_y_center = _parse_line_edit("roi_y_center_edit", getattr(camera, "roi_y_center", None))
+    camera.roi_width = _parse_line_edit("roi_width_edit", getattr(camera, "roi_width", None))
+    camera.roi_height = _parse_line_edit("roi_height_edit", getattr(camera, "roi_height", None))
+
+    if roi_enabled:
+        if camera.roi_width is not None and camera.roi_width <= 0:
+            camera.roi_width = None
+        if camera.roi_height is not None and camera.roi_height <= 0:
+            camera.roi_height = None
+
+    for widget_name, value in (
+        ("roi_x_center_edit", camera.roi_x_center),
+        ("roi_y_center_edit", camera.roi_y_center),
+        ("roi_width_edit", camera.roi_width),
+        ("roi_height_edit", camera.roi_height),
+    ):
+        widget = getattr(main_window, widget_name, None)
+        if widget is not None and value is not None:
+            widget.setText(str(value))
+
+
 # ==============================================================================
 # TABLE CHANGE HANDLERS
 # ==============================================================================

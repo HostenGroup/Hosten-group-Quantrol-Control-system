@@ -164,6 +164,12 @@ def build_info_text(metadata: dict) -> str:
     for i in range(len(scanned_variables)):
         scanned_variables_names.append(scanned_variables[i]["name"])
     experiment_name = metadata["experimental_data"]["experiment_name"]
+
+    is_multiple_runs = metadata.get("multiple_runs", 1)
+    if is_multiple_runs:
+        number_of_runs = int(metadata.get("number_of_runs", 1))
+    else:
+        number_of_runs = 1
     
     scan_info = scanned_variables[0]
     text_lines = []
@@ -181,6 +187,8 @@ def build_info_text(metadata: dict) -> str:
                 text_lines.append(f"{key} = {value:.4g}")
         else:
             text_lines.append(f"{key} = {value}")
+
+    text_lines.append(f"N_runs = {number_of_runs}")
 
     if experiment_name == "MW_spectroscopy":
 

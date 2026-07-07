@@ -29,6 +29,7 @@ from scipy.io import loadmat
 import write_to_python
 import update
 import file_io
+import change_handlers
 from data_structures import Variable, ScannedVariable, RampedVariable, DerivedVariable, LookupVariable
 import config
 
@@ -43,6 +44,8 @@ def _sync_runtime_ui_state(self):
     save_sampled_box = self.save_sampled_box if hasattr(self, "save_sampled_box") else None
     
     file_io.prepare_experiment_for_save(self.experiment, camera_box, texp_locked, live_camera_box, save_sampled_box)
+    if hasattr(change_handlers, "handle_camera_roi_changed"):
+        change_handlers.handle_camera_roi_changed(self)
     if hasattr(self, "_persist_live_camera_settings_from_ui"):
         self._persist_live_camera_settings_from_ui(slot_index=0)
         if hasattr(self, "live_camera_box_2"):
@@ -214,6 +217,16 @@ def handle_load_sequence_button_clicked(self):
                         self.gain_edit.setText(str(cam.gain_db))
                     if hasattr(cam, 'exposure_time_ms') and cam.exposure_time_ms is not None:
                         self.exposure_edit.setText(str(cam.exposure_time_ms))
+                    if hasattr(self, "roi_checkbox"):
+                        self.roi_checkbox.setChecked(bool(getattr(cam, 'roi_enabled', False)))
+                    if hasattr(self, "roi_x_center_edit") and getattr(cam, 'roi_x_center', None) is not None:
+                        self.roi_x_center_edit.setText(str(cam.roi_x_center))
+                    if hasattr(self, "roi_y_center_edit") and getattr(cam, 'roi_y_center', None) is not None:
+                        self.roi_y_center_edit.setText(str(cam.roi_y_center))
+                    if hasattr(self, "roi_width_edit") and getattr(cam, 'roi_width', None) is not None:
+                        self.roi_width_edit.setText(str(cam.roi_width))
+                    if hasattr(self, "roi_height_edit") and getattr(cam, 'roi_height', None) is not None:
+                        self.roi_height_edit.setText(str(cam.roi_height))
                     if hasattr(cam, 'format_name') and cam.format_name:
                         index = self.format_combo.findText(cam.format_name)
                         if index >= 0:
@@ -233,12 +246,17 @@ def handle_load_sequence_button_clicked(self):
                 gaussian_checkbox = getattr(self, f"live_gaussian_checkbox{suffix}", None)
                 gaussian_sigma_edit = getattr(self, f"live_gaussian_sigma_edit{suffix}", None)
                 gaussian_kernel_edit = getattr(self, f"live_gaussian_kernel_edit{suffix}", None)
+                roi_checkbox = getattr(self, f"live_roi_checkbox{suffix}", None)
+                roi_x_center_edit = getattr(self, f"live_roi_x_center_edit{suffix}", None)
+                roi_y_center_edit = getattr(self, f"live_roi_y_center_edit{suffix}", None)
+                roi_width_edit = getattr(self, f"live_roi_width_edit{suffix}", None)
+                roi_height_edit = getattr(self, f"live_roi_height_edit{suffix}", None)
                 display_gain_edit = getattr(self, f"live_display_gain_edit{suffix}", None)
                 downsample_factor_edit = getattr(self, f"live_downsample_factor_edit{suffix}", None)
                 fps_limit_checkbox = getattr(self, f"live_fps_limit_checkbox{suffix}", None)
                 target_fps_edit = getattr(self, f"live_target_fps_edit{suffix}", None)
 
-                live_widgets = [camera_box, camera_combo, gain_edit, exposure_edit, format_combo, hardware_trigger_checkbox, subtract_checkbox, dynamic_subtract_checkbox, gaussian_checkbox, gaussian_sigma_edit, gaussian_kernel_edit, display_gain_edit, downsample_factor_edit, fps_limit_checkbox, target_fps_edit]
+                live_widgets = [camera_box, camera_combo, gain_edit, exposure_edit, format_combo, hardware_trigger_checkbox, subtract_checkbox, dynamic_subtract_checkbox, gaussian_checkbox, gaussian_sigma_edit, gaussian_kernel_edit, roi_checkbox, roi_x_center_edit, roi_y_center_edit, roi_width_edit, roi_height_edit, display_gain_edit, downsample_factor_edit, fps_limit_checkbox, target_fps_edit]
                 live_widgets = [w for w in live_widgets if w is not None]
                 for widget in live_widgets:
                     widget.blockSignals(True)
@@ -270,6 +288,16 @@ def handle_load_sequence_button_clicked(self):
                     gaussian_sigma_edit.setText(str(lcam.gaussian_sigma))
                 if gaussian_kernel_edit is not None and hasattr(lcam, 'gaussian_kernel') and lcam.gaussian_kernel is not None:
                     gaussian_kernel_edit.setText(str(lcam.gaussian_kernel))
+                if roi_checkbox is not None and hasattr(lcam, 'roi_enabled'):
+                    roi_checkbox.setChecked(bool(lcam.roi_enabled))
+                if roi_x_center_edit is not None and hasattr(lcam, 'roi_x_center') and lcam.roi_x_center is not None:
+                    roi_x_center_edit.setText(str(lcam.roi_x_center))
+                if roi_y_center_edit is not None and hasattr(lcam, 'roi_y_center') and lcam.roi_y_center is not None:
+                    roi_y_center_edit.setText(str(lcam.roi_y_center))
+                if roi_width_edit is not None and hasattr(lcam, 'roi_width') and lcam.roi_width is not None:
+                    roi_width_edit.setText(str(lcam.roi_width))
+                if roi_height_edit is not None and hasattr(lcam, 'roi_height') and lcam.roi_height is not None:
+                    roi_height_edit.setText(str(lcam.roi_height))
                 if display_gain_edit is not None and hasattr(lcam, 'display_gain') and lcam.display_gain is not None:
                     display_gain_edit.setText(str(lcam.display_gain))
                 if downsample_factor_edit is not None and hasattr(lcam, 'downsample_factor') and lcam.downsample_factor is not None:
@@ -288,6 +316,8 @@ def handle_load_sequence_button_clicked(self):
                     self.handle_live_dynamic_subtraction_toggled(dynamic_subtract_checkbox.isChecked(), slot_index)
                 if gaussian_checkbox is not None:
                     self.handle_live_gaussian_toggled(gaussian_checkbox.isChecked(), slot_index)
+                if roi_checkbox is not None:
+                    self.handle_live_camera_roi_toggled(roi_checkbox.isChecked(), slot_index)
                 if fps_limit_checkbox is not None:
                     self.handle_live_fps_limit_toggled(fps_limit_checkbox.isChecked(), slot_index)
             # Restore save-sampled checkbox state if present

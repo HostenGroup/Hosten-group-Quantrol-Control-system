@@ -238,8 +238,8 @@ def fit_gaussian_2d(
             amplitude=max_val,
             x_mean=0.5 * width_px_ref,
             y_mean=0.5 * height_px_ref,
-            x_stddev=0.5 * width_px_ref,
-            y_stddev=0.5 * height_px_ref,
+            x_stddev=0.3 * width_px_ref,
+            y_stddev=0.3 * height_px_ref,
             theta=1.6,
         )
     else:

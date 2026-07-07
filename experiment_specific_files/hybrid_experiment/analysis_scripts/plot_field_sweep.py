@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -65,22 +64,6 @@ def load_processed_data(directory: Path) -> tuple[np.ndarray, np.ndarray, list[n
         raise ValueError("atom_grid and anisotropy_grid shape mismatch")
 
     return atom_grid, anis_grid, axes, variable_names
-
-
-def get_experiment_root(directory: Path) -> Path:
-    """Return the experiment root above date/time/image folders."""
-    return directory.parents[2]
-
-
-def build_output_timestamp(directory: Path) -> str:
-    """Build a TOF-style timestamp from the directory name when possible."""
-    try:
-        date_str = directory.parent.parent.name
-        time_str = directory.parent.name
-        dt = datetime.strptime(f"{date_str}_{time_str}", "%Y_%m_%d_%H_%M_%S")
-        return dt.strftime("%Y%m%d_%H%M%S")
-    except Exception:
-        return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 def plot_directory(directory: Path) -> None:
@@ -193,10 +176,10 @@ def plot_directory(directory: Path) -> None:
 
     slider.on_changed(update)
 
-    data_timestamp = build_output_timestamp(directory)
-    out_path = get_experiment_root(directory) / f"{OUTPUT_PREFIX}_{series_name}_{data_timestamp}.png"
-    fig.savefig(out_path, dpi=150)
-    print(f"Saved {out_path}")
+    if SAVE_FIGURES:
+        out_path = directory / f"{OUTPUT_PREFIX}_{series_name}_slider_initial.png"
+        fig.savefig(out_path, dpi=150)
+        print(f"Saved {out_path}")
 
     if SHOW_FIGURES:
         plt.show()

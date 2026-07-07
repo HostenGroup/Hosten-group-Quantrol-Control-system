@@ -492,12 +492,19 @@ class Camera:
     '''
     def __init__(self, gain_db=None, format_name=None, 
                  exposure_time_ms=None, serial_number=None, 
-                 camera_name=None):
+                 camera_name=None, roi_enabled=False,
+                 roi_x_center=None, roi_y_center=None,
+                 roi_width=None, roi_height=None):
         self.gain_db = gain_db
         self.format_name = format_name
         self.exposure_time_ms = exposure_time_ms
         self.serial_number = serial_number
         self.camera_name = camera_name
+        self.roi_enabled = bool(roi_enabled)
+        self.roi_x_center = roi_x_center
+        self.roi_y_center = roi_y_center
+        self.roi_width = roi_width
+        self.roi_height = roi_height
 
 
 class LiveCamera:
@@ -522,6 +529,11 @@ class LiveCamera:
         downsample_factor=2.0,
         fps_limit_enabled=False,
         target_fps=12.0,
+        roi_enabled=False,
+        roi_x_center=None,
+        roi_y_center=None,
+        roi_width=None,
+        roi_height=None,
     ):
         self.gain_db = gain_db
         self.format_name = format_name
@@ -539,3 +551,8 @@ class LiveCamera:
         self.downsample_factor = downsample_factor
         self.fps_limit_enabled = bool(fps_limit_enabled)
         self.target_fps = target_fps
+        self.roi_enabled = bool(roi_enabled)
+        self.roi_x_center = roi_x_center
+        self.roi_y_center = roi_y_center
+        self.roi_width = roi_width
+        self.roi_height = roi_height

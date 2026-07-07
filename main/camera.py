@@ -305,6 +305,43 @@ def append_camera_count(file_handle, image_index: int, camera_counts: float) -> 
     file_handle.flush()
 
 
+def _get_roi_bounds(frame_shape, roi_enabled, roi_x_center, roi_y_center, roi_width, roi_height):
+    if not roi_enabled:
+        return None
+    if any(value is None for value in (roi_x_center, roi_y_center, roi_width, roi_height)):
+        return None
+    try:
+        frame_height, frame_width = int(frame_shape[0]), int(frame_shape[1])
+        x_center = float(roi_x_center)
+        y_center = float(roi_y_center)
+        width = float(roi_width)
+        height = float(roi_height)
+    except Exception:
+        return None
+    if width <= 0.0 or height <= 0.0:
+        return None
+
+    x0 = int(round(x_center - width / 2.0))
+    y0 = int(round(y_center - height / 2.0))
+    x1 = int(round(x_center + width / 2.0))
+    y1 = int(round(y_center + height / 2.0))
+    x0 = max(0, min(x0, frame_width))
+    y0 = max(0, min(y0, frame_height))
+    x1 = max(0, min(x1, frame_width))
+    y1 = max(0, min(y1, frame_height))
+    if x1 <= x0 or y1 <= y0:
+        return None
+    return x0, y0, x1, y1
+
+
+def _sum_roi_counts(arr, roi_enabled=False, roi_x_center=None, roi_y_center=None, roi_width=None, roi_height=None):
+    roi_bounds = _get_roi_bounds(arr.shape[:2], roi_enabled, roi_x_center, roi_y_center, roi_width, roi_height)
+    if roi_bounds is None:
+        return float(np.sum(arr, dtype=np.float64))
+    x0, y0, x1, y1 = roi_bounds
+    return float(np.sum(arr[y0:y1, x0:x1], dtype=np.float64))
+
+
 def run_acquisition(args: argparse.Namespace) -> None:
     repo_root = Path(args.repo_root).resolve()
     experiment_entry = load_experiment_entry(repo_root, args.experiment_code)
@@ -369,6 +406,11 @@ def run_acquisition(args: argparse.Namespace) -> None:
         "freq": 10,
         "scan": scan_caption,
     }
+    roi_enabled = bool(getattr(args, "roi_enabled", False))
+    roi_x_center = getattr(args, "roi_x_center", None)
+    roi_y_center = getattr(args, "roi_y_center", None)
+    roi_width = getattr(args, "roi_width", None)
+    roi_height = getattr(args, "roi_height", None)
 
     serial_numbers = config.camera_serial_numbers_dict
     if args.camera not in serial_numbers:
@@ -409,6 +451,11 @@ def run_acquisition(args: argparse.Namespace) -> None:
             "experiment": experiment_name,
             "comments": args.info_text,
             "parameters": parameters,
+            "roi_enabled": roi_enabled,
+            "roi_x_center": roi_x_center,
+            "roi_y_center": roi_y_center,
+            "roi_width": roi_width,
+            "roi_height": roi_height,
         }
 
         configure_camera(cam, exposure_us, args.gain_db, args.format, info)
@@ -462,7 +509,17 @@ def run_acquisition(args: argparse.Namespace) -> None:
                 else:
                     filename = file_directory / f"{args.camera}_{saved_images}.tif"
                     t_save_start = perf_counter()
-                    raw_camera_counts = float(np.sum(image.GetNDArray()))
+                    image_array = image.GetNDArray()
+                    if image_array.ndim == 3:
+                        image_array = image_array[:, :, 0]
+                    raw_camera_counts = _sum_roi_counts(
+                        image_array,
+                        roi_enabled=roi_enabled,
+                        roi_x_center=roi_x_center,
+                        roi_y_center=roi_y_center,
+                        roi_width=roi_width,
+                        roi_height=roi_height,
+                    )
                     if not getattr(args, "no_save", False):
                         image.Save(str(filename))
                     t_save_end = perf_counter()
@@ -630,6 +687,13 @@ def main() -> None:
     parser.add_argument("--no-save", action="store_true", help="Acquire frames but skip saving to disk (for debugging)")
     parser.add_argument("--stage-local", action="store_true", help="Save images to a local staging directory and move to the target at the end")
     parser.add_argument("--stage-dir", type=str, default=None, help="Base directory for staging when --stage-local is enabled")
+    parser.add_argument("--roi-enabled", dest="roi_enabled", action="store_true", help="Enable software ROI for camera counts")
+    parser.add_argument("--roi-disabled", dest="roi_enabled", action="store_false", help="Disable software ROI for camera counts")
+    parser.set_defaults(roi_enabled=False)
+    parser.add_argument("--roi-x-center", type=float, default=None, help="ROI center X in source image pixels")
+    parser.add_argument("--roi-y-center", type=float, default=None, help="ROI center Y in source image pixels")
+    parser.add_argument("--roi-width", type=float, default=None, help="ROI width in source image pixels")
+    parser.add_argument("--roi-height", type=float, default=None, help="ROI height in source image pixels")
     args = parser.parse_args()
     try:
         run_acquisition(args)

@@ -199,6 +199,42 @@ def _build_live_camera_panel(self, parent: QWidget, slot_index: int, x: int, y: 
     setattr(self, f"live_gaussian_kernel_edit{suffix}", gaussian_kernel_edit)
     form.addRow("Gaussian kernel", gaussian_kernel_edit)
 
+    roi_checkbox = QCheckBox("Enable ROI", panel)
+    roi_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    roi_checkbox.setEnabled(False)
+    roi_checkbox.setChecked(False)
+    roi_checkbox.toggled.connect(lambda enabled, slot=slot_index: self.handle_live_camera_roi_toggled(enabled, slot))
+    setattr(self, f"live_roi_checkbox{suffix}", roi_checkbox)
+    form.addRow("", roi_checkbox)
+
+    roi_x_center_edit = QLineEdit(panel)
+    roi_x_center_edit.setPlaceholderText("e.g. 512")
+    roi_x_center_edit.setEnabled(False)
+    roi_x_center_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_roi_x_center_edit{suffix}", roi_x_center_edit)
+    form.addRow("ROI X center", roi_x_center_edit)
+
+    roi_y_center_edit = QLineEdit(panel)
+    roi_y_center_edit.setPlaceholderText("e.g. 384")
+    roi_y_center_edit.setEnabled(False)
+    roi_y_center_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_roi_y_center_edit{suffix}", roi_y_center_edit)
+    form.addRow("ROI Y center", roi_y_center_edit)
+
+    roi_width_edit = QLineEdit(panel)
+    roi_width_edit.setPlaceholderText("e.g. 200")
+    roi_width_edit.setEnabled(False)
+    roi_width_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_roi_width_edit{suffix}", roi_width_edit)
+    form.addRow("ROI X width", roi_width_edit)
+
+    roi_height_edit = QLineEdit(panel)
+    roi_height_edit.setPlaceholderText("e.g. 200")
+    roi_height_edit.setEnabled(False)
+    roi_height_edit.editingFinished.connect(lambda slot=slot_index: self.handle_live_camera_parameter_changed(slot))
+    setattr(self, f"live_roi_height_edit{suffix}", roi_height_edit)
+    form.addRow("ROI Y height", roi_height_edit)
+
     display_gain_edit = QLineEdit(panel)
     display_gain_edit.setPlaceholderText("e.g. 0.0")
     display_gain_edit.setEnabled(False)
@@ -1817,7 +1853,7 @@ def acquisition_tab_build(self):
     self.camera_box.setChecked(False)
     self.camera_box.setFont(QFont('Arial', self.scale_font(14)))
     self.camera_box.move(int(self.SCALE_W*(self.button_w + 2*self.sep)), int(self.SCALE_H*self.top_margin))
-    self.camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(200)))
+    self.camera_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(300)))
     
     # self.camera_box.toggled.connect(self.camera_box_checked)
     form = QFormLayout(self.camera_box)
@@ -1941,6 +1977,32 @@ def acquisition_tab_build(self):
     self.gain_edit.editingFinished.connect(lambda: change_handlers.handle_camera_gain_changed(self))
     form.addRow("Gain, dB", self.gain_edit)
 
+    self.roi_checkbox = QCheckBox("Enable ROI", self.camera_box)
+    self.roi_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    self.roi_checkbox.setChecked(False)
+    self.roi_checkbox.toggled.connect(lambda enabled: change_handlers.handle_camera_roi_toggled(self, enabled))
+    form.addRow("", self.roi_checkbox)
+
+    self.roi_x_center_edit = QLineEdit(self.camera_box)
+    self.roi_x_center_edit.setPlaceholderText("e.g. 512")
+    self.roi_x_center_edit.editingFinished.connect(lambda: change_handlers.handle_camera_roi_changed(self))
+    form.addRow("ROI X center", self.roi_x_center_edit)
+
+    self.roi_y_center_edit = QLineEdit(self.camera_box)
+    self.roi_y_center_edit.setPlaceholderText("e.g. 384")
+    self.roi_y_center_edit.editingFinished.connect(lambda: change_handlers.handle_camera_roi_changed(self))
+    form.addRow("ROI Y center", self.roi_y_center_edit)
+
+    self.roi_width_edit = QLineEdit(self.camera_box)
+    self.roi_width_edit.setPlaceholderText("e.g. 200")
+    self.roi_width_edit.editingFinished.connect(lambda: change_handlers.handle_camera_roi_changed(self))
+    form.addRow("ROI X width", self.roi_width_edit)
+
+    self.roi_height_edit = QLineEdit(self.camera_box)
+    self.roi_height_edit.setPlaceholderText("e.g. 200")
+    self.roi_height_edit.editingFinished.connect(lambda: change_handlers.handle_camera_roi_changed(self))
+    form.addRow("ROI Y height", self.roi_height_edit)
+
 
     exp_row = QWidget(self.camera_box)
     h = QHBoxLayout(exp_row)
@@ -1980,7 +2042,7 @@ def acquisition_tab_build(self):
     self.save_sampled_box.setChecked(False)
     self.save_sampled_box.setFont(QFont('Arial', self.scale_font(14)))
     # Place it next to camera_box (below it)
-    self.save_sampled_box.move(int(self.SCALE_W*(self.button_w + 2*self.sep)), int(self.SCALE_H*(self.top_margin + 210)))
+    self.save_sampled_box.move(int(self.SCALE_W*(self.button_w + 2*self.sep)), int(self.SCALE_H*(self.top_margin + 310)))
     self.save_sampled_box.setFixedSize(int(self.SCALE_W*(2*self.button_w + self.sep)), int(self.SCALE_H*(120)))
     form_ss = QFormLayout(self.save_sampled_box)
     # Small descriptive label inside the group
