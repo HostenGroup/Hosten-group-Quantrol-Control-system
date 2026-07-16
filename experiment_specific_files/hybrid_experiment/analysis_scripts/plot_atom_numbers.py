@@ -8,14 +8,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
 
+from atom_number import atom_count, load_camera_counts_sidecar, make_background_image_pairs, parse_number_of_runs, parse_settings, sort_tif_files
+
 
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
 ENABLE_PARABOLA_FIT = False
 NUMBERS_TO_LAST_TO_USE = 0
-MOVING_AVERAGE_WINDOW = 5
+MOVING_AVERAGE_WINDOW = 0
 ENABLE_ERROR_BARS = True
 ENABLE_SNR = False
+HISTOGRAM_BIN_COUNT = 100
+USE_SEM = True
 
 
 def main() -> None:
@@ -232,6 +236,21 @@ def build_info_text(metadata: dict) -> str:
     return "\n".join(text_lines)
 
 
+def build_no_scan_info_text(metadata: dict) -> str:
+    """Build a compact annotation for histogram-only plots."""
+    experiment_name = metadata.get("experimental_data", {}).get("experiment_name", "")
+    comment = metadata.get("experimental_data", {}).get("comment", "")
+    number_of_runs = parse_number_of_runs(metadata)
+
+    text_lines = []
+    if experiment_name:
+        text_lines.append(str(experiment_name))
+    if comment:
+        text_lines.append(str(comment))
+    text_lines.append(f"N_runs = {number_of_runs}")
+    return "\n".join(text_lines)
+
+
 def moving_average(values: np.ndarray, window: int) -> np.ndarray:
     """Return the centered running average for a 1D array."""
     if window <= 0:
@@ -249,17 +268,18 @@ def plot_1d_scan(
     ax,
     scan_axis: np.ndarray,
     atom_values: np.ndarray,
+    atom_error: np.ndarray | None,
     atom_std: np.ndarray | None,
     x_label: str,
     info_text: str,
 ) -> None:
     atom_millions = atom_values * 1e-6
-    if ENABLE_ERROR_BARS and atom_std is not None:
-        atom_std_millions = atom_std * 1e-6
+    if ENABLE_ERROR_BARS and atom_error is not None:
+        atom_error_millions = atom_error * 1e-6
         ax.errorbar(
             scan_axis,
             atom_millions,
-            yerr=atom_std_millions,
+            yerr=atom_error_millions,
             fmt="-o",
             ms=3,
             lw=1,
@@ -373,6 +393,83 @@ def plot_3d_slider(
         ax.text(0.98, 0.05, info_text, bbox=bbox, transform=ax.transAxes, ha="right", va="bottom")
 
 
+def load_no_scan_atom_numbers(directory: Path, metadata: dict) -> np.ndarray:
+    """Load atom numbers for non-scan runs and return one value per run."""
+    settings = parse_settings(metadata)
+
+    counts_path = directory / "camera_counts.txt"
+    counts: np.ndarray | None = None
+    if counts_path.exists():
+        try:
+            counts = load_camera_counts_sidecar(counts_path)
+            print(f"Using acquisition-time camera counts: {counts_path.name}")
+        except Exception as exc:
+            print(f"Warning: could not load {counts_path.name} ({exc}); falling back to TIFF processing")
+
+    if counts is None:
+        sorted_tifs = sort_tif_files(directory)
+        image_pairs = make_background_image_pairs(sorted_tifs)
+        counts_list = []
+        for background_path, image_path in image_pairs:
+            background = np.asarray(read_tiff_fallback_safe(str(background_path)), dtype=np.float32)
+            image = np.asarray(read_tiff_fallback_safe(str(image_path)), dtype=np.float32)
+            counts_list.append(float(np.sum(background)))
+            counts_list.append(float(np.sum(image)))
+        counts = np.asarray(counts_list, dtype=float)
+
+    if counts.size % 2 != 0:
+        print(f"Warning: {counts.size} image counts found; ignoring the last count to form background/image pairs")
+
+    usable_image_count = (counts.size // 2) * 2
+    if usable_image_count <= 0:
+        raise ValueError("Not enough image counts to build atom-number values")
+
+    pair_counts = counts[:usable_image_count].reshape((-1, 2))
+    differential_counts = pair_counts[:, 1] - pair_counts[:, 0]
+    return np.asarray(
+        atom_count(
+            np.asarray(differential_counts, dtype=float),
+            settings["gain_db"],
+            settings["exposure_time_s"],
+            settings["pixel_format"],
+        ),
+        dtype=float,
+    )
+
+
+def plot_no_scan_histogram(ax, atom_values: np.ndarray, info_text: str) -> None:
+    """Plot a histogram of atom-number values and annotate summary statistics."""
+    values_millions = np.asarray(atom_values, dtype=float).reshape(-1) * 1e-6
+    if values_millions.size == 0:
+        raise ValueError("No atom-number values available for histogram plotting")
+
+    bins = max(int(HISTOGRAM_BIN_COUNT), 1)
+    ax.hist(values_millions, bins=bins, color="tab:blue", alpha=0.8, edgecolor="black")
+
+    mean_value = float(np.mean(values_millions))
+    stdev_value = float(np.std(values_millions, ddof=1)) if values_millions.size > 1 else 0.0
+    sem_value = stdev_value / float(np.sqrt(values_millions.size)) if values_millions.size > 0 else float("nan")
+
+    stats_text = "\n".join(
+        [
+            f"mean = {mean_value:.6g}",
+            f"stdev = {stdev_value:.6g}",
+            f"SEM = {sem_value:.6g}",
+            f"N = {values_millions.size}",
+        ]
+    )
+    bbox = {"boxstyle": "round", "fc": "blanchedalmond", "ec": "orange", "alpha": 0.5}
+    ax.text(0.98, 0.95, stats_text, bbox=bbox, transform=ax.transAxes, ha="right", va="top")
+
+    if info_text:
+        ax.text(0.98, 0.05, info_text, bbox=bbox, transform=ax.transAxes, ha="right", va="bottom")
+
+    ax.set_xlabel("Atom number (million)")
+    ax.set_ylabel("Count")
+    ax.minorticks_on()
+    ax.grid(True, which="both", alpha=0.35)
+
+
 def process_directory(directory: Path) -> None:
     directory = Path(directory)
     metadata_file = find_metadata_file(directory)
@@ -380,60 +477,74 @@ def process_directory(directory: Path) -> None:
     with metadata_file.open("r", encoding="utf-8") as file:
         metadata = json.load(file)
 
-    scanned_variables = get_scanned_variables(metadata)
-    scan_axes = build_scan_axes(scanned_variables)
-    scan_info = scanned_variables[0]
-    scan_label = metadata.get("experimental_data", {}).get("comment", "Scan value")
-    info_text = build_info_text(metadata)
-    axis_labels = [str(variable["name"]) for variable in scanned_variables]
-    atom_tensor, scan_shape, run_count, _ = load_atom_number_tensor(directory / "atom_numbers.txt")
-
-    if len(scanned_variables) != len(scan_shape):
-        raise ValueError(
-            f"Metadata scan dimensionality {len(scanned_variables)} does not match saved scan shape {scan_shape}"
-        )
-
-    atom_data = np.mean(atom_tensor, axis=0)
-    atom_std = np.std(atom_tensor, axis=0, ddof=1) if run_count > 2 else None
+    do_scan = bool(metadata.get("do_scan", False))
 
     print(f"Plotting {directory}")
     print(f"Using metadata file: {metadata_file.name}")
-    print(f"Averaging over {run_count} run(s)")
+    if not do_scan:
+        atom_values = load_no_scan_atom_numbers(directory, metadata)
+        info_text = build_no_scan_info_text(metadata)
 
-    if len(scanned_variables) == 1:
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
-        fig.suptitle(str(directory))
-        maximize_figure_window(fig)
-        plot_1d_scan(ax, scan_axes[0], atom_data, atom_std, scan_label, info_text)
-    elif len(scanned_variables) == 2:
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
-        fig.suptitle(str(directory))
-        maximize_figure_window(fig)
-        plot_2d_map(ax, scan_axes[0], scan_axes[1], atom_data, axis_labels[0], axis_labels[1], info_text)
-    elif len(scanned_variables) == 3:
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
-        fig.subplots_adjust(bottom=0.2)
-        fig.suptitle(str(directory))
-        maximize_figure_window(fig)
-        plot_3d_slider(
-            fig,
-            ax,
-            scan_axes[0],
-            scan_axes[1],
-            scan_axes[2],
-            atom_data,
-            axis_labels[0],
-            axis_labels[1],
-            axis_labels[2],
-            info_text,
-        )
-    else:
-        raise ValueError(f"Unsupported scan dimensionality: {len(scanned_variables)}")
+        print(f"Plotting histogram over {atom_values.size} atom-number value(s)")
 
-    if len(scanned_variables) == 3:
-        fig.tight_layout(rect=(0, 0.12, 1, 0.98))
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
+        fig.suptitle(str(directory))
+        maximize_figure_window(fig)
+        plot_no_scan_histogram(ax, atom_values, info_text)
     else:
-        fig.tight_layout(rect=(0, 0, 1, 0.98))
+        scanned_variables = get_scanned_variables(metadata)
+        scan_axes = build_scan_axes(scanned_variables)
+        scan_info = scanned_variables[0]
+        scan_label = metadata.get("experimental_data", {}).get("comment", "Scan value")
+        info_text = build_info_text(metadata)
+        axis_labels = [str(variable["name"]) for variable in scanned_variables]
+        atom_tensor, scan_shape, run_count, _ = load_atom_number_tensor(directory / "atom_numbers.txt")
+
+        if len(scanned_variables) != len(scan_shape):
+            raise ValueError(
+                f"Metadata scan dimensionality {len(scanned_variables)} does not match saved scan shape {scan_shape}"
+            )
+
+        atom_data = np.mean(atom_tensor, axis=0)
+        atom_std = np.std(atom_tensor, axis=0, ddof=1) if run_count > 1 else None
+        atom_error = atom_std / np.sqrt(run_count) if (USE_SEM and atom_std is not None) else atom_std
+
+        print(f"Averaging over {run_count} run(s)")
+
+        if len(scanned_variables) == 1:
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
+            fig.suptitle(str(directory))
+            maximize_figure_window(fig)
+            plot_1d_scan(ax, scan_axes[0], atom_data, atom_error, atom_std, scan_label, info_text)
+        elif len(scanned_variables) == 2:
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
+            fig.suptitle(str(directory))
+            maximize_figure_window(fig)
+            plot_2d_map(ax, scan_axes[0], scan_axes[1], atom_data, axis_labels[0], axis_labels[1], info_text)
+        elif len(scanned_variables) == 3:
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(14, 8), dpi=100)
+            fig.subplots_adjust(bottom=0.2)
+            fig.suptitle(str(directory))
+            maximize_figure_window(fig)
+            plot_3d_slider(
+                fig,
+                ax,
+                scan_axes[0],
+                scan_axes[1],
+                scan_axes[2],
+                atom_data,
+                axis_labels[0],
+                axis_labels[1],
+                axis_labels[2],
+                info_text,
+            )
+        else:
+            raise ValueError(f"Unsupported scan dimensionality: {len(scanned_variables)}")
+
+        if len(scanned_variables) == 3:
+            fig.tight_layout(rect=(0, 0.12, 1, 0.98))
+        else:
+            fig.tight_layout(rect=(0, 0, 1, 0.98))
 
     try:
         date_str = directory.parent.parent.name

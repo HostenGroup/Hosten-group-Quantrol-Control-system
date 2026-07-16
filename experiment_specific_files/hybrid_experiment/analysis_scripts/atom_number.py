@@ -66,7 +66,7 @@ def get_scanned_variables(metadata: dict) -> list[dict]:
     """Return scanned variables sorted by Dim."""
     scanned_variables = metadata.get("scanned_variables", [])
     if not scanned_variables:
-        raise ValueError("metadata['scanned_variables'] is empty")
+        return []
 
     return sorted(scanned_variables, key=lambda item: int(item["Dim"]))
 
@@ -92,6 +92,22 @@ def build_atom_number_header(
             "flattening_order: C",
         ]
     )
+
+
+def print_atom_number_summary(atom_numbers: np.ndarray, number_of_runs: int) -> None:
+    """Print a compact atom-number summary for console-only use."""
+    values = np.asarray(atom_numbers, dtype=float).reshape(-1)
+    if values.size == 0:
+        raise ValueError("No atom numbers available to summarize")
+
+    if int(number_of_runs) > 1 or values.size > 1:
+        mean_value = float(np.mean(values))
+        std_value = float(np.std(values))
+        print(f"Atom number mean: {mean_value*1e-6:.3f}  million ({values.size} runs)")
+        print(f"Atom number standard deviation: {std_value*1e-6:.3f} million")
+        print(f"Atom number standard error of the mean: {std_value*1e-6/np.sqrt(values.size):.3f} million")
+    else:
+        print(f"Atom number: {float(values[0])*1e-6:.3f} million")
 
 _reported_tiff_fallback = False
 
@@ -215,6 +231,7 @@ def process_directory(directory: Path) -> None:
 
     settings = parse_settings(metadata)
     number_of_runs = parse_number_of_runs(metadata)
+    do_scan = bool(metadata.get("do_scan", False))
     scanned_variables = get_scanned_variables(metadata)
     print(f"Processing {directory}")
     print(f"Using metadata file: {metadata_file.name}")
@@ -259,7 +276,12 @@ def process_directory(directory: Path) -> None:
         dtype=float,
     )
 
+    if not do_scan:
+        print_atom_number_summary(atom_numbers, number_of_runs)
+        return
+
     scan_shape = tuple(int(variable["num_scan_steps"]) for variable in scanned_variables)
+
     if not scan_shape:
         raise ValueError("No scan dimensions found in metadata")
 
