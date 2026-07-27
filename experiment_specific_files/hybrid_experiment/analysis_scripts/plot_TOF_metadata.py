@@ -26,11 +26,12 @@ def main() -> None:
             with metadata_file.open("r", encoding="utf-8") as file:
                 metadata = json.load(file)
 
-            scan_info = metadata["scanned_variables"][0]
+            scanned_variables = get_scanned_variables(metadata)
+            scan_info = scanned_variables[0]
             scan_label = metadata.get("experimental_data", {}).get("comment", "Scan value")
             info_text = build_info_text(scan_info)
 
-            atom_numbers = load_required_table(directory / "atom_numbers.txt", expected_cols=2, table_name="atom_numbers")
+            atom_numbers = load_atom_numbers_for_tof_plot(directory, scanned_variables)
             fit_params = load_required_table(directory / "fit_parameters.txt", expected_cols=7, table_name="fit_parameters")
             sigma_path = directory / "tof_sigma_vs_scan.txt"
             sigma_table = np.loadtxt(sigma_path) if sigma_path.exists() else None
@@ -164,6 +165,47 @@ def load_required_table(path: Path, expected_cols: int, table_name: str) -> np.n
             f"{table_name} has {data.shape[1]} columns, expected at least {expected_cols}"
         )
     return data
+
+
+def get_scanned_variables(metadata: dict) -> list[dict]:
+    """Return scanned variables sorted by Dim."""
+    scanned_variables = metadata.get("scanned_variables", [])
+    if not scanned_variables:
+        raise ValueError("metadata['scanned_variables'] is empty")
+    return sorted(scanned_variables, key=lambda item: int(item["Dim"]))
+
+
+def build_scan_axes(scanned_variables: list[dict]) -> list[np.ndarray]:
+    """Create one coordinate axis per scanned variable."""
+    axes: list[np.ndarray] = []
+    for variable in scanned_variables:
+        steps = int(variable["num_scan_steps"])
+        axes.append(np.linspace(float(variable["min_val"]), float(variable["max_val"]), steps))
+    return axes
+
+
+def load_atom_numbers_for_tof_plot(directory: Path, scanned_variables: list[dict]) -> np.ndarray:
+    """Load atom_numbers and normalize to two columns [atom_number, scan_value]."""
+    path = directory / "atom_numbers.txt"
+    if not path.exists():
+        raise FileNotFoundError(f"Missing atom_numbers: {path}")
+
+    raw = np.asarray(np.loadtxt(path, comments="#"), dtype=float)
+    if raw.ndim == 0:
+        raw = raw.reshape(1)
+
+    if raw.ndim == 1:
+        atom_values = raw.reshape(-1)
+        scan_axis = np.asarray(build_scan_axes(scanned_variables)[0], dtype=float).reshape(-1)
+        if scan_axis.size != atom_values.size:
+            # Keep plotting robust when counts were truncated upstream.
+            scan_axis = np.linspace(float(scan_axis[0]), float(scan_axis[-1]), atom_values.size)
+        return np.column_stack((atom_values, scan_axis))
+
+    data = np.atleast_2d(raw)
+    if data.shape[1] < 2:
+        raise ValueError(f"atom_numbers has {data.shape[1]} columns, expected 1 or at least 2")
+    return data[:, :2]
 
 
 def build_info_text(scan_info: dict) -> str:

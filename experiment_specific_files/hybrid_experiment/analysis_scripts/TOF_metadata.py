@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -32,37 +33,16 @@ def read_tiff_fallback_safe(path: str) -> np.ndarray:
             _reported_tiff_fallback = True
         return np.asarray(plt.imread(path), dtype=np.float32)
 
-ATOM_COUNT_FILE = (
-    Path(__file__).resolve().parents[1]
-    / "atom_count.py"
-)
-
-
-def load_atom_count_function():
-    """Load atom_count() from the hybrid_experiment source file."""
-    if not ATOM_COUNT_FILE.exists():
-        raise FileNotFoundError(f"atom_count source not found: {ATOM_COUNT_FILE}")
-
-    spec = importlib.util.spec_from_file_location("hybrid_atom_count", ATOM_COUNT_FILE)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load module spec from {ATOM_COUNT_FILE}")
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.atom_count
-
-
-atom_count = load_atom_count_function()
-
-
 # All values are in SI units unless otherwise noted.
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
 FIT_DOWNSAMPLING_FACTOR = 4
+ATOM_NUMBERS_SCRIPT = Path(__file__).resolve().with_name("atom_number.py")
 
 PIXELS_PER_MM_BY_CAMERA = {
     "X": 330.0,
-    "Y": 330.0,
+    # "Y": 330.0,
+    "Y": 63.2,
     "Z": 152.0,
 }
 
@@ -131,6 +111,43 @@ def load_target_directories(path_list_file: Path, take_last_n: int = 1) -> list[
     return directories[-take_last_n:]
 
 
+def run_atom_number_subprocess(directory: Path) -> np.ndarray:
+    """Run atom_number.py for this directory and return the generated atom numbers."""
+    if not ATOM_NUMBERS_SCRIPT.exists():
+        raise FileNotFoundError(f"atom_number script not found: {ATOM_NUMBERS_SCRIPT}")
+
+    command_code = (
+        "import importlib.util,sys;"
+        "from pathlib import Path;"
+        "spec=importlib.util.spec_from_file_location('hybrid_atom_number', sys.argv[1]);"
+        "mod=importlib.util.module_from_spec(spec);"
+        "spec.loader.exec_module(mod);"
+        "mod.process_directory(Path(sys.argv[2]))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", command_code, str(ATOM_NUMBERS_SCRIPT), str(directory)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.stderr.strip():
+        print(result.stderr.strip())
+
+    atom_numbers_path = directory / "atom_numbers.txt"
+    if not atom_numbers_path.exists():
+        raise FileNotFoundError(
+            f"atom_number.py completed but did not produce {atom_numbers_path}. "
+            "Check metadata do_scan setting and atom_number.py output mode."
+        )
+
+    atom_numbers = np.asarray(np.loadtxt(atom_numbers_path, comments="#"), dtype=float)
+    return np.atleast_1d(atom_numbers).reshape(-1)
+
+
 def find_metadata_file(images_directory: Path) -> Path:
     """Pick the newest metadata*.json from the parent directory."""
     candidates = list(images_directory.parent.glob("metadata*.json"))
@@ -154,12 +171,15 @@ def parse_settings(metadata: dict) -> dict:
     if pixels_per_mm is None:
         raise ValueError(f"Unsupported camera name for pixel calibration: {camera_name}")
 
+    roi_enabled = bool(camera.get("roi_enabled", False))
+    roi_center_px: tuple[float, float] | None = None
+    if roi_enabled and ("roi_x_center" in camera) and ("roi_y_center" in camera):
+        roi_center_px = (float(camera["roi_x_center"]), float(camera["roi_y_center"]))
+
     return {
         "camera_name": camera_name,
         "pixels_per_mm": float(pixels_per_mm),
-        "gain_db": float(camera["gain_db"]),
-        "exposure_time_s": float(camera["exposure_time_ms"]) * 1e-3,
-        "pixel_format": camera["format_name"],
+        "roi_center_px": roi_center_px,
         "scan_min_ms": float(scan["min_val"]),
         "scan_max_ms": float(scan["max_val"]),
     }
@@ -220,6 +240,7 @@ def fit_gaussian_2d(
     image_no_background: np.ndarray,
     fit_gaussian: fitting.TRFLSQFitter,
     pixels_per_mm: float,
+    initial_center_px: tuple[float, float] | None = None,
     previous_fit: models.Gaussian2D | None = None,
     width_px_ref: int = 2048,
     height_px_ref: int = 1536,
@@ -234,10 +255,16 @@ def fit_gaussian_2d(
 
     max_val = float(np.max(image_for_fit))
     if previous_fit is None:
+        x_init = 0.5 * width_px_ref
+        y_init = 0.5 * height_px_ref
+        if initial_center_px is not None:
+            # x/y grids are still in full-frame coordinates even when image is downsampled.
+            x_init = float(np.clip(initial_center_px[0], 0.0, float(width_px_ref)))
+            y_init = float(np.clip(initial_center_px[1], 0.0, float(height_px_ref)))
         p_init = models.Gaussian2D(
             amplitude=max_val,
-            x_mean=0.5 * width_px_ref,
-            y_mean=0.5 * height_px_ref,
+            x_mean=x_init,
+            y_mean=y_init,
             x_stddev=0.3 * width_px_ref,
             y_stddev=0.3 * height_px_ref,
             theta=1.6,
@@ -282,9 +309,9 @@ def process_images(
     image_pairs: list[tuple[Path, Path]],
     fit_gaussian: fitting.TRFLSQFitter,
     pixels_per_mm: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Process all background/image pairs and return counts, fit params, sigma/y errors."""
-    counts: list[float] = []
+    initial_center_px: tuple[float, float] | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Process all background/image pairs and return fit params, sigma/y errors."""
     fit_params: list[list[float]] = []
     sigma_errors_m: list[float] = []
     y_mean_errors_m: list[float] = []
@@ -295,11 +322,11 @@ def process_images(
         background = read_tiff_fallback_safe(str(background_path))
         image_no_background = image - background
 
-        counts.append(float(np.sum(image_no_background)))
         frame_fit_params, previous_fit, sigma_err_m, y_mean_err_m = fit_gaussian_2d(
             image_no_background,
             fit_gaussian,
             pixels_per_mm=pixels_per_mm,
+            initial_center_px=initial_center_px if previous_fit is None else None,
             previous_fit=previous_fit,
         )
         fit_params.append(frame_fit_params)
@@ -307,7 +334,6 @@ def process_images(
         y_mean_errors_m.append(y_mean_err_m)
 
     return (
-        np.asarray(counts, dtype=float),
         np.asarray(fit_params, dtype=float),
         np.asarray(sigma_errors_m, dtype=float),
         np.asarray(y_mean_errors_m, dtype=float),
@@ -409,12 +435,28 @@ def process_directory(directory: Path) -> None:
     fit_gaussian = fitting.TRFLSQFitter()
     fit_model = fitting.TRFLSQFitter()
 
-    counts, fit_params, sigma_errors_m, y_mean_errors_m = process_images(
+    fit_params, sigma_errors_m, y_mean_errors_m = process_images(
         image_pairs,
         fit_gaussian,
         pixels_per_mm=settings["pixels_per_mm"],
+        initial_center_px=settings["roi_center_px"],
     )
-    scan_values_ms = np.linspace(settings["scan_min_ms"], settings["scan_max_ms"], len(image_pairs))
+
+    atom_numbers = run_atom_number_subprocess(directory)
+    if atom_numbers.size <= 0:
+        raise ValueError("atom_number.py produced an empty atom_numbers.txt")
+
+    n_points = min(len(image_pairs), fit_params.shape[0], atom_numbers.size)
+    if n_points < len(image_pairs):
+        print(
+            f"Warning: point-count mismatch (pairs={len(image_pairs)}, fit={fit_params.shape[0]}, "
+            f"atom_numbers={atom_numbers.size}); truncating TOF fit inputs to {n_points}"
+        )
+
+    fit_params = fit_params[:n_points]
+    sigma_errors_m = sigma_errors_m[:n_points]
+    y_mean_errors_m = y_mean_errors_m[:n_points]
+    scan_values_ms = np.linspace(settings["scan_min_ms"], settings["scan_max_ms"], n_points)
     scan_values_s = scan_values_ms * 1e-3
     sigma_values, tof_model_fit = fit_tof(scan_values_s, fit_params, sigma_errors_m, fit_model)
     y_model_fit, y_w_r2, y_chi2_red = fit_vertical_position(
@@ -422,23 +464,6 @@ def process_directory(directory: Path) -> None:
         fit_params,
         y_mean_errors_m,
         fit_model,
-    )
-
-    atom_numbers = np.asarray(
-        np.vectorize(atom_count)(
-            counts,
-            settings["gain_db"],
-            settings["exposure_time_s"],
-            settings["pixel_format"],
-        ),
-        dtype=float,
-    )
-
-    atom_table = np.column_stack((atom_numbers, scan_values_ms))
-    np.savetxt(
-        directory / "atom_numbers.txt",
-        atom_table,
-        header="atom_number scan_value",
     )
 
     fit_table = np.column_stack((scan_values_ms, fit_params, y_mean_errors_m))
@@ -483,7 +508,7 @@ def process_directory(directory: Path) -> None:
     )
 
     print(
-        "Saved: atom_numbers.txt, fit_parameters.txt, "
+        "Saved: fit_parameters.txt, "
         "tof_fit_parameters.txt, tof_sigma_vs_scan.txt, cloud_y_fit_parameters.txt"
     )
 
