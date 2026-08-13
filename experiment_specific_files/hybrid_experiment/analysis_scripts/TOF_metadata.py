@@ -41,9 +41,9 @@ ATOM_NUMBERS_SCRIPT = Path(__file__).resolve().with_name("atom_number.py")
 
 PIXELS_PER_MM_BY_CAMERA = {
     "X": 330.0,
-    # "Y": 330.0,
-    "Y": 63.2,
-    "Z": 152.0,
+    "Y": 330.0,
+    # "Y": 63.2,
+    "Z": 63.2,
 }
 
 

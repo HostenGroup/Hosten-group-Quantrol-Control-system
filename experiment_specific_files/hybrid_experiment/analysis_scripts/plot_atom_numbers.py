@@ -10,6 +10,11 @@ from matplotlib.widgets import Slider
 
 from atom_number import atom_count, load_camera_counts_sidecar, make_background_image_pairs, parse_number_of_runs, parse_settings, sort_tif_files
 
+try:
+    from tifffile import imread as read_tiff  # type: ignore[import-not-found]
+except ImportError:
+    read_tiff = plt.imread
+
 
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
@@ -18,9 +23,26 @@ NUMBERS_TO_LAST_TO_USE = 0
 MOVING_AVERAGE_WINDOW = 0
 ENABLE_ERROR_BARS = True
 ENABLE_SNR = False
-HISTOGRAM_BIN_COUNT = 100
+ENABLE_PERCENT_AXIS = True
+HISTOGRAM_BIN_COUNT = 50
 USE_SEM = True
 
+
+
+
+_reported_tiff_fallback = False
+
+
+def read_tiff_fallback_safe(path: str) -> np.ndarray:
+    """Read TIFF with tifffile when possible, fallback to matplotlib on decode issues."""
+    global _reported_tiff_fallback
+    try:
+        return np.asarray(read_tiff(path), dtype=np.float32)
+    except Exception as exc:
+        if not _reported_tiff_fallback:
+            print(f"TIFF fast loader unavailable for some files ({exc}); using matplotlib fallback")
+            _reported_tiff_fallback = True
+        return np.asarray(plt.imread(path), dtype=np.float32)
 
 def main() -> None:
     path_list_file = DEFAULT_DATA_ROOT / PATH_LIST_FILENAME
@@ -274,6 +296,7 @@ def plot_1d_scan(
     info_text: str,
 ) -> None:
     atom_millions = atom_values * 1e-6
+    max_atom_millions = float(np.max(atom_millions)) if atom_millions.size else 0.0
     if ENABLE_ERROR_BARS and atom_error is not None:
         atom_error_millions = atom_error * 1e-6
         ax.errorbar(
@@ -318,6 +341,16 @@ def plot_1d_scan(
     ax.set_ylabel("Atom number (million)")
     ax.minorticks_on()
     ax.grid(True, which="both", alpha=0.35)
+
+    if ENABLE_PERCENT_AXIS and max_atom_millions > 0.0:
+        percent_axis = ax.secondary_yaxis(
+            "right",
+            functions=(
+                lambda values: values / max_atom_millions * 100.0,
+                lambda percent: percent * max_atom_millions / 100.0,
+            ),
+        )
+        percent_axis.set_ylabel("Atom number (% of max)")
 
     bbox = {"boxstyle": "round", "fc": "blanchedalmond", "ec": "orange", "alpha": 0.5}
     if info_text:

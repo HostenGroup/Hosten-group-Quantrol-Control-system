@@ -116,9 +116,9 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
     for variable in getattr(self.experiment, "new_variables", []):
         if variable.name in ("", "None"):
             continue
-        if getattr(variable, "is_scanned", False):
+        if getattr(variable, "is_scanned", False) and self.experiment.do_scan == True:
             continue
-        if getattr(variable, "is_ramped", False):
+        if getattr(variable, "is_ramped", False) and self.experiment.do_ramp == True:
             continue
         if getattr(variable, "is_sampled", False):
             continue
