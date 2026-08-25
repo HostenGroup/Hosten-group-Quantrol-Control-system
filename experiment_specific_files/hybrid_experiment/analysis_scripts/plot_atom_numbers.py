@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
+from scipy.optimize import curve_fit
 
 from atom_number import atom_count, load_camera_counts_sidecar, make_background_image_pairs, parse_number_of_runs, parse_settings, sort_tif_files
 
@@ -18,7 +19,7 @@ except ImportError:
 
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
-ENABLE_PARABOLA_FIT = False
+ENABLE_EXPONENTIAL_FIT = False
 NUMBERS_TO_LAST_TO_USE = 0
 MOVING_AVERAGE_WINDOW = 0
 ENABLE_ERROR_BARS = True
@@ -286,6 +287,46 @@ def moving_average(values: np.ndarray, window: int) -> np.ndarray:
     return np.convolve(values, kernel, mode="valid")
 
 
+def exponential_decay_model(t: np.ndarray, amplitude: float, t0: float) -> np.ndarray:
+    """Return A * exp(-t / t0)."""
+    return amplitude * np.exp(-t / t0)
+
+
+def fit_exponential_decay(scan_axis: np.ndarray, atom_values: np.ndarray) -> tuple[np.ndarray, np.ndarray, str] | None:
+    """Fit A * exp(-t / t0) to positive finite data and return the fit curve."""
+    x_values = np.asarray(scan_axis, dtype=float).reshape(-1)
+    y_values = np.asarray(atom_values, dtype=float).reshape(-1) * 1e-6
+
+    valid = np.isfinite(x_values) & np.isfinite(y_values) & (y_values > 0.0)
+    x_fit = x_values[valid]
+    y_fit = y_values[valid]
+
+    if x_fit.size < 3:
+        print("Skipping exponential fit: not enough finite positive points")
+        return None
+
+    amplitude_guess = float(np.max(y_fit))
+    t0_guess = float(max((np.max(x_fit) - np.min(x_fit)) / 2.0, 1e-12))
+
+    try:
+        popt, _pcov = curve_fit(
+            exponential_decay_model,
+            x_fit,
+            y_fit,
+            p0=(amplitude_guess, t0_guess),
+            bounds=((0.0, 1e-12), (np.inf, np.inf)),
+            maxfev=10000,
+        )
+    except Exception as exc:
+        print(f"Skipping exponential fit: {exc}")
+        return None
+
+    x_dense = np.linspace(float(np.min(x_fit)), float(np.max(x_fit)), 300)
+    y_dense = exponential_decay_model(x_dense, float(popt[0]), float(popt[1]))
+    fit_label = f"Fit: A*exp(-t/t0), t0={float(popt[1]):.4g}"
+    return x_dense, y_dense, fit_label
+
+
 def plot_1d_scan(
     ax,
     scan_axis: np.ndarray,
@@ -311,6 +352,12 @@ def plot_1d_scan(
         )
     else:
         ax.plot(scan_axis, atom_millions, "-o", ms=3, lw=1, label="Data")
+
+    if ENABLE_EXPONENTIAL_FIT:
+        fit_result = fit_exponential_decay(scan_axis, atom_values)
+        if fit_result is not None:
+            fit_axis, fit_values, fit_label = fit_result
+            ax.plot(fit_axis, fit_values, "-", lw=2, label=fit_label)
 
     if MOVING_AVERAGE_WINDOW > 0:
         averaged_axis = moving_average(scan_axis, MOVING_AVERAGE_WINDOW)

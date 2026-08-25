@@ -40,14 +40,28 @@ def main() -> None:
 
             tof_fit_path = directory / "tof_fit_parameters.txt"
             tof_fit_table = np.loadtxt(tof_fit_path) if tof_fit_path.exists() else None
+            tof_fit_x_path = directory / "tof_fit_parameters_x.txt"
+            tof_fit_x_table = np.loadtxt(tof_fit_x_path) if tof_fit_x_path.exists() else None
+            tof_fit_y_path = directory / "tof_fit_parameters_y.txt"
+            tof_fit_y_table = np.loadtxt(tof_fit_y_path) if tof_fit_y_path.exists() else None
             y_fit_path = directory / "cloud_y_fit_parameters.txt"
             y_fit_table = np.loadtxt(y_fit_path) if y_fit_path.exists() else None
+
+            sigma_x_path = directory / "tof_sigma_x_vs_scan.txt"
+            sigma_x_table = np.loadtxt(sigma_x_path) if sigma_x_path.exists() else None
+            if sigma_x_table is not None:
+                sigma_x_table = np.atleast_2d(sigma_x_table)
+
+            sigma_y_path = directory / "tof_sigma_y_vs_scan.txt"
+            sigma_y_table = np.loadtxt(sigma_y_path) if sigma_y_path.exists() else None
+            if sigma_y_table is not None:
+                sigma_y_table = np.atleast_2d(sigma_y_table)
 
             analysis_method = "gaussian"
             analysis_method_path = directory / "tof_analysis_method.txt"
             if analysis_method_path.exists():
                 analysis_method = analysis_method_path.read_text(encoding="utf-8").strip().lower()
-            if analysis_method not in {"gaussian", "moments"}:
+            if analysis_method not in {"gaussian", "moments", "separate_gaussians"}:
                 analysis_method = "gaussian"
 
             print(f"Plotting {directory}")
@@ -63,11 +77,33 @@ def main() -> None:
             plot_atom_number(axes[0], directory, scan_label, atom_numbers, info_text)
             if INCLUDE_CLOUD_Y_PLOT:
                 plot_cloud_position(axes[1], scan_label, fit_params, y_fit_table, info_text)
-                plot_sigma_vs_scan(axes[2], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
+                if analysis_method == "separate_gaussians":
+                    plot_sigma_vs_scan_separate(
+                        axes[2],
+                        scan_label,
+                        sigma_x_table,
+                        sigma_y_table,
+                        tof_fit_x_table,
+                        tof_fit_y_table,
+                        info_text,
+                    )
+                else:
+                    plot_sigma_vs_scan(axes[2], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
                 axes[0].tick_params(labelbottom=False)
                 axes[1].tick_params(labelbottom=False)
             else:
-                plot_sigma_vs_scan(axes[1], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
+                if analysis_method == "separate_gaussians":
+                    plot_sigma_vs_scan_separate(
+                        axes[1],
+                        scan_label,
+                        sigma_x_table,
+                        sigma_y_table,
+                        tof_fit_x_table,
+                        tof_fit_y_table,
+                        info_text,
+                    )
+                else:
+                    plot_sigma_vs_scan(axes[1], directory, scan_label, fit_params, sigma_table, tof_fit_table, analysis_method, info_text)
                 axes[0].tick_params(labelbottom=False)
 
             fig.tight_layout(rect=(0, 0, 1, 0.98))
@@ -301,7 +337,12 @@ def plot_sigma_vs_scan(
     if sigma_table is not None and sigma_table.shape[1] >= 3:
         sigma_err = np.asarray(sigma_table[:, 2], dtype=float)
 
-    method_label = "Gaussian fit" if analysis_method == "gaussian" else "Moments"
+    if analysis_method == "separate_gaussians":
+        method_label = "Separate X/Y Gaussian fit"
+    elif analysis_method == "gaussian":
+        method_label = "Gaussian fit"
+    else:
+        method_label = "Moments"
 
     if sigma_err is not None and sigma_err.shape[0] == sigma.shape[0]:
         ax.errorbar(
@@ -353,6 +394,65 @@ def plot_sigma_vs_scan(
         ax.plot(dense_scan_ms, model(dense_scan_ms * 1e-3) * 1e3, "-", lw=2, label=fit_label)
 
     # ax.set_ylim((0, None))
+    ax.set_xlim((0.9 * np.min(scan_ms), 1.1 * np.max(scan_ms)))
+    ax.set_xlabel(scan_label)
+    ax.set_ylabel("Cloud width sigma (mm)")
+    ax.minorticks_on()
+    ax.grid(True, which="both", alpha=0.35)
+    ax.legend()
+
+    bbox = {"boxstyle": "round", "fc": "blanchedalmond", "ec": "orange", "alpha": 0.5}
+    if info_text:
+        ax.text(0.98, 0.05, info_text, bbox=bbox, transform=ax.transAxes, ha="right", va="bottom")
+
+
+def plot_sigma_component(
+    ax,
+    scan_ms: np.ndarray,
+    sigma_table: np.ndarray | None,
+    fit_table: np.ndarray | None,
+    component_label: str,
+    color: str,
+) -> None:
+    sigma = sigma_table[:, 1] if sigma_table is not None and sigma_table.shape[1] >= 2 else None
+    sigma_err = None
+    if sigma_table is not None and sigma_table.shape[1] >= 3:
+        sigma_err = np.asarray(sigma_table[:, 2], dtype=float)
+
+    if sigma is None:
+        return
+
+    sigma = np.asarray(sigma, dtype=float)
+    if sigma_err is not None and sigma_err.shape[0] == sigma.shape[0]:
+        ax.errorbar(scan_ms, sigma * 1e3, yerr=sigma_err * 1e3, fmt="o", ms=4, lw=1, capsize=3, color=color, label=component_label)
+    else:
+        ax.plot(scan_ms, sigma * 1e3, "o", ms=4, lw=1, color=color, label=component_label)
+
+    if fit_table is not None and fit_table.size >= 2:
+        sigma0, temperature = float(fit_table[0]), float(fit_table[1])
+        model = expansion_model(sigma0=sigma0, T=temperature)
+        dense_scan_ms = np.linspace(np.min(scan_ms), np.max(scan_ms), 200)
+        ax.plot(dense_scan_ms, model(dense_scan_ms * 1e-3) * 1e3, "-", lw=2, color=color, label=f"{component_label} fit (T={temperature * 1e6:.1f} uK)")
+
+
+def plot_sigma_vs_scan_separate(
+    ax,
+    scan_label: str,
+    sigma_x_table: np.ndarray | None,
+    sigma_y_table: np.ndarray | None,
+    tof_fit_x_table: np.ndarray | None,
+    tof_fit_y_table: np.ndarray | None,
+    info_text: str,
+) -> None:
+    """Plot X and Y TOF widths and separate temperature fits on one axis."""
+    if sigma_x_table is None or sigma_y_table is None:
+        ax.text(0.5, 0.5, "Missing separate TOF sigma files", transform=ax.transAxes, ha="center", va="center")
+        return
+
+    scan_ms = np.asarray(sigma_x_table[:, 0], dtype=float)
+    plot_sigma_component(ax, scan_ms, sigma_x_table, tof_fit_x_table, "X width", "tab:blue")
+    plot_sigma_component(ax, np.asarray(sigma_y_table[:, 0], dtype=float), sigma_y_table, tof_fit_y_table, "Y width", "tab:orange")
+
     ax.set_xlim((0.9 * np.min(scan_ms), 1.1 * np.max(scan_ms)))
     ax.set_xlabel(scan_label)
     ax.set_ylabel("Cloud width sigma (mm)")

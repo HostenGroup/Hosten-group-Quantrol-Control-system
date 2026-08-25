@@ -534,6 +534,7 @@ class LiveCamera:
         roi_y_center=None,
         roi_width=None,
         roi_height=None,
+        zoom_on_roi=False,
     ):
         self.gain_db = gain_db
         self.format_name = format_name
@@ -556,3 +557,4 @@ class LiveCamera:
         self.roi_y_center = roi_y_center
         self.roi_width = roi_width
         self.roi_height = roi_height
+        self.zoom_on_roi = bool(zoom_on_roi)

@@ -37,6 +37,7 @@ def read_tiff_fallback_safe(path: str) -> np.ndarray:
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
 FIT_DOWNSAMPLING_FACTOR = 4
+FIT_X_Y_SEPARATELY = False
 ATOM_NUMBERS_SCRIPT = Path(__file__).resolve().with_name("atom_number.py")
 
 PIXELS_PER_MM_BY_CAMERA = {
@@ -305,38 +306,180 @@ def fit_gaussian_2d(
     ], p_fit, float(sigma_err_m), float(y_mean_err_m)
 
 
+def fit_gaussian_1d_projection(
+    projection: np.ndarray,
+    axis_values: np.ndarray,
+    fit_gaussian: fitting.TRFLSQFitter,
+    initial_center: float | None = None,
+    previous_fit: models.Gaussian1D | None = None,
+) -> tuple[models.Gaussian1D, float]:
+    """Fit a 1D Gaussian to a projection and return the fit plus relative residual."""
+    max_val = float(np.max(projection))
+    if previous_fit is None:
+        if initial_center is None:
+            initial_center = float(axis_values[int(np.argmax(projection))])
+        stddev_guess = max(0.3 * float(axis_values[-1] - axis_values[0]), 1.0)
+        p_init = models.Gaussian1D(
+            amplitude=max_val,
+            mean=float(initial_center),
+            stddev=stddev_guess,
+        )
+    else:
+        p_init = models.Gaussian1D(
+            amplitude=max_val,
+            mean=float(previous_fit.mean.value),
+            stddev=max(abs(float(previous_fit.stddev.value)), 1.0),
+        )
+
+    p_fit = fit_gaussian(p_init, axis_values, projection)
+    model_profile = p_fit(axis_values)
+    residual_rms = float(np.sqrt(np.mean((projection - model_profile) ** 2)))
+    amplitude_abs = max(abs(float(p_fit.amplitude.value)), 1e-9)
+    return p_fit, residual_rms / amplitude_abs
+
+
+def fit_gaussian_separate_xy(
+    image_no_background: np.ndarray,
+    fit_gaussian: fitting.TRFLSQFitter,
+    pixels_per_mm: float,
+    initial_center_px: tuple[float, float] | None = None,
+    previous_fit: tuple[models.Gaussian1D, models.Gaussian1D] | None = None,
+    width_px_ref: int = 2048,
+    height_px_ref: int = 1536,
+) -> tuple[list[float], tuple[models.Gaussian1D, models.Gaussian1D], float, float, float, float]:
+    """Fit X and Y projections independently with Gaussians."""
+    image_for_fit = downsample_image(image_no_background, 1)
+    num_y, num_x = image_for_fit.shape
+    x_axis = np.linspace(0, width_px_ref, num_x)
+    y_axis = np.linspace(0, height_px_ref, num_y)
+    x_profile = np.sum(image_for_fit, axis=0)
+    y_profile = np.sum(image_for_fit, axis=1)
+
+    previous_x_fit = previous_fit[0] if previous_fit is not None else None
+    previous_y_fit = previous_fit[1] if previous_fit is not None else None
+
+    x_initial_center = None if initial_center_px is None else float(initial_center_px[0])
+    y_initial_center = None if initial_center_px is None else float(initial_center_px[1])
+    x_fit, x_residual = fit_gaussian_1d_projection(
+        x_profile,
+        x_axis,
+        fit_gaussian,
+        initial_center=x_initial_center,
+        previous_fit=previous_x_fit,
+    )
+    y_fit, y_residual = fit_gaussian_1d_projection(
+        y_profile,
+        y_axis,
+        fit_gaussian,
+        initial_center=y_initial_center,
+        previous_fit=previous_y_fit,
+    )
+
+    width_m = width_px_ref / pixels_per_mm * 1e-3
+    height_m = height_px_ref / pixels_per_mm * 1e-3
+    x_stddev_m = abs(float(x_fit.stddev.value)) / width_px_ref * width_m
+    y_stddev_m = abs(float(y_fit.stddev.value)) / height_px_ref * height_m
+    sigma_m = float(np.sqrt(x_stddev_m * y_stddev_m))
+    sigma_err_m = sigma_m * max(x_residual, y_residual)
+    x_stddev_err_m = x_stddev_m * x_residual
+    y_stddev_err_m = y_stddev_m * y_residual
+    y_mean_err_m = y_stddev_m * y_residual
+
+    return [
+        float(np.max(image_for_fit)),
+        float(x_fit.mean.value) / width_px_ref * width_m,
+        float(y_fit.mean.value) / height_px_ref * height_m,
+        x_stddev_m,
+        y_stddev_m,
+        0.0,
+    ], (x_fit, y_fit), float(sigma_err_m), float(y_mean_err_m), float(x_stddev_err_m), float(y_stddev_err_m)
+
+
 def process_images(
     image_pairs: list[tuple[Path, Path]],
     fit_gaussian: fitting.TRFLSQFitter,
     pixels_per_mm: float,
     initial_center_px: tuple[float, float] | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Process all background/image pairs and return fit params, sigma/y errors."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Process all background/image pairs and return fit params plus error arrays."""
     fit_params: list[list[float]] = []
     sigma_errors_m: list[float] = []
     y_mean_errors_m: list[float] = []
-    previous_fit: models.Gaussian2D | None = None
+    x_stddev_errors_m: list[float] = []
+    y_stddev_errors_m: list[float] = []
+    previous_fit_2d: models.Gaussian2D | None = None
+    previous_fit_1d: tuple[models.Gaussian1D, models.Gaussian1D] | None = None
 
     for background_path, image_path in tqdm(image_pairs, desc="Processing TOF pairs"):
         image = read_tiff_fallback_safe(str(image_path))
         background = read_tiff_fallback_safe(str(background_path))
         image_no_background = image - background
 
-        frame_fit_params, previous_fit, sigma_err_m, y_mean_err_m = fit_gaussian_2d(
-            image_no_background,
-            fit_gaussian,
-            pixels_per_mm=pixels_per_mm,
-            initial_center_px=initial_center_px if previous_fit is None else None,
-            previous_fit=previous_fit,
-        )
+        if FIT_X_Y_SEPARATELY:
+            frame_fit_params, previous_fit_1d, sigma_err_m, y_mean_err_m, x_err_m, y_err_m = fit_gaussian_separate_xy(
+                image_no_background,
+                fit_gaussian,
+                pixels_per_mm=pixels_per_mm,
+                initial_center_px=initial_center_px if previous_fit_1d is None else None,
+                previous_fit=previous_fit_1d,
+            )
+        else:
+            frame_fit_params, previous_fit_2d, sigma_err_m, y_mean_err_m = fit_gaussian_2d(
+                image_no_background,
+                fit_gaussian,
+                pixels_per_mm=pixels_per_mm,
+                initial_center_px=initial_center_px if previous_fit_2d is None else None,
+                previous_fit=previous_fit_2d,
+            )
+            x_err_m = float(frame_fit_params[3]) * float(sigma_err_m) / max(float(np.sqrt(abs(frame_fit_params[3]) * abs(frame_fit_params[4]))), 1e-12)
+            y_err_m = float(frame_fit_params[4]) * float(sigma_err_m) / max(float(np.sqrt(abs(frame_fit_params[3]) * abs(frame_fit_params[4]))), 1e-12)
         fit_params.append(frame_fit_params)
         sigma_errors_m.append(sigma_err_m)
         y_mean_errors_m.append(y_mean_err_m)
+        x_stddev_errors_m.append(x_err_m)
+        y_stddev_errors_m.append(y_err_m)
 
     return (
         np.asarray(fit_params, dtype=float),
         np.asarray(sigma_errors_m, dtype=float),
         np.asarray(y_mean_errors_m, dtype=float),
+        np.asarray(x_stddev_errors_m, dtype=float),
+        np.asarray(y_stddev_errors_m, dtype=float),
+    )
+
+
+def fit_tof_component(
+    scan_values_s: np.ndarray,
+    sigma_values_m: np.ndarray,
+    sigma_errors_m: np.ndarray,
+    fit_model: fitting.TRFLSQFitter,
+) -> models.custom_model:
+    """Fit a TOF expansion model for one sigma component."""
+    valid = (
+        np.isfinite(scan_values_s)
+        & np.isfinite(sigma_values_m)
+        & np.isfinite(sigma_errors_m)
+        & (sigma_values_m > 0)
+        & (sigma_errors_m > 0)
+    )
+    scan_fit = scan_values_s[valid]
+    sigma_fit = sigma_values_m[valid]
+    sigma_err_fit = sigma_errors_m[valid]
+    if scan_fit.size < 3:
+        raise ValueError("Not enough valid TOF points after filtering to run fit")
+
+    err_floor = max(float(np.median(sigma_err_fit)) * 0.1, 1e-12)
+    weights = 1.0 / np.maximum(sigma_err_fit, err_floor)
+
+    model_init = expansion_model()
+    model_init.sigma0.bounds = (0.0, None)
+    model_init.T.bounds = (0.0, None)
+    return fit_model(
+        model_init,
+        scan_fit,
+        sigma_fit,
+        weights=weights,
+        filter_non_finite=True,
     )
 
 
@@ -350,34 +493,7 @@ def fit_tof(
     sigma_x = np.abs(fit_params[:, 3])
     sigma_y = np.abs(fit_params[:, 4])
     sigma_values = np.sqrt(sigma_x * sigma_y)
-
-    valid = (
-        np.isfinite(scan_values_s)
-        & np.isfinite(sigma_values)
-        & np.isfinite(sigma_errors_m)
-        & (sigma_values > 0)
-        & (sigma_errors_m > 0)
-    )
-    scan_fit = scan_values_s[valid]
-    sigma_fit = sigma_values[valid]
-    sigma_err_fit = sigma_errors_m[valid]
-    if scan_fit.size < 3:
-        raise ValueError("Not enough valid TOF points after filtering to run fit")
-
-    err_floor = max(float(np.median(sigma_err_fit)) * 0.1, 1e-12)
-    weights = 1.0 / np.maximum(sigma_err_fit, err_floor)
-
-    model_init = expansion_model()
-    model_init.sigma0.bounds = (0.0, None)
-    model_init.T.bounds = (0.0, None)
-
-    model_fit = fit_model(
-        model_init,
-        scan_fit,
-        sigma_fit,
-        weights=weights,
-        filter_non_finite=True,
-    )
+    model_fit = fit_tof_component(scan_values_s, sigma_values, sigma_errors_m, fit_model)
     return sigma_values, model_fit
 
 
@@ -428,6 +544,7 @@ def process_directory(directory: Path) -> None:
     print(f"Processing {directory}")
     print(f"Using metadata file: {metadata_file.name}")
     print(f"Downsampling factor: {FIT_DOWNSAMPLING_FACTOR}")
+    print(f"Separate X/Y Gaussian fits: {FIT_X_Y_SEPARATELY}")
 
     sorted_tifs = sort_tif_files(directory)
     image_pairs = make_background_image_pairs(sorted_tifs)
@@ -435,7 +552,7 @@ def process_directory(directory: Path) -> None:
     fit_gaussian = fitting.TRFLSQFitter()
     fit_model = fitting.TRFLSQFitter()
 
-    fit_params, sigma_errors_m, y_mean_errors_m = process_images(
+    fit_params, sigma_errors_m, y_mean_errors_m, x_stddev_errors_m, y_stddev_errors_m = process_images(
         image_pairs,
         fit_gaussian,
         pixels_per_mm=settings["pixels_per_mm"],
@@ -458,13 +575,7 @@ def process_directory(directory: Path) -> None:
     y_mean_errors_m = y_mean_errors_m[:n_points]
     scan_values_ms = np.linspace(settings["scan_min_ms"], settings["scan_max_ms"], n_points)
     scan_values_s = scan_values_ms * 1e-3
-    sigma_values, tof_model_fit = fit_tof(scan_values_s, fit_params, sigma_errors_m, fit_model)
-    y_model_fit, y_w_r2, y_chi2_red = fit_vertical_position(
-        scan_values_s,
-        fit_params,
-        y_mean_errors_m,
-        fit_model,
-    )
+    y_model_fit, y_w_r2, y_chi2_red = fit_vertical_position(scan_values_s, fit_params, y_mean_errors_m, fit_model)
 
     fit_table = np.column_stack((scan_values_ms, fit_params, y_mean_errors_m))
     np.savetxt(
@@ -473,24 +584,47 @@ def process_directory(directory: Path) -> None:
         header="scan amplitude x_mean_m y_mean_m x_stddev_m y_stddev_m theta_rad y_mean_err_m",
     )
 
-    tof_summary = np.array(
-        [
-            tof_model_fit.sigma0.value,
-            tof_model_fit.T.value,
-        ],
-        dtype=float,
-    )
-    np.savetxt(
-        directory / "tof_fit_parameters.txt",
-        tof_summary,
-        header="sigma0_m temperature_K",
-    )
+    analysis_method = "separate_gaussians" if FIT_X_Y_SEPARATELY else "gaussian"
+    (directory / "tof_analysis_method.txt").write_text(analysis_method + "\n", encoding="utf-8")
 
-    np.savetxt(
-        directory / "tof_sigma_vs_scan.txt",
-        np.column_stack((scan_values_ms, sigma_values, sigma_errors_m)),
-        header="scan sigma_m sigma_err_m",
-    )
+    if FIT_X_Y_SEPARATELY:
+        sigma_x_values = np.abs(fit_params[:, 3])
+        sigma_y_values = np.abs(fit_params[:, 4])
+        tof_model_fit_x = fit_tof_component(scan_values_s, sigma_x_values, x_stddev_errors_m, fit_model)
+        tof_model_fit_y = fit_tof_component(scan_values_s, sigma_y_values, y_stddev_errors_m, fit_model)
+
+        np.savetxt(
+            directory / "tof_fit_parameters_x.txt",
+            np.array([tof_model_fit_x.sigma0.value, tof_model_fit_x.T.value], dtype=float),
+            header="sigma0_x_m temperature_x_K",
+        )
+        np.savetxt(
+            directory / "tof_fit_parameters_y.txt",
+            np.array([tof_model_fit_y.sigma0.value, tof_model_fit_y.T.value], dtype=float),
+            header="sigma0_y_m temperature_y_K",
+        )
+        np.savetxt(
+            directory / "tof_sigma_x_vs_scan.txt",
+            np.column_stack((scan_values_ms, sigma_x_values, x_stddev_errors_m)),
+            header="scan sigma_x_m sigma_x_err_m",
+        )
+        np.savetxt(
+            directory / "tof_sigma_y_vs_scan.txt",
+            np.column_stack((scan_values_ms, sigma_y_values, y_stddev_errors_m)),
+            header="scan sigma_y_m sigma_y_err_m",
+        )
+    else:
+        sigma_values, tof_model_fit = fit_tof(scan_values_s, fit_params, sigma_errors_m, fit_model)
+        np.savetxt(
+            directory / "tof_fit_parameters.txt",
+            np.array([tof_model_fit.sigma0.value, tof_model_fit.T.value], dtype=float),
+            header="sigma0_m temperature_K",
+        )
+        np.savetxt(
+            directory / "tof_sigma_vs_scan.txt",
+            np.column_stack((scan_values_ms, sigma_values, sigma_errors_m)),
+            header="scan sigma_m sigma_err_m",
+        )
 
     y_fit_summary = np.array(
         [
@@ -509,7 +643,11 @@ def process_directory(directory: Path) -> None:
 
     print(
         "Saved: fit_parameters.txt, "
-        "tof_fit_parameters.txt, tof_sigma_vs_scan.txt, cloud_y_fit_parameters.txt"
+        + (
+            "tof_fit_parameters_x.txt, tof_fit_parameters_y.txt, tof_sigma_x_vs_scan.txt, tof_sigma_y_vs_scan.txt, cloud_y_fit_parameters.txt"
+            if FIT_X_Y_SEPARATELY
+            else "tof_fit_parameters.txt, tof_sigma_vs_scan.txt, cloud_y_fit_parameters.txt"
+        )
     )
 
 

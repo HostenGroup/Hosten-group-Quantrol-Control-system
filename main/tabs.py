@@ -235,6 +235,14 @@ def _build_live_camera_panel(self, parent: QWidget, slot_index: int, x: int, y: 
     setattr(self, f"live_roi_height_edit{suffix}", roi_height_edit)
     form.addRow("ROI Y height", roi_height_edit)
 
+    zoom_on_roi_checkbox = QCheckBox("Zoom on ROI", panel)
+    zoom_on_roi_checkbox.setFont(QFont('Arial', self.scale_font(12)))
+    zoom_on_roi_checkbox.setEnabled(False)
+    zoom_on_roi_checkbox.setChecked(False)
+    zoom_on_roi_checkbox.toggled.connect(lambda enabled, slot=slot_index: self.handle_live_zoom_on_roi_toggled(enabled, slot))
+    setattr(self, f"live_zoom_on_roi_checkbox{suffix}", zoom_on_roi_checkbox)
+    form.addRow("", zoom_on_roi_checkbox)
+
     display_gain_edit = QLineEdit(panel)
     display_gain_edit.setPlaceholderText("e.g. 0.0")
     display_gain_edit.setEnabled(False)

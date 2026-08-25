@@ -47,6 +47,7 @@ class LiveCameraStreamer:
         roi_y_center: float | None = None,
         roi_width: float | None = None,
         roi_height: float | None = None,
+        zoom_on_roi: bool = False,
     ) -> None:
         self.camera_name = camera_name
         self.pixel_format = pixel_format
@@ -81,6 +82,7 @@ class LiveCameraStreamer:
         self.roi_y_center = roi_y_center
         self.roi_width = roi_width
         self.roi_height = roi_height
+        self.zoom_on_roi = bool(zoom_on_roi)
 
         self._running = True
         self._subtract_enabled = bool(subtract_enabled)
@@ -331,6 +333,8 @@ class LiveCameraStreamer:
                     self.roi_width = payload.get("roi_width")
                 if "roi_height" in payload:
                     self.roi_height = payload.get("roi_height")
+                if "zoom_on_roi" in payload:
+                    self.zoom_on_roi = bool(payload.get("zoom_on_roi", False))
                 if "fps_limit_enabled" in payload:
                     self.fps_limit_enabled = bool(payload.get("fps_limit_enabled"))
                 if "target_fps" in payload:
@@ -690,6 +694,15 @@ class LiveCameraStreamer:
                     # Decrement suppression counter after preparing metrics for this frame.
                     if self._metric_suppression_frames > 0:
                         self._metric_suppression_frames = max(0, self._metric_suppression_frames - 1)
+                    # If requested, crop the full-size frame to ROI before downsampling (zoom on ROI)
+                    try:
+                        if bool(self.zoom_on_roi):
+                            roi_bounds = self._get_roi_bounds(frame8.shape)
+                            if roi_bounds is not None:
+                                x0, y0, x1, y1 = roi_bounds
+                                frame8 = frame8[y0:y1, x0:x1]
+                    except Exception:
+                        pass
                     frame8 = self._downsample_for_display(frame8)
                     t_proc_end = perf_counter()
 
@@ -758,6 +771,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--display-gain", type=float, default=0.0, help="Display-only digital gain in camera-style dB (20 dB = 10x)")
     parser.add_argument("--dynamic-subtraction-enabled", dest="dynamic_subtraction_enabled", action="store_true", help="Enable dynamic background subtraction mode")
     parser.add_argument("--dynamic-subtraction-disabled", dest="dynamic_subtraction_enabled", action="store_false", help="Disable dynamic background subtraction mode")
+    parser.add_argument("--zoom-on-roi", dest="zoom_on_roi", action="store_true", help="Enable zoom-on-ROI display (crop to ROI)")
+    parser.add_argument("--zoom-on-roi-disabled", dest="zoom_on_roi", action="store_false", help="Disable zoom-on-ROI display")
+    parser.set_defaults(zoom_on_roi=False)
     parser.set_defaults(dynamic_subtraction_enabled=False)
     parser.add_argument("--sequence-trigger-count", type=int, default=0, help="Number of camera trigger events in one sequence cycle")
     parser.add_argument("--fps-limit-enabled", dest="fps_limit_enabled", action="store_true", help="Enable camera FPS limiting")
@@ -805,6 +821,7 @@ def main() -> int:
         roi_y_center=args.roi_y_center,
         roi_width=args.roi_width,
         roi_height=args.roi_height,
+        zoom_on_roi=args.zoom_on_roi,
     )
     signal.signal(signal.SIGTERM, streamer.stop)
     signal.signal(signal.SIGINT, streamer.stop)

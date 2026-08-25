@@ -30,7 +30,7 @@ camera_trigger_ttl = [0,1,4]
 camera_serial_numbers_dict = {
     'X':'22433340',
     'Y':'22433344',
-    'Z':'22114656'
+    'Z':'26260045'
 }
 experiment_data_root = r"G:\Experimental Data\Hybrid\MOT_images"
 

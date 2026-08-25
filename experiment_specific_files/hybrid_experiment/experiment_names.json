@@ -50,5 +50,9 @@
     "12": {
         "name": "Atom_num_noise",
         "plot_x_caption": "RF cooling power, %"
+    },
+    "13": {
+        "name": "Loading",
+        "plot_x_caption": "T_load, ms"
     }
 }

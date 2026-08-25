@@ -254,7 +254,7 @@ class LiveCameraDisplayWindow(QMainWindow):
             pane_widget = pane["image_label"].parentWidget()
             pane_widget.setVisible(slot_index in active_set)
 
-    def set_roi(self, slot_index, enabled, x_center=None, y_center=None, width=None, height=None, downsample_factor=1.0):
+    def set_roi(self, slot_index, enabled, x_center=None, y_center=None, width=None, height=None, downsample_factor=1.0, zoom_on_roi=False):
         if slot_index < 0 or slot_index >= len(self._roi_state):
             return
         try:
@@ -270,6 +270,7 @@ class LiveCameraDisplayWindow(QMainWindow):
             "width": width,
             "height": height,
             "downsample_factor": factor_value,
+            "zoom_on_roi": bool(zoom_on_roi),
         }
 
     def update_frame(self, slot_index, image, fps, get_ms, proc_ms, atom_count, total_power):
@@ -310,23 +311,42 @@ class LiveCameraDisplayWindow(QMainWindow):
                 downsample_factor = 1.0
             if all(value is not None for value in (roi_width, roi_height, roi_x_center, roi_y_center)):
                 try:
-                    roi_width = float(roi_width) / downsample_factor
-                    roi_height = float(roi_height) / downsample_factor
-                    roi_x_center = float(roi_x_center) / downsample_factor
-                    roi_y_center = float(roi_y_center) / downsample_factor
-                    scale_x = scaled_pixmap.width() / max(image.width(), 1)
-                    scale_y = scaled_pixmap.height() / max(image.height(), 1)
-                    rect_x = int(round((roi_x_center - roi_width / 2.0) * scale_x))
-                    rect_y = int(round((roi_y_center - roi_height / 2.0) * scale_y))
-                    rect_w = max(int(round(roi_width * scale_x)), 1)
-                    rect_h = max(int(round(roi_height * scale_y)), 1)
-                    painter = QPainter(scaled_pixmap)
-                    pen = QPen(Qt.red)
-                    pen.setWidth(max(2, int(round(max(scaled_pixmap.width(), scaled_pixmap.height()) * 0.002))))
-                    painter.setPen(pen)
-                    painter.setBrush(Qt.NoBrush)
-                    painter.drawRect(rect_x, rect_y, rect_w, rect_h)
-                    painter.end()
+                    zoom_on_roi = bool(roi_state.get("zoom_on_roi", False))
+                    # Map ROI from original coordinates to image coordinates taking downsample into account
+                    eff_roi_w = float(roi_width) / downsample_factor
+                    eff_roi_h = float(roi_height) / downsample_factor
+                    eff_roi_x = float(roi_x_center) / downsample_factor
+                    eff_roi_y = float(roi_y_center) / downsample_factor
+
+                    img_w = max(image.width(), 1)
+                    img_h = max(image.height(), 1)
+                    x0 = int(round(eff_roi_x - eff_roi_w / 2.0))
+                    y0 = int(round(eff_roi_y - eff_roi_h / 2.0))
+                    x0 = max(0, min(x0, img_w - 1))
+                    y0 = max(0, min(y0, img_h - 1))
+                    w0 = max(1, min(int(round(eff_roi_w)), img_w - x0))
+                    h0 = max(1, min(int(round(eff_roi_h)), img_h - y0))
+
+                    if zoom_on_roi:
+                        try:
+                            # Crop the source image to the ROI before any further processing
+                            image_to_draw = image.copy(x0, y0, w0, h0)
+                        except Exception:
+                            pass
+                    else:
+                        scale_x = scaled_pixmap.width() / img_w
+                        scale_y = scaled_pixmap.height() / img_h
+                        rect_x = int(round((eff_roi_x - eff_roi_w / 2.0) * scale_x))
+                        rect_y = int(round((eff_roi_y - eff_roi_h / 2.0) * scale_y))
+                        rect_w = max(int(round(eff_roi_w * scale_x)), 1)
+                        rect_h = max(int(round(eff_roi_h * scale_y)), 1)
+                        painter = QPainter(scaled_pixmap)
+                        pen = QPen(Qt.red)
+                        pen.setWidth(max(2, int(round(max(scaled_pixmap.width(), scaled_pixmap.height()) * 0.002))))
+                        painter.setPen(pen)
+                        painter.setBrush(Qt.NoBrush)
+                        painter.drawRect(rect_x, rect_y, rect_w, rect_h)
+                        painter.end()
                 except Exception:
                     pass
 
@@ -1878,6 +1898,7 @@ class MainWindow(QMainWindow):
                 "gaussian_sigma_edit": getattr(self, "live_gaussian_sigma_edit", None),
                 "gaussian_kernel_edit": getattr(self, "live_gaussian_kernel_edit", None),
                 "roi_checkbox": getattr(self, "live_roi_checkbox", None),
+                "zoom_on_roi_checkbox": getattr(self, "live_zoom_on_roi_checkbox", None),
                 "roi_x_center_edit": getattr(self, "live_roi_x_center_edit", None),
                 "roi_y_center_edit": getattr(self, "live_roi_y_center_edit", None),
                 "roi_width_edit": getattr(self, "live_roi_width_edit", None),
@@ -1902,6 +1923,7 @@ class MainWindow(QMainWindow):
             "gaussian_sigma_edit": getattr(self, f"live_gaussian_sigma_edit_{slot_index}", None),
             "gaussian_kernel_edit": getattr(self, f"live_gaussian_kernel_edit_{slot_index}", None),
             "roi_checkbox": getattr(self, f"live_roi_checkbox_{slot_index}", None),
+                "zoom_on_roi_checkbox": getattr(self, f"live_zoom_on_roi_checkbox_{slot_index}", None),
             "roi_x_center_edit": getattr(self, f"live_roi_x_center_edit_{slot_index}", None),
             "roi_y_center_edit": getattr(self, f"live_roi_y_center_edit_{slot_index}", None),
             "roi_width_edit": getattr(self, f"live_roi_width_edit_{slot_index}", None),
@@ -1990,6 +2012,7 @@ class MainWindow(QMainWindow):
         display_gain=None,
         downsample_factor=None,
         target_fps=None,
+        zoom_on_roi=None,
     ):
         """Persist live camera UI fields into experiment.experimental_data.live_camera."""
         if not hasattr(self.experiment, "live_camera_enabled"):
@@ -2068,6 +2091,11 @@ class MainWindow(QMainWindow):
                 roi_height = float((widgets["roi_height_edit"].text() or "").strip())
             except Exception:
                 roi_height = getattr(live_camera_data, "roi_height", None)
+        if zoom_on_roi is None and widgets.get("zoom_on_roi_checkbox") is not None:
+            try:
+                zoom_on_roi = bool(widgets.get("zoom_on_roi_checkbox").isChecked())
+            except Exception:
+                zoom_on_roi = getattr(live_camera_data, "zoom_on_roi", False)
         if display_gain is None and widgets["display_gain_edit"] is not None:
             try:
                 display_gain = float((widgets["display_gain_edit"].text() or "").strip())
@@ -2128,6 +2156,11 @@ class MainWindow(QMainWindow):
             widgets["gaussian_kernel_edit"].setText(str(gaussian_kernel))
         if widgets["roi_checkbox"] is not None:
             widgets["roi_checkbox"].setChecked(bool(roi_enabled))
+        if widgets.get("zoom_on_roi_checkbox") is not None:
+            try:
+                widgets["zoom_on_roi_checkbox"].setChecked(bool(zoom_on_roi))
+            except Exception:
+                widgets["zoom_on_roi_checkbox"].setChecked(False)
         if widgets["roi_x_center_edit"] is not None and roi_x_center is not None:
             widgets["roi_x_center_edit"].setText(str(roi_x_center))
         if widgets["roi_y_center_edit"] is not None and roi_y_center is not None:
@@ -2172,6 +2205,8 @@ class MainWindow(QMainWindow):
         live_camera_data.display_gain = display_gain
         live_camera_data.downsample_factor = downsample_factor
         live_camera_data.target_fps = target_fps
+        # Zoom on ROI
+        live_camera_data.zoom_on_roi = bool(zoom_on_roi)
 
         if self.live_camera_window is not None and hasattr(self.live_camera_window, "set_roi"):
             self.live_camera_window.set_roi(
@@ -2182,6 +2217,7 @@ class MainWindow(QMainWindow):
                 roi_width,
                 roi_height,
                 downsample_factor,
+                bool(live_camera_data.zoom_on_roi),
             )
 
     def handle_live_camera_roi_toggled(self, enabled, slot_index=0):
@@ -2193,9 +2229,27 @@ class MainWindow(QMainWindow):
         for key in ("roi_x_center_edit", "roi_y_center_edit", "roi_width_edit", "roi_height_edit"):
             if widgets[key] is not None:
                 widgets[key].setEnabled(bool(enabled))
+        # Enable/disable the Zoom on ROI checkbox together with ROI controls
+        try:
+            z_widget = widgets.get("zoom_on_roi_checkbox")
+            if z_widget is not None:
+                z_widget.setEnabled(bool(enabled))
+        except Exception:
+            pass
         self._persist_live_camera_settings_from_ui(slot_index=slot_index)
         if self._apply_live_runtime_parameters(slot_index):
             self.message_to_logger("Live ROI updated")
+
+    def handle_live_zoom_on_roi_toggled(self, enabled, slot_index=0):
+        widgets = self._get_live_camera_widgets(slot_index)
+        if widgets.get("zoom_on_roi_checkbox") is not None and widgets.get("zoom_on_roi_checkbox").isChecked() != bool(enabled):
+            widgets["zoom_on_roi_checkbox"].blockSignals(True)
+            widgets["zoom_on_roi_checkbox"].setChecked(bool(enabled))
+            widgets["zoom_on_roi_checkbox"].blockSignals(False)
+        # Persist and send runtime update
+        self._persist_live_camera_settings_from_ui(slot_index=slot_index)
+        if self._apply_live_runtime_parameters(slot_index):
+            self.message_to_logger("Live zoom-on-ROI updated")
 
     def _open_live_camera_window(self, slot_index=0, active_slot_indices=None):
         """Launch live camera acquisition and show frames in Quantrol window."""
@@ -2326,6 +2380,10 @@ class MainWindow(QMainWindow):
             ])
         else:
             argv.append("--roi-disabled")
+        if bool(getattr(live_state, "zoom_on_roi", False)):
+            argv.append("--zoom-on-roi")
+        else:
+            argv.append("--zoom-on-roi-disabled")
 
         widgets = self._get_live_camera_widgets(slot_index)
 
@@ -2473,6 +2531,7 @@ class MainWindow(QMainWindow):
             "roi_y_center": roi_y_center,
             "roi_width": roi_width,
             "roi_height": roi_height,
+            "zoom_on_roi": bool(getattr(live_data, "zoom_on_roi", False)),
         }
         return self._send_live_control_command(payload, slot_index)
 

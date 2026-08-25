@@ -204,6 +204,9 @@ def ensure_backward_compatibility(experiment) -> list:
     if not hasattr(live_camera, 'roi_height'):
         live_camera.roi_height = None
         notes.append("Added live_camera.roi_height attribute")
+    if not hasattr(live_camera, 'zoom_on_roi'):
+        live_camera.zoom_on_roi = False
+        notes.append("Added live_camera.zoom_on_roi attribute")
 
     if len(live_cameras) < 2:
         live_cameras = list(live_cameras) + [LiveCamera() for _ in range(2 - len(live_cameras))]
@@ -256,6 +259,8 @@ def ensure_backward_compatibility(experiment) -> list:
             slot_camera.roi_width = None
         if not hasattr(slot_camera, 'roi_height'):
             slot_camera.roi_height = None
+        if not hasattr(slot_camera, 'zoom_on_roi'):
+            slot_camera.zoom_on_roi = False
     # Add save_sampled_variables attribute if missing
     if not hasattr(experiment, 'save_sampled_variables'):
         experiment.save_sampled_variables = False
