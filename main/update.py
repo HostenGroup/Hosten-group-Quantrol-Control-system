@@ -7,6 +7,13 @@ import numpy as np
 import re
 
 
+def is_runtime_ramp_formula(text):
+    """Return True when the expression depends on the ramp loop index i."""
+    if text is None:
+        return False
+    return bool(re.search(r'\bi\b', str(text)))
+
+
 def _compute_constant_derived_values(self):
     """Return {derived_name: value} for derived variables with static arguments."""
     constant_map = {}
@@ -178,18 +185,32 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                 #Updating expressions and evaluations
                 if update_expressions_and_evaluations:
                     channel.expression = table_item.text()
-                    try:
-                        (channel.expression, channel.evaluation, channel.for_python, channel.is_scanned, channel.is_ramped, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
-                    except:
-                        return "digital channel %d, edge %d" %(channel_index, row)
+                    if is_runtime_ramp_formula(channel.expression):
+                        channel.evaluation = channel.expression
+                        channel.for_python = channel.expression
+                        channel.is_scanned = False
+                        channel.is_ramped = True
+                        channel.is_sampled = False
+                        channel.is_derived = False
+                        channel.is_lookup = False
+                    else:
+                        try:
+                            (channel.expression, channel.evaluation, channel.for_python, channel.is_scanned, channel.is_ramped, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
+                        except:
+                            return "digital channel %d, edge %d" %(channel_index, row)
                 #Updating values and table
                 if update_values_and_table:
-                    try:
-                        exec("channel.value = " + channel.evaluation, {"self": self, "channel": channel})
-                    except:
-                        return "digital channel %d, edge %d" %(channel_index, row)
+                    if not channel.is_ramped:
+                        try:
+                            exec("channel.value = " + channel.evaluation, {"self": self, "channel": channel})
+                        except:
+                            return "digital channel %d, edge %d" %(channel_index, row)
                     #Color coding the values
-                    if channel.value == 1 or channel.value == 0:
+                    if channel.is_ramped:
+                        table_item.setText(channel.expression)
+                        table_item.setBackground(self.purple)
+                        table_item.setToolTip("ramped")
+                    elif channel.value == 1 or channel.value == 0:
                         table_item.setText(channel.expression + " ")
                         if channel.is_sampled:
                             table_item.setBackground(self.yellow)
@@ -216,6 +237,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                 current_evaluation = channel.evaluation
                 current_value = channel.value
                 current_for_python = channel.for_python
+                current_is_ramped = channel.is_ramped
                 current_is_sampled = channel.is_sampled
                 current_is_derived = channel.is_derived
                 current_is_lookup = channel.is_lookup
@@ -225,6 +247,7 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                     channel.expression = current_expression
                     channel.evaluation = current_evaluation
                     channel.for_python = current_for_python
+                    channel.is_ramped = current_is_ramped
                     channel.is_sampled = current_is_sampled
                     channel.is_derived = current_is_derived
                     channel.is_lookup = current_is_lookup
@@ -232,7 +255,10 @@ def digital_tab(self, update_expressions_and_evaluations = True, update_values_a
                 if update_values_and_table:
                     channel.value = int(current_value)
                     table_item.setText(channel.expression + " ") # Updating digital table entries 
-                    if channel.is_sampled:
+                    if channel.is_ramped:
+                        table_item.setBackground(self.purple)
+                        table_item.setToolTip("ramped")
+                    elif channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
                         table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
@@ -292,19 +318,33 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                         channel.expression = str(int(float(channel.expression) * 1000000)/1000000)
                     except:
                         pass
-                    try:
-                        (channel.expression, channel.evaluation, channel.for_python, channel.is_scanned, channel.is_ramped, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
-                    except:
-                        return "analog channel %d, edge %d" %(channel_index, row)
+                    if is_runtime_ramp_formula(channel.expression):
+                        channel.evaluation = channel.expression
+                        channel.for_python = channel.expression
+                        channel.is_scanned = False
+                        channel.is_ramped = True
+                        channel.is_sampled = False
+                        channel.is_derived = False
+                        channel.is_lookup = False
+                    else:
+                        try:
+                            (channel.expression, channel.evaluation, channel.for_python, channel.is_scanned, channel.is_ramped, channel.is_sampled, channel.is_derived, channel.is_lookup) = self.decode_input(channel.expression)
+                        except:
+                            return "analog channel %d, edge %d" %(channel_index, row)
                     #Updating values and table
                     if update_values_and_table:
                         #Check if the expression can be evaluated
-                        try:
-                            exec("channel.value = " + channel.evaluation, {"self": self, "channel": channel})
-                        except:
-                            return "analog channel %d, edge %d" %(channel_index, row)
+                        if not channel.is_ramped:
+                            try:
+                                exec("channel.value = " + channel.evaluation, {"self": self, "channel": channel})
+                            except:
+                                return "analog channel %d, edge %d" %(channel_index, row)
                         #Color coding the values
-                        if channel.value >= -9.9 and channel.value <= 9.9:
+                        if channel.is_ramped:
+                            table_item.setText(channel.expression)
+                            table_item.setBackground(self.purple)
+                            table_item.setToolTip("ramped")
+                        elif channel.value >= -9.9 and channel.value <= 9.9:
                             table_item.setText(channel.expression + " ")
                             if channel.is_sampled:
                                 table_item.setBackground(self.yellow)
@@ -335,6 +375,7 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                 current_evaluation = channel.evaluation
                 current_value = channel.value
                 current_for_python = channel.for_python
+                current_is_ramped = channel.is_ramped
                 current_is_sampled = channel.is_sampled
                 current_is_derived = channel.is_derived
                 current_is_lookup = channel.is_lookup
@@ -344,6 +385,7 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                     channel.expression = current_expression
                     channel.evaluation = current_evaluation
                     channel.for_python = current_for_python
+                    channel.is_ramped = current_is_ramped
                     channel.is_sampled = current_is_sampled
                     channel.is_derived = current_is_derived
                     channel.is_lookup = current_is_lookup
@@ -351,7 +393,10 @@ def analog_tab(self, update_expressions_and_evaluations = True, update_values_an
                 if update_values_and_table:
                     channel.value = current_value     
                     table_item.setText(current_expression + " ")  # Updating analog table entries                       
-                    if channel.is_sampled:
+                    if channel.is_ramped:
+                        table_item.setBackground(self.purple)
+                        table_item.setToolTip("ramped")
+                    elif channel.is_sampled:
                         table_item.setToolTip("sampled")
                     elif channel.is_derived:
                         table_item.setToolTip(_format_derived_tooltip(channel.expression, "derived", constant_tooltips))
@@ -402,22 +447,35 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                                 channel_entry.expression = str(int(channel_entry.expression))
                         except:
                             pass
-                        try:
-                            (channel_entry.expression, channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_ramped, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
-                        except:
-                            return "dds channel %d, edge %d" %(channel_index, row)
+                        if is_runtime_ramp_formula(channel_entry.expression):
+                            channel_entry.evaluation = channel_entry.expression
+                            channel_entry.for_python = channel_entry.expression
+                            channel_entry.is_scanned = False
+                            channel_entry.is_ramped = True
+                            channel_entry.is_sampled = False
+                            channel_entry.is_derived = False
+                            channel_entry.is_lookup = False
+                        else:
+                            try:
+                                (channel_entry.expression, channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_ramped, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
+                            except:
+                                return "dds channel %d, edge %d" %(channel_index, row)
                     #Updating values and table entries
                     if update_values_and_table:
-                        try:
-                            exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
-                        except:
-                            return "dds channel %d, edge %d" %(channel_index, row)
-                        if setting == 4:
-                            state_error = _enforce_binary_state(channel_entry, channel_index, row, "dds")
-                            if state_error is not None:
-                                return state_error
+                        if not channel_entry.is_ramped:
+                            try:
+                                exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
+                            except:
+                                return "dds channel %d, edge %d" %(channel_index, row)
+                            if setting == 4:
+                                state_error = _enforce_binary_state(channel_entry, channel_index, row, "dds")
+                                if state_error is not None:
+                                    return state_error
                         #check if the value within allowed range
-                        if channel_entry.value >= self.min_dict_dds[setting] and channel_entry.value <= self.max_dict_dds[setting]:
+                        if channel_entry.is_ramped:
+                            table_item.setBackground(self.purple)
+                            table_item.setToolTip("ramped")
+                        elif channel_entry.value >= self.min_dict_dds[setting] and channel_entry.value <= self.max_dict_dds[setting]:
                             #Color coding the values and updating tooltips
                             table_item.setText(channel_entry.expression + " ")
                             if channel_entry.is_sampled:
@@ -445,6 +503,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                     current_evaluation = channel_entry.evaluation
                     current_value = channel_entry.value
                     current_for_python = channel_entry.for_python
+                    current_is_ramped = channel_entry.is_ramped
                     current_is_sampled = channel_entry.is_sampled
                     current_is_derived = channel_entry.is_derived
                     current_is_lookup = channel_entry.is_lookup
@@ -454,6 +513,7 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                         channel_entry.expression = current_expression
                         channel_entry.evaluation = current_evaluation
                         channel_entry.for_python = current_for_python
+                        channel_entry.is_ramped = current_is_ramped
                         channel_entry.is_sampled = current_is_sampled
                         channel_entry.is_derived = current_is_derived
                         channel_entry.is_lookup = current_is_lookup
@@ -461,7 +521,10 @@ def dds_tab(self, update_expressions_and_evaluations = True, update_values_and_t
                     if update_values_and_table:
                         channel_entry.value = current_value
                         table_item.setText(str(current_expression + " "))
-                        if channel_entry.is_sampled:
+                        if channel_entry.is_ramped:
+                            table_item.setBackground(self.purple)
+                            table_item.setToolTip("ramped")
+                        elif channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
                             table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
@@ -542,23 +605,36 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                                 channel_entry.expression = str(int(channel_entry.expression))
                         except:
                             pass
-                        try:
-                            (channel_entry.expression, channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_ramped, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
-                        except:
-                            return "mirny channel %d, edge %d" %(channel_index, row)
+                        if is_runtime_ramp_formula(channel_entry.expression):
+                            channel_entry.evaluation = channel_entry.expression
+                            channel_entry.for_python = channel_entry.expression
+                            channel_entry.is_scanned = False
+                            channel_entry.is_ramped = True
+                            channel_entry.is_sampled = False
+                            channel_entry.is_derived = False
+                            channel_entry.is_lookup = False
+                        else:
+                            try:
+                                (channel_entry.expression, channel_entry.evaluation, channel_entry.for_python, channel_entry.is_scanned, channel_entry.is_ramped, channel_entry.is_sampled, channel_entry.is_derived, channel_entry.is_lookup) = self.decode_input(channel_entry.expression)
+                            except:
+                                return "mirny channel %d, edge %d" %(channel_index, row)
                     #Updating values and table entries
                     if update_values_and_table:
-                        try:
-                            exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
-                        except:
-                            return "mirny channel %d, edge %d" %(channel_index, row)
-                        if setting == 4:
-                            state_error = _enforce_binary_state(channel_entry, channel_index, row, "mirny")
-                            if state_error is not None:
-                                return state_error
+                        if not channel_entry.is_ramped:
+                            try:
+                                exec("channel_entry.value =" + channel_entry.evaluation, {"self": self, "channel_entry": channel_entry})
+                            except:
+                                return "mirny channel %d, edge %d" %(channel_index, row)
+                            if setting == 4:
+                                state_error = _enforce_binary_state(channel_entry, channel_index, row, "mirny")
+                                if state_error is not None:
+                                    return state_error
                         
                         #check if the value within allowed range
-                        if channel_entry.value >= self.min_dict_mirny[setting] and channel_entry.value <= self.max_dict_mirny[setting]:
+                        if channel_entry.is_ramped:
+                            table_item.setBackground(self.purple)
+                            table_item.setToolTip("ramped")
+                        elif channel_entry.value >= self.min_dict_mirny[setting] and channel_entry.value <= self.max_dict_mirny[setting]:
                             #Color coding the values and updating tooltips
                             table_item.setText(channel_entry.expression + " ")
                             if channel_entry.is_sampled:
@@ -586,6 +662,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                     current_evaluation = channel_entry.evaluation
                     current_value = channel_entry.value
                     current_for_python = channel_entry.for_python
+                    current_is_ramped = channel_entry.is_ramped
                     current_is_sampled = channel_entry.is_sampled
                     current_is_derived = channel_entry.is_derived
                     current_is_lookup = channel_entry.is_lookup                    
@@ -595,6 +672,7 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                         channel_entry.expression = current_expression
                         channel_entry.evaluation = current_evaluation
                         channel_entry.for_python = current_for_python
+                        channel_entry.is_ramped = current_is_ramped
                         channel_entry.is_sampled = current_is_sampled
                         channel_entry.is_derived = current_is_derived
                         channel_entry.is_lookup = current_is_lookup                    
@@ -602,13 +680,16 @@ def mirny_tab(self, update_expressions_and_evaluations = True, update_values_and
                     if update_values_and_table:
                         channel_entry.value = current_value
                         table_item.setText(str(current_expression) + " ")
-                        if channel_entry.is_sampled:
+                        if channel_entry.is_ramped:
+                            table_item.setBackground(self.purple)
+                            table_item.setToolTip("ramped")
+                        elif channel_entry.is_sampled:
                             table_item.setToolTip("sampled")
                         elif channel_entry.is_derived:
                             table_item.setToolTip(_format_derived_tooltip(channel_entry.expression, "derived", constant_tooltips))
                         elif channel_entry.is_lookup:
                             table_item.setToolTip("lookup")
-                        else:                        
+                        else:
                             table_item.setToolTip(str(channel_entry.value))
                     #Color coding the values
                     table_item.setBackground(self.white)
