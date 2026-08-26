@@ -6,18 +6,6 @@ from datetime import datetime
 from update import closest_key
 
 
-def _write_digital_channel_state(file, indentation, index, channel, camera_trigger=False):
-    """Write a digital TTL assignment that preserves runtime expressions."""
-    expr = str(channel.for_python)
-    if camera_trigger:
-        file.write(indentation + "if camera_enabled:\n")
-        indentation += "    "
-    file.write(indentation + "if abs((" + expr + ") - 1) < 1e-3:\n")
-    file.write(indentation + "    self.ttl" + str(index) + ".on()\n")
-    file.write(indentation + "else:\n")
-    file.write(indentation + "    self.ttl" + str(index) + ".off()\n")
-
-
 def create_experiment(self, run_continuous = False, multiple_runs = False):
     '''
     Function is used to create the description of the experimental sequence.   
@@ -296,7 +284,23 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                     file.write(indentation + "delay(1000*ns)\n")
 
                 if channel.changed == True:
-                    _write_digital_channel_state(file, indentation, index, channel, camera_trigger=(index in config.camera_trigger_ttl))
+                    if index in config.camera_trigger_ttl:
+                        if channel.value == 1:
+                            file.write(indentation + "if camera_enabled:\n")
+                            indentation += "    "
+                            file.write(indentation + "self.ttl" + str(index) + ".on()\n")
+                            indentation = indentation[:-4]
+                            file.write(indentation + "else:\n")
+                            indentation += "    "
+                            file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                            indentation = indentation[:-4]
+                        else:
+                            file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                    else:
+                        if channel.value == 1: # 1 is on 
+                            file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
+                        else:
+                            file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
             
             if edge_index == 0: #adding a 1000 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
                 file.write(indentation + "delay(1000*ns)\n")
@@ -539,7 +543,23 @@ def create_experiment(self, run_continuous = False, multiple_runs = False):
                         file.write(indentation + "delay(1000*ns)\n")
 
                     if channel.changed == True:
-                        _write_digital_channel_state(file, indentation, index, channel, camera_trigger=(index in config.camera_trigger_ttl))
+                        if index in config.camera_trigger_ttl:
+                            if channel.value == 1:
+                                file.write(indentation + "if camera_enabled:\n")
+                                indentation += "    "
+                                file.write(indentation + "self.ttl" + str(index) + ".on()\n")
+                                indentation = indentation[:-4]
+                                file.write(indentation + "else:\n")
+                                indentation += "    "
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                                indentation = indentation[:-4]
+                            else:
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n")
+                        else:
+                            if channel.value == 1: # 1 is on 
+                                file.write(indentation + "self.ttl" + str(index) + ".on()\n") 
+                            else:
+                                file.write(indentation + "self.ttl" + str(index) + ".off()\n") 
                 
                 if edge_index == 0: #adding a 1000 ns delay after 8 ttl channels because otherwise it ignores the first analog channel
                     file.write(indentation + "delay(1000*ns)\n")

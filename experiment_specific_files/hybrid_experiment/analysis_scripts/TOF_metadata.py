@@ -37,7 +37,7 @@ def read_tiff_fallback_safe(path: str) -> np.ndarray:
 DEFAULT_DATA_ROOT = Path(r"G:\Experimental Data\Hybrid\MOT_images")
 PATH_LIST_FILENAME = "path_list.txt"
 FIT_DOWNSAMPLING_FACTOR = 4
-FIT_X_Y_SEPARATELY = True
+FIT_X_Y_SEPARATELY = False
 ATOM_NUMBERS_SCRIPT = Path(__file__).resolve().with_name("atom_number.py")
 
 PIXELS_PER_MM_BY_CAMERA = {
@@ -543,10 +543,8 @@ def process_directory(directory: Path) -> None:
     settings = parse_settings(metadata)
     print(f"Processing {directory}")
     print(f"Using metadata file: {metadata_file.name}")
-    
+    print(f"Downsampling factor: {FIT_DOWNSAMPLING_FACTOR}")
     print(f"Separate X/Y Gaussian fits: {FIT_X_Y_SEPARATELY}")
-    if not FIT_X_Y_SEPARATELY:
-        print(f"Downsampling factor: {FIT_DOWNSAMPLING_FACTOR}")
 
     sorted_tifs = sort_tif_files(directory)
     image_pairs = make_background_image_pairs(sorted_tifs)

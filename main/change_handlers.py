@@ -21,32 +21,6 @@ from PyQt5.QtGui import QFont
 from data_structures import Variable
 
 
-def _apply_runtime_formula(channel_entry, expression):
-    channel_entry.expression = expression
-    channel_entry.evaluation = expression
-    channel_entry.for_python = expression
-    channel_entry.value = 0
-    channel_entry.is_scanned = False
-    channel_entry.is_ramped = True
-    channel_entry.is_sampled = False
-    channel_entry.is_derived = False
-    channel_entry.is_lookup = False
-
-
-def _row_is_within_ramp(main_window, row):
-    sequence = getattr(main_window.experiment, "sequence", [])
-    if row < 0 or row >= len(sequence):
-        return False
-    for variable in getattr(main_window.experiment, "ramped_variables", []):
-        start_row = next((index for index, edge in enumerate(sequence) if edge.id == variable.start_ID), None)
-        end_row = next((index for index, edge in enumerate(sequence) if edge.id == variable.end_ID), None)
-        if start_row is None or end_row is None:
-            continue
-        if start_row <= row <= end_row:
-            return True
-    return False
-
-
 # ==============================================================================
 # INPUT CHANGE HANDLERS
 # ==============================================================================
@@ -607,30 +581,10 @@ def handle_digital_table_changed(main_window, item):
             try: 
                 #Checking whether the expression can be evaluated and the value is within allowed range
                 expression = table_item.text()
-                if update.is_runtime_ramp_formula(expression):
-                    if not main_window.experiment.do_ramp or not _row_is_within_ramp(main_window, row):
-                        main_window.error_message("Ramp expressions require an active ramp interval", "Wrong entry")
-                        main_window.update_off()
-                        table_item.setText(str(channel.expression))
-                        main_window.update_on()
-                        return
-                    _apply_runtime_formula(channel, expression)
-                    channel.changed = True
-                    update.digital_tab(main_window)
-                    return
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
                 exec("main_window.value = " + evaluation, {"self": main_window, "main_window": main_window})
-                if (main_window.value == 0 or main_window.value == 1) or is_ramped:
+                if (main_window.value == 0 or main_window.value == 1):
                     channel.changed = True
-                    channel.expression = expression
-                    channel.evaluation = evaluation
-                    channel.for_python = for_python
-                    channel.value = main_window.value
-                    channel.is_scanned = is_scanned
-                    channel.is_ramped = is_ramped
-                    channel.is_sampled = is_sampled
-                    channel.is_derived = is_derived
-                    channel.is_lookup = is_lookup
                     update.digital_tab(main_window)
                 else:
                     #Reverting back the previously accepted expression
@@ -673,25 +627,6 @@ def handle_analog_table_changed(main_window, item):
             try:
                 #Checking whether the expression can be evaluated and the value is within allowed range                    
                 expression = table_item.text()
-                if update.is_runtime_ramp_formula(expression):
-                    if not main_window.experiment.do_ramp or not _row_is_within_ramp(main_window, row):
-                        main_window.error_message("Ramp expressions require an active ramp interval", "Wrong entry")
-                        main_window.update_off()
-                        table_item.setText(channel.expression)
-                        main_window.update_on()
-                        return
-                    channel.expression = expression
-                    channel.evaluation = expression
-                    channel.for_python = expression
-                    channel.value = 0
-                    channel.is_scanned = False
-                    channel.is_ramped = True
-                    channel.is_sampled = False
-                    channel.is_derived = False
-                    channel.is_lookup = False
-                    channel.changed = True
-                    update.analog_tab(main_window)
-                    return
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
                 exec("main_window.value =" + evaluation, {"self": main_window, "main_window": main_window})
                 if (main_window.value <= 9.9 and main_window.value >= -9.9):
@@ -729,7 +664,6 @@ def handle_dds_table_changed(main_window, item):
         edge_num = row
         channel = (col - 1)//6 #4 columns for edge and separation. division by 5 channel settings and 1 separation
         setting = col - 1 - 6 * channel # the number is a sequential value of setting. Frequency is 0, Amplitude 1, attenuation 2, phase 3, state 4
-        channel_entry = getattr(main_window.experiment.sequence[edge_num].dds[channel], main_window.setting_dict[setting])
         if main_window.dds_table.item(row,col).text() == "": #User deleted the value. The function will display the previously set state
             if edge_num == 0: #Default edge
                 main_window.error_message("You can not delete initial value!", "Initial value is needed!")
@@ -748,30 +682,15 @@ def handle_dds_table_changed(main_window, item):
             try:
                 #Checking whether the expression can be evaluated and the value is within allowed range                     
                 expression = main_window.dds_table.item(row,col).text()
-                if update.is_runtime_ramp_formula(expression):
-                    if not main_window.experiment.do_ramp or not _row_is_within_ramp(main_window, row):
-                        main_window.error_message("Ramp expressions require an active ramp interval", "Wrong entry")
-                        main_window.update_off()
-                        exec("main_window.dds_table.item(row,col).setText(str(main_window.experiment.sequence[edge_num].dds[channel].%s.expression))" %main_window.setting_dict[setting])
-                        main_window.update_on()
-                        return
-                    _apply_runtime_formula(channel_entry, expression)
-                    channel.changed = True
-                    update.dds_tab(main_window)
-                    return
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
                 exec("main_window.dummy_val =" + evaluation, {"self": main_window, "main_window": main_window})
                 maximum, minimum = main_window.max_dict_dds[setting], main_window.min_dict_dds[setting]
-                if (main_window.dummy_val <= maximum and main_window.dummy_val >= minimum) or is_ramped: 
-                    channel_entry.expression = expression
-                    channel_entry.evaluation = evaluation
-                    channel_entry.for_python = for_python
-                    channel_entry.value = main_window.dummy_val
-                    channel_entry.is_scanned = is_scanned
-                    channel_entry.is_ramped = is_ramped
-                    channel_entry.is_sampled = is_sampled
-                    channel_entry.is_derived = is_derived
-                    channel_entry.is_lookup = is_lookup
+                if (main_window.dummy_val <= maximum and main_window.dummy_val >= minimum): 
+                    exec("main_window.experiment.sequence[edge_num].dds[channel].%s.expression = expression" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].dds[channel].%s.evaluation = evaluation" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].dds[channel].%s.for_python = for_python" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].dds[channel].%s.value = main_window.dummy_val" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].dds[channel].%s.for_python = for_python" %main_window.setting_dict[setting])
                     main_window.experiment.sequence[edge_num].dds[channel].changed = True
                     update.dds_tab(main_window)
                 else:
@@ -813,7 +732,6 @@ def handle_mirny_table_changed(main_window, item):
         edge_num = row
         channel = col // 6
         setting = col - (channel * 6) - 1 # Frequency is 0, Amplitude 1, attenuation 2, phase 3, state 4
-        channel_entry = getattr(main_window.experiment.sequence[edge_num].mirny[channel], main_window.setting_dict[setting])
         if edge_num < 0 or edge_num >= len(main_window.experiment.sequence):
             return
         if main_window.mirny_table.item(row,col).text() == "": #User deleted the value. The function will display the previously set state
@@ -836,30 +754,15 @@ def handle_mirny_table_changed(main_window, item):
             try:
                 #Checking whether the expression can be evaluated and the value is within allowed range                     
                 expression = main_window.mirny_table.item(row,col).text()
-                if update.is_runtime_ramp_formula(expression):
-                    if not main_window.experiment.do_ramp or not _row_is_within_ramp(main_window, row):
-                        main_window.error_message("Ramp expressions require an active ramp interval", "Wrong entry")
-                        main_window.update_off()
-                        exec("main_window.mirny_table.item(row,col).setText(str(main_window.experiment.sequence[edge_num].mirny[channel].%s.expression))" %main_window.setting_dict[setting])
-                        main_window.update_on()
-                        return
-                    _apply_runtime_formula(channel_entry, expression)
-                    channel.changed = True
-                    update.mirny_tab(main_window)
-                    return
                 (expression, evaluation, for_python, is_scanned, is_ramped, is_sampled, is_derived, is_lookup) = main_window.decode_input(expression)
                 exec("main_window.dummy_val =" + evaluation, {"self": main_window, "main_window": main_window})
                 maximum, minimum = main_window.max_dict_mirny[setting], main_window.min_dict_mirny[setting]
-                if (main_window.dummy_val <= maximum and main_window.dummy_val >= minimum) or is_ramped: 
-                    channel_entry.expression = expression
-                    channel_entry.evaluation = evaluation
-                    channel_entry.for_python = for_python
-                    channel_entry.value = main_window.dummy_val
-                    channel_entry.is_scanned = is_scanned
-                    channel_entry.is_ramped = is_ramped
-                    channel_entry.is_sampled = is_sampled
-                    channel_entry.is_derived = is_derived
-                    channel_entry.is_lookup = is_lookup
+                if (main_window.dummy_val <= maximum and main_window.dummy_val >= minimum): 
+                    exec("main_window.experiment.sequence[edge_num].mirny[channel].%s.expression = expression" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].mirny[channel].%s.evaluation = evaluation" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].mirny[channel].%s.for_python = for_python" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].mirny[channel].%s.value = main_window.dummy_val" %main_window.setting_dict[setting])
+                    exec("main_window.experiment.sequence[edge_num].mirny[channel].%s.for_python = for_python" %main_window.setting_dict[setting])
                     main_window.experiment.sequence[edge_num].mirny[channel].changed = True
                     update.mirny_tab(main_window)
                 else:
